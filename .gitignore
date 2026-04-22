@@ -37,3 +37,7 @@ next-env.d.ts
 
 # Claude Code internal files
 .claude/
+
+# PDF processing temp files
+_pdfs/
+_tmp/
