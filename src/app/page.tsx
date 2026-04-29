@@ -73,7 +73,24 @@ export default async function Home() {
           </Link>
         </div>
 
-        <p className="text-xs text-gray-400 text-center mt-8">
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <Link
+            href="/assessment"
+            className="block bg-gradient-to-r from-teal-500 to-teal-600 rounded-2xl p-5 shadow-sm hover:shadow-md transition active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center text-2xl">
+                📝
+              </div>
+              <div>
+                <p className="font-semibold text-white">學前評估</p>
+                <p className="text-xs text-white/80 mt-0.5">免費評估數學程度，即時獲取診斷報告</p>
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        <p className="text-xs text-gray-400 text-center mt-6">
           首次使用請聯絡老師開設帳戶
         </p>
       </div>

@@ -145,6 +145,17 @@ export default async function AdminHome() {
           </div>
           <span className="text-gray-400">→</span>
         </Link>
+
+        <Link
+          href="/admin/assessments"
+          className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+        >
+          <div>
+            <h2 className="font-semibold">學前評估記錄</h2>
+            <p className="text-sm text-gray-500 mt-0.5">查看公開評估提交的學生聯絡資料</p>
+          </div>
+          <span className="text-gray-400">→</span>
+        </Link>
       </div>
     </main>
   )

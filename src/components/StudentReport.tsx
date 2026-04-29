@@ -17,7 +17,13 @@ type SessionRow = {
 type WrongGroup = {
   category_name: string
   category_code: string
-  questions: { id: string; question_text: string; wrong_count: number }[]
+  questions: {
+    id: string
+    question_text: string
+    correct_answer: string
+    last_wrong_answer: string
+    wrong_count: number
+  }[]
 }
 
 export type ReportMode = 'admin' | 'parent'
@@ -218,11 +224,27 @@ export default function StudentReport({
                   <span className="text-sm font-semibold text-gray-800">{g.category_name}</span>
                   <span className="ml-auto text-xs text-gray-400">{g.questions.length} 題</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {g.questions.map((q) => (
-                    <div key={q.id} className="flex items-start gap-2">
-                      <p className="flex-1 text-xs text-gray-600 line-clamp-2">{q.question_text}</p>
-                      <span className="text-xs text-red-500 shrink-0">×{q.wrong_count}</span>
+                    <div key={q.id} className="rounded-xl bg-gray-50 px-3 py-2.5">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <p className="text-xs text-gray-700 leading-relaxed flex-1">{q.question_text}</p>
+                        <span className="text-xs text-red-400 shrink-0 font-medium">×{q.wrong_count}</span>
+                      </div>
+                      {q.last_wrong_answer && (
+                        <div className="flex items-center gap-3 text-xs flex-wrap">
+                          <span className="flex items-center gap-1 text-amber-600">
+                            <span className="font-medium">學生答：</span>
+                            <span className="line-through opacity-80">{q.last_wrong_answer}</span>
+                          </span>
+                          {q.correct_answer && (
+                            <span className="flex items-center gap-1 text-teal-600">
+                              <span className="font-medium">正確：</span>
+                              <span className="font-semibold">{q.correct_answer}</span>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

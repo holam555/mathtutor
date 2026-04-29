@@ -80,10 +80,11 @@ export default function NewQuestionForm({ categories }: { categories: QuestionCa
       {/* Question type */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">題目類型</label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {[
             { value: 'multiple_choice', label: '選擇題' },
-            { value: 'fill_in', label: '填充題' },
+            { value: 'fill_in', label: '填充題（文字）' },
+            { value: 'fill_in_number', label: '數字填充' },
             { value: 'calculation', label: '計算題' },
           ].map((t) => (
             <label

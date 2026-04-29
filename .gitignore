@@ -40,4 +40,10 @@ next-env.d.ts
 
 # PDF processing temp files
 _pdfs/
+_pdfs:/
 _tmp/
+_tmp_resized/
+
+# Root-level dev scripts (not part of deployed app)
+/lib/
+/scripts/

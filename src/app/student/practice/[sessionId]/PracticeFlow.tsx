@@ -4,8 +4,15 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Question } from '@/types/database'
 import { isAnswerCorrect } from '@/lib/answerUtils'
+import FractionDisplay, { InlineMath } from '@/components/FractionDisplay'
 
 type FeedbackState = 'idle' | 'correct' | 'wrong'
+
+/** Returns true if the answer is a pure number, decimal, fraction or mixed number.
+ *  Used to auto-show the custom fraction keyboard for fill_in questions. */
+function isNumericAnswer(answer: string): boolean {
+  return /^-?\d+(\.\d+)?(又\d+\/\d+|\/\d+)?$/.test(answer.trim())
+}
 
 // 4-column numeric keyboard rows: [label, value] pairs
 // value === 'backspace' | 'confirm' are special actions
@@ -37,6 +44,13 @@ export default function PracticeFlow({
   const qType = currentQuestion.question_type
   const progress = ((currentIndex + (feedback !== 'idle' ? 1 : 0)) / questions.length) * 100
 
+  // Show the custom fraction keyboard for fill_in_number, calculation, OR fill_in
+  // questions whose correct answer is a number/fraction (no need to re-tag in DB).
+  const useCustomKeyboard =
+    qType === 'fill_in_number' ||
+    qType === 'calculation' ||
+    (qType === 'fill_in' && isNumericAnswer(currentQuestion.correct_answer))
+
   const advanceOrFinish = useCallback(
     async (finalCorrectCount: number) => {
       if (currentIndex + 1 >= questions.length) {
@@ -64,12 +78,12 @@ export default function PracticeFlow({
     return () => clearTimeout(timer)
   }, [feedback, correctCount, advanceOrFinish])
 
-  // Focus text input when switching to fill_in question
+  // Focus text input when using system keyboard
   useEffect(() => {
-    if (qType === 'fill_in' && feedback === 'idle') {
+    if (!useCustomKeyboard && qType !== 'multiple_choice' && feedback === 'idle') {
       setTimeout(() => textInputRef.current?.focus(), 100)
     }
-  }, [currentIndex, qType, feedback])
+  }, [currentIndex, qType, feedback, useCustomKeyboard])
 
   async function submitAnswer(answer: string) {
     if (feedback !== 'idle' || isSubmitting || !answer.trim()) return
@@ -161,13 +175,13 @@ export default function PracticeFlow({
       {/* Question area */}
       <div className="flex-1 px-5 pt-6 pb-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm min-h-[140px] flex items-start">
-          <p className="text-[18px] leading-relaxed text-gray-800" style={{ lineHeight: '1.6' }}>
-            {currentQuestion.question_text}
+          <p className="text-[18px] text-gray-800" style={{ lineHeight: '1.6' }}>
+            <InlineMath text={currentQuestion.question_text} />
           </p>
         </div>
 
-        {/* Answer display for fill_in (text input) */}
-        {qType === 'fill_in' && (
+        {/* System text keyboard input (text answers: units, names, expressions, ordering) */}
+        {!useCustomKeyboard && qType !== 'multiple_choice' && (
           <input
             ref={textInputRef}
             type="text"
@@ -186,10 +200,12 @@ export default function PracticeFlow({
           />
         )}
 
-        {/* Answer display box for fill_in_number / calculation */}
-        {(qType === 'fill_in_number' || qType === 'calculation') && (
+        {/* Custom keyboard display box (numbers, fractions, mixed numbers) */}
+        {useCustomKeyboard && (
           <div className={fillDisplayClass}>
-            {fillInput || <span className="text-gray-300 text-base">輸入答案</span>}
+            {fillInput
+              ? <FractionDisplay value={fillInput} />
+              : <span className="text-gray-300 text-base">輸入答案</span>}
           </div>
         )}
 
@@ -219,8 +235,8 @@ export default function PracticeFlow({
           </div>
         )}
 
-        {/* fill_in — system keyboard, submit button */}
-        {qType === 'fill_in' && (
+        {/* System keyboard — confirm button */}
+        {!useCustomKeyboard && qType !== 'multiple_choice' && (
           <button
             onClick={() => submitAnswer(fillInput)}
             disabled={feedback !== 'idle' || !fillInput.trim()}
@@ -230,8 +246,8 @@ export default function PracticeFlow({
           </button>
         )}
 
-        {/* fill_in_number and calculation — custom number keyboard */}
-        {(qType === 'fill_in_number' || qType === 'calculation') && (
+        {/* Custom fraction keyboard */}
+        {useCustomKeyboard && (
           <div className="grid grid-cols-4 gap-2">
             {NUMBER_KEYBOARD.flat().map(([label, value]) => {
               const isConfirm = value === 'confirm'
@@ -240,10 +256,7 @@ export default function PracticeFlow({
                 <button
                   key={value}
                   onClick={() => handleNumKey(value)}
-                  disabled={
-                    feedback !== 'idle' ||
-                    (isConfirm && !fillInput.trim())
-                  }
+                  disabled={feedback !== 'idle' || (isConfirm && !fillInput.trim())}
                   className={`h-14 rounded-lg text-lg font-medium transition active:scale-[0.95] disabled:opacity-40 ${
                     isConfirm
                       ? 'bg-[#1D9E75] text-white text-base font-semibold'
@@ -274,7 +287,12 @@ export default function PracticeFlow({
             <span className="text-2xl">{feedback === 'correct' ? '🎉' : '✨'}</span>
           </div>
           {feedback === 'wrong' && (
-            <p className="text-xs text-white/80 mt-1">已加入挑戰題，下次再戰！</p>
+            <div className="mt-1">
+              <p className="text-sm font-semibold text-white flex items-center gap-1 flex-wrap">
+                正確答案：<FractionDisplay value={currentQuestion.correct_answer} />
+              </p>
+              <p className="text-xs text-white/70 mt-0.5">已加入挑戰題，下次再戰！</p>
+            </div>
           )}
         </div>
       )}

@@ -67,21 +67,49 @@ export async function fetchStudentReport(studentId: string, range: TimeRange) {
     .eq('is_resolved', false)
     .order('wrong_count', { ascending: false })
 
-  // Fetch question texts in one go
+  // Fetch question texts + correct answers in one go
   const questionIds = Array.from(new Set((wrongRaw ?? []).map((w) => w.question_id)))
   const questionTextMap = new Map<string, string>()
+  const correctAnswerMap = new Map<string, string>()
   if (questionIds.length > 0) {
     const { data: qs } = await service
       .from('questions')
-      .select('id, question_text')
+      .select('id, question_text, correct_answer')
       .in('id', questionIds)
-    for (const q of qs ?? []) questionTextMap.set(q.id, q.question_text)
+    for (const q of qs ?? []) {
+      questionTextMap.set(q.id, q.question_text)
+      correctAnswerMap.set(q.id, q.correct_answer)
+    }
+  }
+
+  // Fetch the most recent wrong answer per question from answer_records
+  const lastWrongAnswerMap = new Map<string, string>()
+  if (questionIds.length > 0) {
+    const { data: wrongAnswerRows } = await service
+      .from('answer_records')
+      .select('question_id, student_answer, answered_at')
+      .eq('student_id', studentId)
+      .in('question_id', questionIds)
+      .eq('is_correct', false)
+      .order('answered_at', { ascending: false })
+    // Take only the most recent wrong answer per question
+    for (const row of wrongAnswerRows ?? []) {
+      if (!lastWrongAnswerMap.has(row.question_id)) {
+        lastWrongAnswerMap.set(row.question_id, row.student_answer ?? '')
+      }
+    }
   }
 
   type WrongGroup = {
     category_name: string
     category_code: string
-    questions: { id: string; question_text: string; wrong_count: number }[]
+    questions: {
+      id: string
+      question_text: string
+      correct_answer: string
+      last_wrong_answer: string
+      wrong_count: number
+    }[]
   }
 
   const groupMap = new Map<string, WrongGroup>()
@@ -95,6 +123,8 @@ export async function fetchStudentReport(studentId: string, range: TimeRange) {
     groupMap.get(key)!.questions.push({
       id: w.question_id,
       question_text: questionTextMap.get(w.question_id) ?? '(題目已刪除)',
+      correct_answer: correctAnswerMap.get(w.question_id) ?? '',
+      last_wrong_answer: lastWrongAnswerMap.get(w.question_id) ?? '',
       wrong_count: w.wrong_count ?? 1,
     })
   }
