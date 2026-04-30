@@ -137,47 +137,7 @@ function assignPriorities(
 }
 
 type WrongPair = { question: string; studentAnswer: string; correctAnswer: string }
-
-// ── Gemini: per-module diagnostic comment ─────────────────────────────────
-
-async function generateModuleComment(
-  ai: GoogleGenAI,
-  studentName: string,
-  gradeLabel: string,
-  module: Omit<ModuleResult, 'comment'>,
-  wrongPairs: WrongPair[]
-): Promise<string> {
-  const pct = module.total > 0 ? Math.round((module.correct / module.total) * 100) : 0
-
-  const wrongSection = wrongPairs.length > 0
-    ? `\n答錯的題目：\n${wrongPairs.map((w, i) =>
-        `${i + 1}. 題目：${w.question}\n   學生答：${w.studentAnswer}　正確答案：${w.correctAnswer}`
-      ).join('\n')}`
-    : '\n（此範疇全部答對）'
-
-  const prompt = `你是香港升分秘笈補習社的資深數學老師，為家長撰寫學前評估報告。
-學生：${studentName}，年級：${gradeLabel}
-範疇：${module.name}（共${module.total}題，答對${module.correct}題，正確率${pct}%，評級${RATING_LABELS[module.rating]}）${wrongSection}
-
-請用繁體中文寫三段診斷評語（共約180字）：
-第一段（約60字）：根據答題結果，具體描述學生在此範疇的知識掌握程度，點出哪些子題型掌握較好
-第二段（約70字）：分析答錯的題目，指出錯誤的具體模式（例如：通分步驟有誤、計算粗心、概念理解不完整），不批評學生
-第三段（約50字）：針對上述弱點，給出1至2個具體可行的改善建議
-
-要求：
-- 親切客觀，以家長為讀者
-- 不提及評級字母（S/A/B/C）
-- 不加標題或分點符號，直接寫連貫段落
-- 如全部答對，第二段改為肯定觀察，第三段改為如何保持`
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: { temperature: 0.7 },
-  })
-
-  return (response.text ?? '').trim()
-}
+type CorrectPair = { question: string; correctAnswer: string }
 
 // ── Gemini: rich report sections ──────────────────────────────────────────
 
@@ -188,6 +148,7 @@ async function generateRichReport(
   strongModules: Omit<ModuleResult, 'comment'>[],
   weakWithPriority: { module: Omit<ModuleResult, 'comment'>; priority: WeakArea['priority'] }[],
   moduleWrongAnswers: Map<string, WrongPair[]>,
+  moduleCorrectExamples: Map<string, CorrectPair[]>,
   score: number,
   band: string,
 ): Promise<{
@@ -199,7 +160,9 @@ async function generateRichReport(
   const strongStr = strongModules.length > 0
     ? strongModules.map((m) => {
         const pct = m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0
-        return `- ${m.name}：${m.correct}/${m.total}（${pct}%）評級${RATING_LABELS[m.rating]}`
+        const examples = moduleCorrectExamples.get(m.name) ?? []
+        const exStr = examples.slice(0, 3).map((e) => `「${e.question}」（答：${e.correctAnswer}）`).join('；')
+        return `- ${m.name}：${m.correct}/${m.total}（${pct}%）評級${RATING_LABELS[m.rating]}\n  答對題目例子：${exStr || '（無詳細記錄）'}`
       }).join('\n')
     : '無'
 
@@ -209,57 +172,86 @@ async function generateRichReport(
         const pairs = moduleWrongAnswers.get(m.name) ?? []
         const examplesStr = pairs.slice(0, 3).map((w) =>
           `「${w.question}」（學生答：${w.studentAnswer}，正確：${w.correctAnswer}）`
-        ).join('；')
-        return `- ${m.name}：${m.correct}/${m.total}（${pct}%）評級${RATING_LABELS[m.rating]}，優先級：${priority}\n  答錯示例：${examplesStr || '無'}`
-      }).join('\n')
+        ).join('\n  ')
+        return `- ${m.name}：${m.correct}/${m.total}（${pct}%）評級${RATING_LABELS[m.rating]}，優先級：${priority}\n  答錯示例：\n  ${examplesStr || '無'}`
+      }).join('\n\n')
     : '無'
 
   const prompt = `你是香港升分秘笈補習社的資深數學老師，正在為小學生${studentName}（${gradeLabel}）撰寫學前評估診斷報告。
 整體得分：${score}分（${band}）
 
-表現良好的範疇：
+===表現良好的範疇（S/A評級）===
 ${strongStr}
 
-需要加強的範疇（含答錯題目示例）：
+===需要加強的範疇（B/C評級，含答錯示例）===
 ${weakStr}
 
-請用繁體中文輸出以下JSON，不要包含markdown code block：
+請嚴格按照以下JSON格式輸出，不要包含markdown code block。每個欄位的內容必須參考上方提供的實際答題數據，不可泛泛而談：
+
 {
-  "overallSummary": "整體評語，約200字。結構：（1）開首肯定學生完成評估（2）逐一點評各範疇實際表現，引用具體數字（正確率、哪些範疇答得好、哪些有改善空間）（3）分析答錯題目反映的學習模式或知識缺口（4）溫馨鼓勵家長預約免費試堂以制定個人化計劃。語氣像面談一樣親切專業。",
+  "overallSummary": "2至3句整體評語，提及${studentName}的具體得分、最突出的強項範疇和最需要提升的範疇，語氣親切鼓勵。",
   "strongAreas": [
     {
-      "title": "具體強項名稱（比模塊更具體，例如「帶分數加減運算」、「因數倍數辨識」，不要只說模塊名稱）",
-      "observation": "兩至三句具體觀察：說明學生在此範疇展現了什麼能力，答對了哪類題型，反映了什麼概念的紮實掌握",
-      "tip": "一至兩句維持建議，告訴家長具體可以怎樣鞏固此強項（如每週練習類型、可以挑戰更難的題目等）"
+      "title": "帶emoji的具體技能名稱。格式：emoji + 技能（例如「🎯 分數比較理解」「🧮 整數計算準確率高」「📐 面積公式應用」「📊 圖表數據理解」），emoji要與技能相關，技能名稱要比模塊名稱更具體",
+      "observation": "兩至三句具體觀察，必須：①引用上方提供的實際答對題目作例子；②說明這顯示學生掌握了什麼具體概念。參考格式：「學生能正確[描述技能]，包括[引用實際題目例子]。這顯示學生對[具體概念]有良好理解，能[具體能力]。」",
+      "tip": "建議：這個能力要繼續保持，[具體維持方法，必須包含頻率如每天/每週和題量如2-3題]。"
     }
   ],
   "weakAreas": [
     {
-      "name": "範疇名稱",
-      "priority": "最高優先|高優先|中優先",
-      "errorTypes": ["根據答錯示例歸納的具體錯誤類型（約10至15字，例如「通分時分母計算有誤」）", "另一個錯誤類型"],
-      "rootCause": "根本原因分析（約40字，結合答錯示例，從學習角度分析為何出現這些錯誤，例如步驟遺漏、概念混淆、粗心等）",
+      "name": "範疇名稱（與輸入一致）",
+      "priority": "最高優先|高優先|中優先（與輸入一致）",
+      "errorTypes": [
+        "根據上方答錯示例歸納的具體錯誤，必須在括號內引用實際錯誤例子（格式：錯誤描述（如 具體題目的具體錯誤寫法）），例如「小數點位移方向錯誤（如 2.5 × 3 = 7.5寫成0.75）」",
+        "第二個具體錯誤類型（同樣必須有括號例子）"
+      ],
+      "rootCause": "概念層面根本原因（40至60字）。必須說明學生「懂什麼但缺了哪個環節」。格式：「學生[已掌握的部分]，但[具體知識缺口]。當[遇到什麼情況]時，[會出現什麼問題]。」",
       "solutions": [
-        { "title": "方法名稱（4至6字）", "detail": "針對上述錯誤的具體改善做法（約35字）" },
-        { "title": "方法名稱（4至6字）", "detail": "針對上述錯誤的具體改善做法（約35字）" },
-        { "title": "方法名稱（4至6字）", "detail": "針對上述錯誤的具體改善做法（約35字）" }
+        {
+          "title": "「[具體方法名稱]」訓練",
+          "detail": "以「我們的[X系統/X訓練]中有一套「[方法名稱]」」開頭，說明訓練方式（40至60字），如有需要可加一個具體計算例子。例如：「我們的計算系統中有一套「元角轉換法」，訓練學生將小數乘法轉換為元角分運算，確保小數點位置正確。例如 2.5 × 3 = 2元5角 × 3 = 6元15角 = 7.5元。」"
+        },
+        {
+          "title": "「[具體方法名稱]」練習",
+          "detail": "同上格式，另一個針對此弱項的訓練方法（40至60字）"
+        },
+        {
+          "title": "「[具體方法名稱]」應用",
+          "detail": "同上格式，第三個訓練方法，側重建立習慣或系統化練習（40至60字）"
+        }
       ]
     }
   ],
   "learningPlan": [
-    { "priority": "第一優先", "area": "範疇名稱", "action": "具體學習行動（約20字）" },
-    { "priority": "第二優先", "area": "範疇名稱", "action": "具體學習行動（約20字）" },
-    { "priority": "第三優先", "area": "範疇名稱", "action": "具體學習行動（約20字）" },
-    { "priority": "持續練習", "area": "強項範疇名稱", "action": "維持強項的方法（約20字）" }
+    {
+      "priority": "第一優先",
+      "area": "最需要加強的範疇名稱",
+      "action": "每天X題，重點訓練[方法名稱]，目標X週內掌握"
+    },
+    {
+      "priority": "第二優先",
+      "area": "第二需要加強的範疇名稱",
+      "action": "每週X題，練習[具體方法]，目標X個月內熟練"
+    },
+    {
+      "priority": "第三優先",
+      "area": "第三需要加強的範疇名稱（如無則用強項）",
+      "action": "具體行動，包含頻率和目標"
+    },
+    {
+      "priority": "持續練習",
+      "area": "最強的範疇名稱",
+      "action": "每週X題，保持強項不倒退"
+    }
   ]
 }
 
-注意事項：
-- strongAreas：每個S/A評級範疇各生成一個條目
-- weakAreas：按優先順序排列（最高優先在前），保留輸入資料指定的優先級
-- 如果沒有強項或弱項，對應陣列返回空 []
-- learningPlan：弱項優先，強項持續練習在後（最多4個條目）
-- 語氣專業友善，像在跟家長面談一樣`
+重要規定：
+- strongAreas必須引用實際答對題目，不可憑空捏造例子
+- weakAreas錯誤類型必須根據提供的答錯示例，引用實際錯誤數字/寫法
+- 所有solutions的方法名稱必須是專業的「四至六字方法名」，體現升分秘笈的專業性
+- learningPlan每條都必須有頻率（每天/每週X題）和時間目標
+- 如無強項或無弱項，對應陣列返回 []`
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -346,8 +338,9 @@ export async function generateAssessmentReport(
   const weakModules = moduleResults.filter((m) => m.rating === 'B' || m.rating === 'C')
   const weakWithPriority = assignPriorities(weakModules)
 
-  // Build wrong answer context per module
+  // Build wrong and correct answer context per module
   const moduleWrongAnswers = new Map<string, WrongPair[]>()
+  const moduleCorrectExamples = new Map<string, CorrectPair[]>()
   for (const a of answers) {
     if (!a.is_correct) {
       if (!moduleWrongAnswers.has(a.module_name)) moduleWrongAnswers.set(a.module_name, [])
@@ -356,21 +349,23 @@ export async function generateAssessmentReport(
         studentAnswer: a.student_answer,
         correctAnswer: a.correct_answer,
       })
+    } else {
+      if (!moduleCorrectExamples.has(a.module_name)) moduleCorrectExamples.set(a.module_name, [])
+      moduleCorrectExamples.get(a.module_name)!.push({
+        question: a.question_text,
+        correctAnswer: a.correct_answer,
+      })
     }
   }
 
-  // Run module comments and rich report sections in parallel
-  const [moduleComments, richReport] = await Promise.all([
-    Promise.all(moduleResults.map((m) =>
-      generateModuleComment(ai, studentName, gradeLabel, m, moduleWrongAnswers.get(m.name) ?? [])
-    )),
-    generateRichReport(ai, studentName, gradeLabel, strongModules, weakWithPriority, moduleWrongAnswers, score, band),
-  ])
+  const richReport = await generateRichReport(
+    ai, studentName, gradeLabel,
+    strongModules, weakWithPriority,
+    moduleWrongAnswers, moduleCorrectExamples,
+    score, band,
+  )
 
-  const modules: ModuleResult[] = moduleResults.map((m, i) => ({
-    ...m,
-    comment: moduleComments[i],
-  }))
+  const modules: ModuleResult[] = moduleResults.map((m) => ({ ...m, comment: '' }))
 
   return {
     modules,

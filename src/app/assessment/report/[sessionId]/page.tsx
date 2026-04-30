@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
-import { RATING_LABELS, RATING_COLORS } from '@/lib/assessmentUtils'
+import { RATING_COLORS } from '@/lib/assessmentUtils'
 import type { ReportData, Rating, AssessmentAnswer } from '@/types/assessment'
 
 type AssessmentSession = {
@@ -51,8 +51,8 @@ export default async function AssessmentReportPage({
 
   const dateStr = new Date(s.created_at).toLocaleDateString('zh-HK', {
     year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
+    month: 'long',
+    day: 'numeric',
   })
 
   const score = report.score ?? (
@@ -60,7 +60,6 @@ export default async function AssessmentReportPage({
       ? Math.round((report.totalCorrect / report.totalQuestions) * 100)
       : 0
   )
-
   const band = report.band ?? (score >= 85 ? 'Band 1' : score >= 65 ? 'Band 2' : 'Band 3')
   const bandDescription = report.bandDescription ?? ''
   const strongAreas = report.strongAreas ?? []
@@ -74,70 +73,40 @@ export default async function AssessmentReportPage({
     wrongByModule.get(a.module_name)!.push(a)
   }
 
+  const bandColor = band === 'Band 1' ? '#1D9E75' : band === 'Band 2' ? '#F59E0B' : '#EF4444'
+
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-2xl mx-auto space-y-5">
+      <div className="max-w-2xl mx-auto space-y-6">
 
-        {/* ── Cover Card ── */}
-        <div
-          className="rounded-2xl overflow-hidden shadow-md"
-          style={{ background: 'linear-gradient(135deg, #1D9E75 0%, #0E7CBF 100%)' }}
-        >
-          <div className="px-6 py-8 text-white">
-            <div className="mb-5">
-              <p className="text-white/70 text-xs font-medium tracking-widest uppercase mb-1">
-                升分秘笈 數學學習評估報告
-              </p>
-              <h1 className="text-2xl font-bold">{s.student_name} 的診斷報告</h1>
-            </div>
-
-            {/* 3-column stats */}
-            <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="bg-white/15 rounded-xl px-3 py-3 text-center">
-                <div className="text-3xl font-bold">{score}</div>
-                <div className="text-white/70 text-xs mt-0.5">整體分數</div>
-              </div>
-              <div className="bg-white/15 rounded-xl px-3 py-3 text-center">
-                <div className="text-xl font-bold leading-tight mt-1">{band}</div>
-                <div className="text-white/70 text-xs mt-0.5">預估程度</div>
-              </div>
-              <div className="bg-white/15 rounded-xl px-3 py-3 text-center">
-                <div className="text-3xl font-bold">{strongAreas.length}</div>
-                <div className="text-white/70 text-xs mt-0.5">個強項範疇</div>
-              </div>
-            </div>
-
-            {/* Student info */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <div>
-                <p className="text-white/60 text-xs mb-0.5">學校</p>
-                <p className="font-medium">{s.school_name || '—'}</p>
-              </div>
-              <div>
-                <p className="text-white/60 text-xs mb-0.5">年級</p>
-                <p className="font-medium">{s.grade_level}</p>
-              </div>
-              <div>
-                <p className="text-white/60 text-xs mb-0.5">評估日期</p>
-                <p className="font-medium">{dateStr}</p>
-              </div>
-              <div>
-                <p className="text-white/60 text-xs mb-0.5">題目數量</p>
-                <p className="font-medium">{report.totalCorrect}/{report.totalQuestions} 題正確</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Band bar */}
-          <div className="bg-white/10 px-6 py-3">
-            <p className="text-white/90 text-xs">{band} · {bandDescription}</p>
-          </div>
+        {/* ── Header ── */}
+        <div className="text-center">
+          <p className="text-gray-400 text-xs tracking-widest uppercase mb-1">升分秘笈 · 學習評估報告</p>
+          <h1 className="text-2xl font-bold text-gray-800">P5 數學學習評估</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            學生：{s.student_name} ｜ {s.grade_level} ｜ {dateStr}
+          </p>
         </div>
 
-        {/* ── Overall Summary ── */}
-        <div className="bg-white rounded-2xl shadow-sm px-5 py-5">
-          <h2 className="font-bold text-gray-800 text-base mb-3">整體評語</h2>
-          <p className="text-sm text-gray-700 leading-relaxed">{report.overallSummary}</p>
+        {/* ── 3-column score card ── */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+            <div className="text-4xl font-bold" style={{ color: '#1D9E75' }}>{score}</div>
+            <div className="text-xs text-gray-500 mt-1">評估總分</div>
+            <div className="text-xs text-gray-400">滿分100</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+            <div className="text-2xl font-bold mt-1" style={{ color: bandColor }}>{band}</div>
+            <div className="text-xs text-gray-500 mt-1">呈分試預估</div>
+            <div className="text-xs text-gray-400 leading-tight">{bandDescription}</div>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
+            <div className="text-4xl font-bold" style={{ color: '#1D9E75' }}>{strongAreas.length}個</div>
+            <div className="text-xs text-gray-500 mt-1">強項範疇</div>
+            <div className="text-xs text-gray-400 leading-tight truncate">
+              {strongAreas.map((a) => a.title.replace(/^[^一-龥a-zA-Z]+/, '')).join('、') || '—'}
+            </div>
+          </div>
         </div>
 
         {/* ── Strong Areas ── */}
@@ -149,23 +118,16 @@ export default async function AssessmentReportPage({
             </div>
             <div className="divide-y divide-gray-50">
               {strongAreas.map((area, i) => (
-                <div key={i} className="px-5 py-5">
-                  <div className="flex items-center gap-2 mb-2">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: '#1D9E75' }}
-                    >
-                      {i + 1}
-                    </div>
-                    <h3 className="font-semibold text-gray-800 text-sm">{area.title}</h3>
-                  </div>
-                  <p className="text-xs text-gray-600 leading-relaxed mb-3 ml-9">
+                <div key={i} className="px-5 py-5" style={{ borderLeft: '4px solid #1D9E75' }}>
+                  <h3 className="font-bold text-base mb-2" style={{ color: '#1D9E75' }}>
+                    {area.title}
+                  </h3>
+                  <p className="text-sm text-gray-700 leading-relaxed mb-3">
                     {area.observation}
                   </p>
-                  <div className="ml-9 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5">
-                    <p className="text-xs text-teal-700 leading-relaxed">
-                      <span className="font-semibold">💡 建議：</span>{area.tip}
-                    </p>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-sm flex-shrink-0">💡</span>
+                    <p className="text-xs text-gray-500 leading-relaxed">{area.tip}</p>
                   </div>
                 </div>
               ))}
@@ -185,55 +147,57 @@ export default async function AssessmentReportPage({
                 const colors = PRIORITY_COLORS[area.priority] ?? PRIORITY_COLORS['中優先']
                 return (
                   <div key={i} className="px-5 py-5">
-                    {/* Header */}
-                    <div className="flex items-center gap-2 mb-4">
+                    {/* Title row */}
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-base text-gray-800">
+                        {i + 1}. {area.name}
+                      </h3>
                       <span
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${colors.bg} ${colors.text} ${colors.border}`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border ${colors.bg} ${colors.text} ${colors.border}`}
                       >
                         <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
                         {area.priority}
                       </span>
-                      <h3 className="font-semibold text-gray-800 text-sm">{area.name}</h3>
                     </div>
 
-                    {/* Error analysis */}
+                    {/* 問題分析 */}
                     <div className="mb-4">
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                        問題分析
-                      </p>
-                      <div className="space-y-1.5 mb-3">
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <span className="text-sm">📋</span>
+                        <p className="text-xs font-semibold text-gray-600">問題分析</p>
+                      </div>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">錯誤類型：</p>
+                      <div className="space-y-1 mb-3 ml-1">
                         {area.errorTypes.map((e, j) => (
                           <div key={j} className="flex items-start gap-2">
-                            <span className="text-xs text-red-400 mt-0.5 flex-shrink-0">•</span>
-                            <span className="text-xs text-gray-700">{e}</span>
+                            <span className="text-xs text-gray-400 mt-0.5 flex-shrink-0">•</span>
+                            <span className="text-xs text-gray-700 leading-relaxed">{e}</span>
                           </div>
                         ))}
                       </div>
-                      <div className="bg-gray-50 rounded-xl px-3 py-2.5">
-                        <p className="text-xs text-gray-600 leading-relaxed">
-                          <span className="font-semibold text-gray-700">根本原因：</span>
-                          {area.rootCause}
-                        </p>
-                      </div>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        <span className="font-semibold">根本原因：</span>{area.rootCause}
+                      </p>
                     </div>
 
-                    {/* Solutions */}
-                    <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                        升分秘笈的解決方法
-                      </p>
-                      <div className="space-y-2">
+                    {/* 升分秘笈解決方法 */}
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <span className="text-sm">📝</span>
+                        <p className="text-xs font-semibold text-gray-600">升分秘笈的解決方法</p>
+                      </div>
+                      <div className="space-y-3">
                         {area.solutions.map((sol, j) => (
                           <div key={j} className="flex gap-3">
                             <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5"
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5"
                               style={{ backgroundColor: '#0E7CBF' }}
                             >
                               {j + 1}
                             </div>
                             <div>
-                              <p className="text-xs font-semibold text-gray-700 mb-0.5">{sol.title}</p>
-                              <p className="text-xs text-gray-500 leading-relaxed">{sol.detail}</p>
+                              <span className="text-xs font-semibold text-gray-800">{sol.title}：</span>
+                              <span className="text-xs text-gray-600 leading-relaxed">{sol.detail}</span>
                             </div>
                           </div>
                         ))}
@@ -246,79 +210,60 @@ export default async function AssessmentReportPage({
           </div>
         )}
 
-        {/* ── Module Accuracy Grid ── */}
+        {/* ── Module Mastery Grid (large %) ── */}
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+            <span className="text-lg">📊</span>
             <h2 className="font-bold text-gray-800 text-base">各範疇掌握度分析</h2>
           </div>
-          <div className="px-5 py-4 grid grid-cols-2 gap-3">
+          <div className="px-5 py-5 grid grid-cols-2 gap-x-6 gap-y-5">
             {report.modules.map((mod) => {
-              const rating = mod.rating as Rating
-              const colors = RATING_COLORS[rating]
               const pct = mod.total > 0 ? Math.round((mod.correct / mod.total) * 100) : 0
+              const color = pct >= 75 ? '#1D9E75' : pct >= 50 ? '#F59E0B' : '#EF4444'
+              const rating = mod.rating as Rating
+              const rc = RATING_COLORS[rating]
               return (
-                <div key={mod.name} className={`rounded-xl p-3 border ${colors.bg} ${colors.border}`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-700 truncate flex-1 mr-2">
-                      {mod.name}
-                    </span>
-                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${colors.bg} ${colors.text}`}>
-                      {rating}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor:
-                            rating === 'S' || rating === 'A' ? '#1D9E75' : rating === 'B' ? '#F59E0B' : '#EF4444',
-                        }}
-                      />
-                    </div>
-                    <span className={`text-xs font-bold ${colors.text} w-9 text-right flex-shrink-0`}>
-                      {pct}%
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">{mod.correct}/{mod.total} 題</p>
+                <div key={mod.name} className="text-center">
+                  <p className="text-xs text-gray-500 mb-1 truncate">{mod.name}</p>
+                  <p className="text-3xl font-bold" style={{ color }}>{pct}%</p>
+                  <span className={`inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded border ${rc.bg} ${rc.text} ${rc.border}`}>
+                    {rating}
+                  </span>
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* ── Module Diagnostic Comments ── */}
-        {report.modules.some((m) => m.comment) && (
+        {/* ── Learning Plan ── */}
+        {learningPlan.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-800 text-base">各範疇詳細診斷</h2>
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+              <span className="text-lg">📋</span>
+              <h2 className="font-bold text-gray-800 text-base">建議學習計劃</h2>
             </div>
-            <div className="divide-y divide-gray-50">
-              {report.modules.map((mod) => {
-                if (!mod.comment) return null
-                const rating = mod.rating as Rating
-                const colors = RATING_COLORS[rating]
-                const pct = mod.total > 0 ? Math.round((mod.correct / mod.total) * 100) : 0
-                return (
-                  <div key={mod.name} className="px-5 py-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="font-semibold text-gray-800 text-sm">{mod.name}</span>
+            <div className="px-5 py-4">
+              <p className="text-xs text-gray-500 mb-3">根據評估結果，建議按以下優先順序進行學習：</p>
+              <div className="divide-y divide-gray-100">
+                {learningPlan.map((item, i) => {
+                  const isContinue = item.priority === '持續練習'
+                  const priorityColor = i === 0 ? '#EF4444' : i === 1 ? '#F59E0B' : i === 2 ? '#0E7CBF' : '#1D9E75'
+                  return (
+                    <div key={i} className="flex items-start gap-3 py-3">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-bold border ${colors.bg} ${colors.text} ${colors.border}`}
+                        className="text-xs font-bold w-16 flex-shrink-0 mt-0.5"
+                        style={{ color: priorityColor }}
                       >
-                        {rating}
+                        {item.priority}
                       </span>
-                      <span className="ml-auto text-xs text-gray-400">
-                        {mod.correct}/{mod.total}（{pct}%）
-                      </span>
+                      <p className="text-xs text-gray-700 leading-relaxed">
+                        <span className="font-semibold">{item.area}</span>
+                        {item.action ? ` — ${item.action}` : ''}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">
-                      {mod.comment}
-                    </p>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -359,69 +304,44 @@ export default async function AssessmentReportPage({
           </div>
         )}
 
-        {/* ── Learning Plan ── */}
-        {learningPlan.length > 0 && (
-          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-800 text-base">建議學習計劃</h2>
-            </div>
-            <div className="px-5 py-4">
-              <div className="space-y-2">
-                {learningPlan.map((item, i) => {
-                  const isFirst = item.priority === '第一優先'
-                  const isContinue = item.priority === '持續練習'
-                  return (
-                    <div
-                      key={i}
-                      className={`flex items-start gap-3 rounded-xl px-3 py-3 ${
-                        isFirst ? 'bg-red-50 border border-red-100' :
-                        isContinue ? 'bg-teal-50 border border-teal-100' :
-                        'bg-gray-50 border border-gray-100'
-                      }`}
-                    >
-                      <span
-                        className={`text-xs font-semibold px-2 py-1 rounded-lg flex-shrink-0 ${
-                          isFirst ? 'bg-red-100 text-red-700' :
-                          isContinue ? 'bg-teal-100 text-teal-700' :
-                          'bg-gray-200 text-gray-600'
-                        }`}
-                      >
-                        {item.priority}
-                      </span>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-800">{item.area}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{item.action}</p>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
+        {/* ── Free Resources ── */}
+        <div className="bg-white rounded-2xl shadow-sm px-5 py-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-lg">📚</span>
+            <h2 className="font-bold text-gray-800 text-base">免費練習資源（家長可自行使用）</h2>
           </div>
-        )}
+          <ul className="space-y-2">
+            {[
+              '教育局電子學習資源：www.hkedcity.net',
+              '教育城 MathConcept：www.mathconcept.com',
+              'YouTube：「小五數學 各題型 教學」系列',
+              '教育局《數學與我》網頁遊戲',
+            ].map((r, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
+                <span className="text-gray-400 flex-shrink-0 mt-0.5">•</span>
+                {r}
+              </li>
+            ))}
+          </ul>
+        </div>
 
-        {/* ── Rating Legend ── */}
-        <div className="bg-white rounded-2xl shadow-sm px-5 py-4">
-          <p className="text-xs font-medium text-gray-500 mb-3">評級說明</p>
-          <div className="grid grid-cols-4 gap-2">
-            {(['S', 'A', 'B', 'C'] as Rating[]).map((r) => {
-              const c = RATING_COLORS[r]
-              return (
-                <div
-                  key={r}
-                  className={`text-center py-2 rounded-lg border ${c.bg} ${c.border}`}
-                >
-                  <div className={`text-lg font-bold ${c.text}`}>{r}</div>
-                  <div className={`text-xs ${c.text} opacity-80`}>{RATING_LABELS[r]}</div>
-                </div>
-              )
-            })}
-          </div>
-          <div className="mt-2 grid grid-cols-4 gap-2 text-center">
-            <p className="text-xs text-gray-400">≥90%</p>
-            <p className="text-xs text-gray-400">75–89%</p>
-            <p className="text-xs text-gray-400">50–74%</p>
-            <p className="text-xs text-gray-400">&lt;50%</p>
+        {/* ── 升分秘笈課程介紹 ── */}
+        <div className="bg-white rounded-2xl shadow-sm px-5 py-5">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center mb-4">
+            升分秘笈如何幫助{s.student_name}
+          </p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            {[
+              { icon: '👥', title: '一對三小班', desc: `針對${s.student_name}的弱項，老師能即時跟進每一個解題思路` },
+              { icon: '🧮', title: '計算系統', desc: '元角法、分塊標註法等方法，針對計算和面積題型' },
+              { icon: '📋', title: '審題訓練', desc: '審題四步法＋關鍵詞分類表，系統化解題習慣' },
+            ].map((f, i) => (
+              <div key={i} className="flex flex-col items-center gap-1.5">
+                <span className="text-3xl">{f.icon}</span>
+                <p className="text-xs font-semibold text-gray-700">{f.title}</p>
+                <p className="text-xs text-gray-400 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -430,33 +350,26 @@ export default async function AssessmentReportPage({
           className="rounded-2xl p-6 text-center text-white shadow-md"
           style={{ background: 'linear-gradient(135deg, #1D9E75 0%, #0E7CBF 100%)' }}
         >
-          <p className="font-bold text-lg mb-1">立即預約免費試堂</p>
+          <p className="font-bold text-lg mb-1">預約試堂</p>
           <p className="text-white/80 text-sm mb-5">
-            讓我們的老師為孩子制定個人化學習計劃
+            了解針對{s.student_name}的個人備考方案
           </p>
-          <div className="flex flex-col gap-3 items-center">
-            <a
-              href="https://wa.me/85200000000"
-              className="inline-block px-8 py-3 bg-white rounded-xl font-semibold text-sm w-full max-w-xs"
-              style={{ color: '#1D9E75' }}
-            >
-              WhatsApp 查詢
-            </a>
-            <a
-              href="tel:+85200000000"
-              className="inline-block px-8 py-3 bg-white/20 border border-white/40 rounded-xl font-semibold text-sm text-white w-full max-w-xs"
-            >
-              致電查詢
-            </a>
-          </div>
+          <a
+            href="https://wa.me/85200000000"
+            className="inline-block px-8 py-3 bg-white rounded-xl font-semibold text-sm w-full max-w-xs"
+            style={{ color: '#1D9E75' }}
+          >
+            WhatsApp 查詢
+          </a>
           <p className="text-white/60 text-xs mt-4">
-            我們將在一個工作日內與您聯絡
+            此報告由升分秘笈導師根據評估結果分析後撰寫，僅供家長參考
           </p>
         </div>
 
         {/* ── Footer ── */}
-        <div className="text-center pb-6">
-          <a href="/assessment" className="text-xs text-teal-600 underline">
+        <div className="text-center pb-6 text-xs text-gray-400">
+          <p>升分秘笈 · 一對三小組呈分試備考</p>
+          <a href="/assessment" className="text-teal-600 underline mt-1 inline-block">
             讓其他孩子也做評估
           </a>
         </div>
