@@ -190,15 +190,12 @@ export default async function AssessmentReportPage({
                       </p>
                     </div>
 
-                    {/* 升分秘笈解決方法 */}
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <div className="flex items-center gap-1.5 mb-3">
-                        <span className="text-sm">📝</span>
-                        <p className="text-xs font-semibold text-gray-600">霖楓學苑的解決方法</p>
-                      </div>
-                      <div className="space-y-3">
+                    {/* 解決方案 */}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">針對訓練方案</p>
+                      <div className="space-y-2.5">
                         {area.solutions.map((sol, j) => (
-                          <div key={j} className="flex gap-3">
+                          <div key={j} className="flex gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
                             <div
                               className="w-5 h-5 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5"
                               style={{ backgroundColor: '#0E7CBF' }}
@@ -256,7 +253,6 @@ export default async function AssessmentReportPage({
               <p className="text-xs text-gray-500 mb-3">根據評估結果，建議按以下優先順序進行學習：</p>
               <div className="divide-y divide-gray-100">
                 {learningPlan.map((item, i) => {
-                  const isContinue = item.priority === '持續練習'
                   const priorityColor = i === 0 ? '#EF4444' : i === 1 ? '#F59E0B' : i === 2 ? '#0E7CBF' : '#1D9E75'
                   return (
                     <div key={i} className="flex items-start gap-3 py-3">
