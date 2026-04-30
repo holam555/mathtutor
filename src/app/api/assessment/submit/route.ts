@@ -33,26 +33,56 @@ export async function POST(request: NextRequest) {
 
   const moduleResults = buildModuleResultsByName(answers)
 
+  const totalCorrect = answers.filter((a) => a.is_correct).length
+  const totalQuestions = answers.length
+  const score = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+  const band = score >= 85 ? 'Band 1' : score >= 65 ? 'Band 2' : 'Band 3'
+  const bandDescription =
+    score >= 85 ? '數學基礎扎實，各範疇表現優異' :
+    score >= 65 ? '整體掌握良好，部分範疇需要加強' :
+    '基礎知識需要加強，建議進行系統性練習'
+
   let reportData
   try {
     reportData = await generateAssessmentReport(student_name, grade_level, moduleResults, answers)
   } catch (err) {
     console.error('Gemini report generation failed:', err)
-    const { RATING_LABELS } = await import('@/lib/assessmentUtils')
     reportData = {
-      modules: moduleResults.map((m) => ({
-        ...m,
-        comment: `${m.name}板塊完成了${m.total}條題目，答對${m.correct}條（${m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0}%），評級為${RATING_LABELS[m.rating]}。`,
-      })),
-      totalCorrect: answers.filter((a) => a.is_correct).length,
-      totalQuestions: answers.length,
-      overallSummary: `${student_name}完成了本次學前評估。建議預約試堂，讓老師為孩子制定個人化學習計劃。`,
-      nextSteps: [
-        '學習習慣：養成每天溫習的習慣，及時鞏固所學知識。',
-        '專注力：做題時保持專注，避免粗心大意。',
-        '主動性：遇到不懂的地方主動發問，勇於嘗試。',
-        '基礎功底：針對薄弱知識點做定向練習，穩固數學根基。',
-      ],
+      modules: moduleResults.map((m) => ({ ...m, comment: '' })),
+      totalCorrect,
+      totalQuestions,
+      score,
+      band,
+      bandDescription,
+      strongAreas: moduleResults
+        .filter((m) => m.rating === 'S' || m.rating === 'A')
+        .map((m) => ({
+          title: m.name,
+          observation: `${student_name}在${m.name}範疇表現良好，正確率達${m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0}%。`,
+          tip: '建議每週保持練習，鞏固已掌握的知識。',
+        })),
+      weakAreas: moduleResults
+        .filter((m) => m.rating === 'B' || m.rating === 'C')
+        .map((m, i) => ({
+          name: m.name,
+          priority: (m.rating === 'C' ? '最高優先' : i === 0 ? '高優先' : '中優先') as '最高優先' | '高優先' | '中優先',
+          errorTypes: ['需要加強練習', '建議針對性訓練'],
+          rootCause: '需要系統性練習以鞏固基礎概念。',
+          solutions: [
+            { title: '基礎鞏固', detail: '從基礎題目開始，逐步建立對核心概念的理解。' },
+            { title: '重複操練', detail: '每天練習同類題型，透過重複加深印象。' },
+            { title: '錯題分析', detail: '仔細分析錯誤原因，找出規律避免重複犯錯。' },
+          ],
+        })),
+      overallSummary: `${student_name}完成了本次學前評估，整體得分${score}分（${band}）。建議預約試堂，讓老師為孩子制定個人化學習計劃。`,
+      learningPlan: moduleResults
+        .filter((m) => m.rating === 'B' || m.rating === 'C')
+        .slice(0, 3)
+        .map((m, i) => ({
+          priority: (['第一優先', '第二優先', '第三優先'] as const)[i],
+          area: m.name,
+          action: '針對薄弱知識點進行系統練習，每週至少3次',
+        })),
       generatedAt: new Date().toISOString(),
     }
   }

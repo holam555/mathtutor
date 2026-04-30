@@ -253,16 +253,20 @@ ${weakStr}
 - learningPlan每條都必須有頻率（每天/每週X題）和時間目標
 - 如無強項或無弱項，對應陣列返回 []`
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      temperature: 0.7,
-    },
-  })
-
-  const text = (response.text ?? '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  let text = ''
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.7,
+      },
+    })
+    text = (response.text ?? '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+  } catch (apiErr) {
+    console.error('Gemini API call failed:', apiErr)
+  }
 
   try {
     const parsed = JSON.parse(text)
