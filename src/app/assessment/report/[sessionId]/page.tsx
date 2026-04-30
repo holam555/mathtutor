@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import { createServiceClient } from '@/lib/supabase/server'
 import { RATING_COLORS } from '@/lib/assessmentUtils'
 import type { ReportData, Rating, AssessmentAnswer } from '@/types/assessment'
@@ -81,8 +82,17 @@ export default async function AssessmentReportPage({
 
         {/* ── Header ── */}
         <div className="text-center">
-          <p className="text-gray-400 text-xs tracking-widest uppercase mb-1">升分秘笈 · 學習評估報告</p>
-          <h1 className="text-2xl font-bold text-gray-800">P5 數學學習評估</h1>
+          <div className="flex justify-center mb-3">
+            <Image
+              src="/logo.png"
+              alt="霖楓學苑 LF Academy"
+              width={160}
+              height={64}
+              style={{ mixBlendMode: 'multiply' }}
+            />
+          </div>
+          <p className="text-gray-400 text-xs tracking-widest uppercase mb-1">霖楓學苑 · 學習評估報告</p>
+          <h1 className="text-2xl font-bold text-gray-800">數學學習評估</h1>
           <p className="text-gray-500 text-sm mt-1">
             學生：{s.student_name} ｜ {s.grade_level} ｜ {dateStr}
           </p>
@@ -184,7 +194,7 @@ export default async function AssessmentReportPage({
                     <div className="bg-gray-50 rounded-xl p-4">
                       <div className="flex items-center gap-1.5 mb-3">
                         <span className="text-sm">📝</span>
-                        <p className="text-xs font-semibold text-gray-600">升分秘笈的解決方法</p>
+                        <p className="text-xs font-semibold text-gray-600">霖楓學苑的解決方法</p>
                       </div>
                       <div className="space-y-3">
                         {area.solutions.map((sol, j) => (
@@ -325,16 +335,19 @@ export default async function AssessmentReportPage({
           </ul>
         </div>
 
-        {/* ── 升分秘笈課程介紹 ── */}
+        {/* ── 霖楓學苑課程介紹 ── */}
         <div className="bg-white rounded-2xl shadow-sm px-5 py-5">
+          <div className="flex justify-center mb-3">
+            <Image src="/logo.png" alt="霖楓學苑 LF Academy" width={120} height={48} className="rounded-lg" />
+          </div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide text-center mb-4">
-            升分秘笈如何幫助{s.student_name}
+            霖楓學苑如何幫助{s.student_name}
           </p>
           <div className="grid grid-cols-3 gap-3 text-center">
             {[
-              { icon: '👥', title: '一對三小班', desc: `針對${s.student_name}的弱項，老師能即時跟進每一個解題思路` },
-              { icon: '🧮', title: '計算系統', desc: '元角法、分塊標註法等方法，針對計算和面積題型' },
-              { icon: '📋', title: '審題訓練', desc: '審題四步法＋關鍵詞分類表，系統化解題習慣' },
+              { icon: '👥', title: '小班教學', desc: `針對${s.student_name}的弱項，老師能即時跟進每一個解題思路` },
+              { icon: '🧮', title: '系統訓練', desc: '針對性計算和解題方法，提升準確率和解題速度' },
+              { icon: '📋', title: '審題技巧', desc: '審題步驟訓練＋關鍵詞識別，建立系統化解題習慣' },
             ].map((f, i) => (
               <div key={i} className="flex flex-col items-center gap-1.5">
                 <span className="text-3xl">{f.icon}</span>
@@ -362,13 +375,13 @@ export default async function AssessmentReportPage({
             WhatsApp 查詢
           </a>
           <p className="text-white/60 text-xs mt-4">
-            此報告由升分秘笈導師根據評估結果分析後撰寫，僅供家長參考
+            此報告由霖楓學苑導師根據評估結果分析後撰寫，僅供家長參考
           </p>
         </div>
 
         {/* ── Footer ── */}
         <div className="text-center pb-6 text-xs text-gray-400">
-          <p>升分秘笈 · 一對三小組呈分試備考</p>
+          <p>霖楓學苑 LF Academy · 小五小六數學升分專家</p>
           <a href="/assessment" className="text-teal-600 underline mt-1 inline-block">
             讓其他孩子也做評估
           </a>

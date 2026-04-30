@@ -177,7 +177,7 @@ async function generateRichReport(
       }).join('\n\n')
     : '無'
 
-  const prompt = `你是香港升分秘笈補習社的資深數學老師，正在為小學生${studentName}（${gradeLabel}）撰寫學前評估診斷報告。
+  const prompt = `你是香港霖楓學苑補習社的資深數學老師，正在為小學生${studentName}（${gradeLabel}）撰寫學前評估診斷報告。
 整體得分：${score}分（${band}）
 
 ===表現良好的範疇（S/A評級）===
@@ -249,7 +249,7 @@ ${weakStr}
 重要規定：
 - strongAreas必須引用實際答對題目，不可憑空捏造例子
 - weakAreas錯誤類型必須根據提供的答錯示例，引用實際錯誤數字/寫法
-- 所有solutions的方法名稱必須是專業的「四至六字方法名」，體現升分秘笈的專業性
+- 所有solutions的方法名稱必須是專業的「四至六字方法名」，體現霖楓學苑的專業性
 - learningPlan每條都必須有頻率（每天/每週X題）和時間目標
 - 如無強項或無弱項，對應陣列返回 []`
 

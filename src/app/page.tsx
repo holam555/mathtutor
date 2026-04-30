@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function Home() {
@@ -19,9 +20,17 @@ export default async function Home() {
   return (
     <main className="min-h-screen flex items-center justify-center px-5 py-10 bg-gradient-to-br from-[#F5F9FD] to-[#E8F0F7]">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-bold text-[#1D9E75] mb-2">數學練習</h1>
-          <p className="text-sm text-gray-500">小五小六升分保證</p>
+        <div className="text-center mb-6">
+          <div className="flex justify-center mb-2">
+            <Image
+              src="/logo.png"
+              alt="霖楓學苑 LF Academy"
+              width={160}
+              height={52}
+              style={{ mixBlendMode: 'multiply' }}
+            />
+          </div>
+          <p className="text-sm text-gray-500">小五小六數學升分專家</p>
         </div>
 
         <p className="text-sm text-gray-600 text-center mb-5">請選擇你的身份</p>
