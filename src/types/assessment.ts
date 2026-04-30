@@ -38,11 +38,32 @@ export type ModuleResult = {
   comment?: string
 }
 
+export type StrongArea = {
+  title: string       // e.g. "分數比較理解"
+  observation: string // 2 sentences of specific observation
+  tip: string         // actionable maintenance tip
+}
+
+export type WeakArea = {
+  name: string
+  priority: '最高優先' | '高優先' | '中優先'
+  errorTypes: string[]
+  rootCause: string
+  solutions: { title: string; detail: string }[]
+}
+
 export type ReportData = {
   modules: ModuleResult[]
   totalCorrect: number
   totalQuestions: number
+  score: number             // 0–100
+  band: string              // 'Band 1' | 'Band 2' | 'Band 3'
+  bandDescription: string
+  strongAreas: StrongArea[]
+  weakAreas: WeakArea[]
   overallSummary: string
-  nextSteps: string[]
+  learningPlan: { priority: string; area: string; action: string }[]
   generatedAt: string
+  // legacy fields kept for old records
+  nextSteps?: string[]
 }

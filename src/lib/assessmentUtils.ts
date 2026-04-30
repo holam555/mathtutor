@@ -1,5 +1,12 @@
 import { GoogleGenAI } from '@google/genai'
-import type { AssessmentAnswer, ModuleResult, ReportData, Rating } from '@/types/assessment'
+import type {
+  AssessmentAnswer,
+  ModuleResult,
+  ReportData,
+  Rating,
+  StrongArea,
+  WeakArea,
+} from '@/types/assessment'
 
 export type { AssessmentAnswer, ModuleResult, ReportData, Rating }
 
@@ -102,7 +109,34 @@ export function buildModuleResultsByName(
   }))
 }
 
-// ── Gemini report generation ───────────────────────────────────────────────
+// ── Priority assignment ────────────────────────────────────────────────────
+
+function assignPriorities(
+  weakModules: Omit<ModuleResult, 'comment'>[]
+): { module: Omit<ModuleResult, 'comment'>; priority: WeakArea['priority'] }[] {
+  // Sort worst first (lowest accuracy)
+  const sorted = [...weakModules].sort((a, b) => {
+    const pctA = a.total > 0 ? a.correct / a.total : 0
+    const pctB = b.total > 0 ? b.correct / b.total : 0
+    return pctA - pctB
+  })
+
+  const cCount = sorted.filter((m) => m.rating === 'C').length
+
+  return sorted.map((m, i) => {
+    let priority: WeakArea['priority']
+    if (m.rating === 'C') {
+      priority = '最高優先'
+    } else if (i === cCount) {
+      priority = '高優先'
+    } else {
+      priority = '中優先'
+    }
+    return { module: m, priority }
+  })
+}
+
+// ── Gemini: per-module diagnostic comment ─────────────────────────────────
 
 async function generateModuleComment(
   ai: GoogleGenAI,
@@ -111,23 +145,19 @@ async function generateModuleComment(
   module: Omit<ModuleResult, 'comment'>
 ): Promise<string> {
   const pct = module.total > 0 ? Math.round((module.correct / module.total) * 100) : 0
-  const wrongStr = module.wrongCategoryCodes.length > 0
-    ? module.wrongCategoryCodes.join('、')
-    : '沒有特別薄弱的知識點'
 
-  const prompt = `你是香港小學數學補習老師，正在為家長撰寫學前評估報告。
+  const prompt = `你是香港升分秘笈補習社的資深數學老師，為家長撰寫學前評估報告。
 學生：${studentName}，年級：${gradeLabel}
-模塊：${module.name}（共${module.total}題，答對${module.correct}題，正確率${pct}%）
-評級：${module.rating}（${RATING_LABELS[module.rating]}）
-答錯的題目類別代號：${wrongStr}
+範疇：${module.name}（共${module.total}題，答對${module.correct}題，正確率${pct}%，評級${RATING_LABELS[module.rating]}）
 
-請用繁體中文寫2段診斷評語（共約120字）。
-風格要求：
-- 親切、客觀，不批評學生
-- 第一段：指出具體知識點強弱，描述觀察到的學習狀況
-- 第二段：給出針對性建議
-- 不要輸出標題或分點，直接寫段落
-- 不要提及評級字母（S/A/B/C）`
+請用繁體中文寫兩段診斷評語（共約100字）：
+第一段：具體描述學生在此範疇的表現及知識掌握情況
+第二段：給出針對性的學習建議
+
+要求：
+- 親切客觀，不批評學生
+- 不提及評級字母（S/A/B/C）
+- 直接寫段落，不加標題或分點符號`
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -138,30 +168,84 @@ async function generateModuleComment(
   return (response.text ?? '').trim()
 }
 
-async function generateOverallSummary(
+// ── Gemini: rich report sections ──────────────────────────────────────────
+
+async function generateRichReport(
   ai: GoogleGenAI,
   studentName: string,
   gradeLabel: string,
-  moduleResults: Omit<ModuleResult, 'comment'>[]
-): Promise<{ summary: string; nextSteps: string[] }> {
-  const modulesSummary = moduleResults
-    .map((m) => `${m.name} ${m.rating}（${m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0}%）`)
-    .join('、')
+  strongModules: Omit<ModuleResult, 'comment'>[],
+  weakWithPriority: { module: Omit<ModuleResult, 'comment'>; priority: WeakArea['priority'] }[],
+  moduleWrongAnswers: Map<string, string[]>,
+  score: number,
+  band: string,
+): Promise<{
+  strongAreas: StrongArea[]
+  weakAreas: WeakArea[]
+  overallSummary: string
+  learningPlan: ReportData['learningPlan']
+}> {
+  const strongStr = strongModules.length > 0
+    ? strongModules.map((m) => {
+        const pct = m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0
+        return `- ${m.name}：${m.correct}/${m.total}（${pct}%）評級${RATING_LABELS[m.rating]}`
+      }).join('\n')
+    : '無'
 
-  const totalCorrect = moduleResults.reduce((s, m) => s + m.correct, 0)
-  const totalQ = moduleResults.reduce((s, m) => s + m.total, 0)
+  const weakStr = weakWithPriority.length > 0
+    ? weakWithPriority.map(({ module: m, priority }) => {
+        const pct = m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0
+        const wrongs = moduleWrongAnswers.get(m.name) ?? []
+        return `- ${m.name}：${m.correct}/${m.total}（${pct}%）評級${RATING_LABELS[m.rating]}，優先級：${priority}\n  答錯題目示例：${wrongs.slice(0, 2).join('；') || '無'}`
+      }).join('\n')
+    : '無'
 
-  const prompt = `你是香港小學數學補習老師，正在總結學生的學前評估。
-學生：${studentName}，年級：${gradeLabel}
-整體正確率：${totalCorrect}/${totalQ}
-各模塊表現：${modulesSummary}
+  const prompt = `你是香港升分秘笈補習社的資深數學老師，正在為小學生${studentName}（${gradeLabel}）撰寫學前評估診斷報告。
+整體得分：${score}分（${band}）
 
-請輸出JSON，包含：
-1. "summary"：一段鼓勵性整體評語（約100字），客觀指出整體強弱，末尾鼓勵家長帶孩子來試堂
-2. "nextSteps"：4個學習目標的字串陣列，分別針對「學習習慣」、「專注力」、「主動性」、「基礎功底」，每項約25字
+表現良好的範疇：
+${strongStr}
 
-只輸出JSON，不要markdown：
-{"summary": "...", "nextSteps": ["...", "...", "...", "..."]}`
+需要加強的範疇：
+${weakStr}
+
+請用繁體中文輸出以下JSON，不要包含markdown code block：
+{
+  "overallSummary": "整體評語，約120字，先肯定整體表現，點出強項，再指出需改善的地方，最後溫馨邀請家長預約免費試堂",
+  "strongAreas": [
+    {
+      "title": "具體強項名稱（比模塊更具體，如「帶分數加減」而非只說「分數」）",
+      "observation": "兩句具體觀察，說明學生在此範疇展現了什麼能力和理解",
+      "tip": "一句維持建議，告訴家長如何保持此強項"
+    }
+  ],
+  "weakAreas": [
+    {
+      "name": "範疇名稱",
+      "priority": "最高優先|高優先|中優先",
+      "errorTypes": ["錯誤類型一（約8至12字）", "錯誤類型二（約8至12字）"],
+      "rootCause": "根本原因分析（約30字，從學習角度解釋為何出現這些錯誤）",
+      "solutions": [
+        { "title": "方法名稱（4至6字）", "detail": "具體做法說明（約30字）" },
+        { "title": "方法名稱（4至6字）", "detail": "具體做法說明（約30字）" },
+        { "title": "方法名稱（4至6字）", "detail": "具體做法說明（約30字）" }
+      ]
+    }
+  ],
+  "learningPlan": [
+    { "priority": "第一優先", "area": "範疇名稱", "action": "具體學習行動（約20字）" },
+    { "priority": "第二優先", "area": "範疇名稱", "action": "具體學習行動（約20字）" },
+    { "priority": "第三優先", "area": "範疇名稱", "action": "具體學習行動（約20字）" },
+    { "priority": "持續練習", "area": "強項範疇名稱", "action": "維持強項的方法（約20字）" }
+  ]
+}
+
+注意事項：
+- strongAreas：每個S/A評級範疇各生成一個條目
+- weakAreas：按優先順序排列（最高優先在前），保留輸入資料指定的優先級
+- 如果沒有強項或弱項，對應陣列返回空 []
+- learningPlan：弱項優先，強項持續練習在後（最多4個條目）
+- 語氣專業友善，像在跟家長面談一樣`
 
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
@@ -173,24 +257,51 @@ async function generateOverallSummary(
   })
 
   const text = (response.text ?? '').replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
   try {
     const parsed = JSON.parse(text)
     return {
-      summary: parsed.summary ?? '',
-      nextSteps: Array.isArray(parsed.nextSteps) ? parsed.nextSteps : [],
+      strongAreas: Array.isArray(parsed.strongAreas) ? parsed.strongAreas : [],
+      weakAreas: Array.isArray(parsed.weakAreas) ? parsed.weakAreas : [],
+      overallSummary: parsed.overallSummary ?? '',
+      learningPlan: Array.isArray(parsed.learningPlan) ? parsed.learningPlan : [],
     }
   } catch {
     return {
-      summary: `${studentName}完成了本次學前評估，整體表現${totalCorrect >= totalQ * 0.7 ? '不錯' : '有進步空間'}。建議預約試堂，讓老師為孩子制定個人化學習計劃。`,
-      nextSteps: [
-        '學習習慣：養成每天溫習的習慣，及時鞏固所學知識。',
-        '專注力：做題時保持專注，避免粗心大意。',
-        '主動性：遇到不懂的地方主動發問，勇於嘗試。',
-        '基礎功底：針對薄弱知識點做定向練習，穩固數學根基。',
+      strongAreas: strongModules.map((m) => ({
+        title: m.name,
+        observation: `${studentName}在${m.name}範疇表現良好，正確率達${m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0}%，掌握了核心概念。`,
+        tip: '建議每週保持練習，鞏固已掌握的知識。',
+      })),
+      weakAreas: weakWithPriority.map(({ module: m, priority }) => ({
+        name: m.name,
+        priority,
+        errorTypes: ['計算準確度有待提升', '概念理解需要加強'],
+        rootCause: '基礎概念需要鞏固，建議針對性練習以提升掌握程度。',
+        solutions: [
+          { title: '基礎概念鞏固', detail: '從基礎題目開始，逐步建立對核心概念的理解。' },
+          { title: '定時重複操練', detail: '每天練習同類題型，透過重複加深印象和熟練度。' },
+          { title: '錯題針對分析', detail: '仔細分析每道錯題的原因，找出規律避免重複犯錯。' },
+        ],
+      })),
+      overallSummary: `${studentName}完成了本次學前評估，整體得分${score}分（${band}）。各範疇表現有強有弱，建議針對薄弱範疇進行系統性練習。歡迎預約免費試堂，讓我們的老師為孩子制定個人化學習計劃。`,
+      learningPlan: [
+        ...weakWithPriority.slice(0, 3).map(({ module: m }, i) => ({
+          priority: ['第一優先', '第二優先', '第三優先'][i],
+          area: m.name,
+          action: '針對薄弱知識點進行系統練習，每週至少3次',
+        })),
+        ...(strongModules.length > 0 ? [{
+          priority: '持續練習',
+          area: strongModules[0].name,
+          action: '保持現有水平，定期複習鞏固',
+        }] : []),
       ],
     }
   }
 }
+
+// ── Main report generation ────────────────────────────────────────────────
 
 export async function generateAssessmentReport(
   studentName: string,
@@ -200,12 +311,40 @@ export async function generateAssessmentReport(
 ): Promise<ReportData> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
-  // Generate all module comments and overall summary in parallel
-  const [moduleComments, overall] = await Promise.all([
-    Promise.all(
-      moduleResults.map((m) => generateModuleComment(ai, studentName, gradeLabel, m))
-    ),
-    generateOverallSummary(ai, studentName, gradeLabel, moduleResults),
+  const totalCorrect = answers.filter((a) => a.is_correct).length
+  const totalQuestions = answers.length
+  const score = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
+
+  let band: string
+  let bandDescription: string
+  if (score >= 85) {
+    band = 'Band 1'
+    bandDescription = '數學基礎扎實，各範疇表現優異，具備升讀高年級的能力'
+  } else if (score >= 65) {
+    band = 'Band 2'
+    bandDescription = '整體掌握良好，部分範疇需要加強，有一定的提升空間'
+  } else {
+    band = 'Band 3'
+    bandDescription = '基礎知識需要加強，建議針對重點範疇進行系統性練習'
+  }
+
+  const strongModules = moduleResults.filter((m) => m.rating === 'S' || m.rating === 'A')
+  const weakModules = moduleResults.filter((m) => m.rating === 'B' || m.rating === 'C')
+  const weakWithPriority = assignPriorities(weakModules)
+
+  // Build wrong question text context per module
+  const moduleWrongAnswers = new Map<string, string[]>()
+  for (const a of answers) {
+    if (!a.is_correct) {
+      if (!moduleWrongAnswers.has(a.module_name)) moduleWrongAnswers.set(a.module_name, [])
+      moduleWrongAnswers.get(a.module_name)!.push(a.question_text)
+    }
+  }
+
+  // Run module comments and rich report sections in parallel
+  const [moduleComments, richReport] = await Promise.all([
+    Promise.all(moduleResults.map((m) => generateModuleComment(ai, studentName, gradeLabel, m))),
+    generateRichReport(ai, studentName, gradeLabel, strongModules, weakWithPriority, moduleWrongAnswers, score, band),
   ])
 
   const modules: ModuleResult[] = moduleResults.map((m, i) => ({
@@ -215,10 +354,15 @@ export async function generateAssessmentReport(
 
   return {
     modules,
-    totalCorrect: answers.filter((a) => a.is_correct).length,
-    totalQuestions: answers.length,
-    overallSummary: overall.summary,
-    nextSteps: overall.nextSteps,
+    totalCorrect,
+    totalQuestions,
+    score,
+    band,
+    bandDescription,
+    strongAreas: richReport.strongAreas,
+    weakAreas: richReport.weakAreas,
+    overallSummary: richReport.overallSummary,
+    learningPlan: richReport.learningPlan,
     generatedAt: new Date().toISOString(),
   }
 }
