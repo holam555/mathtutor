@@ -106,6 +106,12 @@ const p5_sept: AssessmentPaper = {
       correct_answer: '2500',
       module_name: '小數比較與換算',
     },
+    {
+      question_text: '0.5公里 = ___ 米',
+      question_type: 'fill_in_number',
+      correct_answer: '500',
+      module_name: '小數比較與換算',
+    },
   ],
 }
 
