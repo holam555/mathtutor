@@ -14,6 +14,7 @@ export interface Question {
   category_id: string
   question_text: string
   question_image_url: string | null
+  image_alt_text: string | null
   question_type: 'multiple_choice' | 'fill_in' | 'fill_in_number' | 'calculation'
   options: string[] | null
   correct_answer: string
