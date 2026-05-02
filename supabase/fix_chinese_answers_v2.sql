@@ -230,3 +230,14 @@ UPDATE assessment_questions SET
 WHERE id = '8f2a61d6-0a8a-4bb4-9824-7315ab6ecbd8';
 
 COMMIT;
+
+-- ════════════════════════════════════════════════════════════
+-- CAT I: Ordering answer with > — missed by Chinese-char check
+-- ════════════════════════════════════════════════════════════
+
+-- 學校籌款由多至少排列 (75413 > 75314 > 73541)
+UPDATE assessment_questions SET
+  question_type  = 'multiple_choice',
+  options        = '["A. 75413元 > 75314元 > 73541元","B. 75314元 > 75413元 > 73541元","C. 73541元 > 75413元 > 75314元","D. 75413元 > 73541元 > 75314元"]'::jsonb,
+  correct_answer = 'A. 75413元 > 75314元 > 73541元'
+WHERE id = '6f11c223-87be-42a5-9291-ef8beb44bdd9';
