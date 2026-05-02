@@ -120,8 +120,8 @@ function UnitSelect({
     <div className="min-h-screen bg-gray-50 pb-32">
       <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
         <button onClick={onBack} className="text-sm text-gray-400 mb-2">← 返回</button>
-        <h2 className="text-lg font-bold text-gray-800">揀番學生已學嘅單元</h2>
-        <p className="text-xs text-gray-500 mt-1">可揀多個。揀越多單元，題目覆蓋範圍越大。</p>
+        <h2 className="text-lg font-bold text-gray-800">選擇學生已學單元</h2>
+        <p className="text-xs text-gray-500 mt-1">可選多個單元。越多單元，題目覆蓋範圍越大。</p>
       </div>
 
       <div className="p-5 space-y-6">
