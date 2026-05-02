@@ -208,7 +208,8 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
           <button onClick={() => append('>')} disabled={disabled} className={`${symBtn} h-14 text-xl`}>&gt;</button>
           <button onClick={() => append('<')} disabled={disabled} className={`${symBtn} h-14 text-xl`}>&lt;</button>
           <button onClick={() => append(',')} disabled={disabled} className={`${symBtn} h-14 text-xl font-bold`}>,</button>
-          <button onClick={backspace} disabled={disabled} className={`${utilBtn} h-14 text-xl col-span-1`}>⌫</button>
+          <button onClick={() => append(':')} disabled={disabled} className={`${symBtn} h-14 text-xl font-bold`}>:</button>
+          <button onClick={backspace} disabled={disabled} className={`${utilBtn} h-14 text-xl col-span-2`}>⌫</button>
         </div>
       )}
 
