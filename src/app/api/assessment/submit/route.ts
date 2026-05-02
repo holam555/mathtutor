@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
 
   // ── Fetch curriculum teaching methods for weak modules (P3 only) ──────────
   const supabase = createServiceClient()
-  let curriculumMethods: CurriculumMethods = {}
+  const curriculumMethods: CurriculumMethods = {}
   if (isP3Mode) {
     const moduleNames = moduleResults.map((m) => m.name)
     if (drillDownToTopic) {

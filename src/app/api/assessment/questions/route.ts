@@ -204,7 +204,7 @@ export async function GET(request: NextRequest) {
 
   // Preserve the sort order from the selection algorithm
   const byId = new Map(full.map((q) => [q.id, q]))
-  let orderedFull = orderedRowIds
+  const orderedFull = orderedRowIds
     .map((id) => byId.get(id))
     .filter((q): q is NonNullable<typeof q> => q != null)
 
