@@ -7,7 +7,8 @@ export function normalizeAnswer(raw: string): string {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')           // collapse whitespace
-    .replace(/，/g, ',')            // full-width comma
+    .replace(/，/g, ',')            // full-width comma → half-width
+    .replace(/\s*,\s*/g, ',')       // strip spaces around comma
     .replace(/。/g, '.')            // full-width period
     .replace(/\s*\/\s*/g, '/')      // normalize fraction spacing
     .replace(/\s*\+\s*/g, '+')
