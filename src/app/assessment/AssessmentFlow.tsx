@@ -42,7 +42,7 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
           <div className="text-5xl mb-4">📝</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">學前數學評估</h1>
           <p className="text-gray-500 text-sm leading-relaxed">
-            根據學生已學的單元，做 20 條題目，即時獲取個人化診斷報告。
+            根據學生已學的單元，即時獲取個人化診斷報告。
           </p>
         </div>
 

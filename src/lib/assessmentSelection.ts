@@ -4,6 +4,10 @@
 // fill the per-tier quota (basic 10, enhancement 6, advanced 4 = 20 questions
 // per assessment, matching the P3 assessment template).
 //
+// Minimum coverage: every selected scope gets at least 1 question. If the
+// base 20-question budget cannot cover all scopes, up to MAX_TOTAL extra
+// questions are added (one per empty scope, any tier, basic preferred).
+//
 // Group handling: rows sharing the same `group_id` are linked sub-questions.
 // They are always pulled as a unit and count as ONE quota slot. The group's
 // difficulty_tier is taken from sub_order=1 (rows in a group share a tier).
@@ -90,6 +94,7 @@ function buildCandidateItems(
 // selection gave the last unit 10× more questions than the first.
 
 const MAX_WEIGHT_RATIO = 2   // last scope gets at most 2× questions vs first scope
+const MAX_TOTAL = 30         // hard ceiling; extra slots used only to guarantee ≥1 per scope
 
 function allocateByLinearWeight(
   scopeCount: number,
@@ -207,6 +212,29 @@ export function selectQuestions(
           `Tier ${tier}: short ${need} questions across all selected scopes (pool exhausted).`,
         )
       }
+    }
+  }
+
+  // Gap-fill pass: every selected scope must have ≥1 question.
+  // If the base quota left a scope empty, add one question (basic preferred)
+  // using the budget up to MAX_TOTAL.
+  const coveredScopes = new Set(selected.map((it) => it.scopeIdx))
+  for (let i = 0; i < sortedScopes.length && selected.length < MAX_TOTAL; i++) {
+    if (coveredScopes.has(i)) continue
+    let filled = false
+    for (const tier of tiers) {
+      const available = buckets[tier][i].filter((it) => !usedKeys.has(it.key))
+      if (available.length === 0) continue
+      const pick = available[Math.floor(Math.random() * available.length)]
+      selected.push(pick)
+      usedKeys.add(pick.key)
+      perTierActual[tier] += 1
+      coveredScopes.add(i)
+      filled = true
+      break
+    }
+    if (!filled) {
+      warnings.push(`Scope ${sortedScopes[i].id}: no questions available in any tier (cannot guarantee coverage).`)
     }
   }
 
