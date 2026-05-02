@@ -30,7 +30,7 @@ export default async function Home() {
               style={{ mixBlendMode: 'multiply' }}
             />
           </div>
-          <p className="text-sm text-gray-500">小五小六數學升分專家</p>
+          <p className="text-sm text-gray-500">小學數學升分專家</p>
         </div>
 
         <p className="text-sm text-gray-600 text-center mb-5">請選擇你的身份</p>

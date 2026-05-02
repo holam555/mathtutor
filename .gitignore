@@ -47,6 +47,8 @@ _crops:/
 
 # Past paper input PDFs (not for deployment)
 /public/Prelesson assessment/
+/p3 mock/
+/pre assessment curriculum/
 
 # Supabase CLI temp
 supabase/.temp/

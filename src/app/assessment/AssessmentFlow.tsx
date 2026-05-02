@@ -4,25 +4,30 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAnswerCorrect } from '@/lib/answerUtils'
 import FractionDisplay, { InlineMath } from '@/components/FractionDisplay'
-import type { AssessmentQuestion, AssessmentAnswer } from '@/types/assessment'
+import UnifiedKeyboard from '@/components/UnifiedKeyboard'
+import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type Step = 'grade_select' | 'loading_questions' | 'empty' | 'questions' | 'contact_form' | 'generating' | 'error'
+type Step =
+  | 'grade_select'
+  | 'loading_curriculum'
+  | 'unit_select'
+  | 'topic_select'
+  | 'loading_questions'
+  | 'empty'
+  | 'questions'
+  | 'contact_form'
+  | 'generating'
+  | 'error'
 
-type GradeOption = { label: string; grade: number; month: number; gradeLevel: string }
+type GradeOption = { label: string; grade: number; gradeLevel: string; available: boolean }
 
 const GRADE_OPTIONS: GradeOption[] = [
-  { label: '小五（9月入學）', grade: 5, month: 9, gradeLevel: '小五（9月入學）' },
-  { label: '小五（11月入學）', grade: 5, month: 11, gradeLevel: '小五（11月入學）' },
-  { label: '小五（1月入學）', grade: 5, month: 1, gradeLevel: '小五（1月入學）' },
-  { label: '小五（3月入學）', grade: 5, month: 3, gradeLevel: '小五（3月入學）' },
-  { label: '小五（5月入學）', grade: 5, month: 5, gradeLevel: '小五（5月入學）' },
-  { label: '小六（9月入學）', grade: 6, month: 9, gradeLevel: '小六（9月入學）' },
-  { label: '小六（11月入學）', grade: 6, month: 11, gradeLevel: '小六（11月入學）' },
-  { label: '小六（1月入學）', grade: 6, month: 1, gradeLevel: '小六（1月入學）' },
-  { label: '小六（3月入學）', grade: 6, month: 3, gradeLevel: '小六（3月入學）' },
-  { label: '小六（5月入學）', grade: 6, month: 5, gradeLevel: '小六（5月入學）' },
+  { label: '小三（P3）', grade: 3, gradeLevel: '小三', available: true },
+  { label: '小四（即將推出）', grade: 4, gradeLevel: '小四', available: false },
+  { label: '小五（即將推出）', grade: 5, gradeLevel: '小五', available: false },
+  { label: '小六（即將推出）', grade: 6, gradeLevel: '小六', available: false },
 ]
 
 // ── Grade Selection ────────────────────────────────────────────────────────
@@ -37,7 +42,7 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
           <div className="text-5xl mb-4">📝</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">學前數學評估</h1>
           <p className="text-gray-500 text-sm leading-relaxed">
-            完成約15至20條題目，即時獲取個人化診斷報告，了解孩子的數學強弱項。
+            根據學生已學的單元，做 20 條題目，即時獲取個人化診斷報告。
           </p>
         </div>
 
@@ -46,12 +51,15 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
           <div className="space-y-2">
             {GRADE_OPTIONS.map((opt) => (
               <button
-                key={opt.gradeLevel}
-                onClick={() => setSelected(opt)}
+                key={opt.grade}
+                onClick={() => opt.available && setSelected(opt)}
+                disabled={!opt.available}
                 className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm font-medium ${
-                  selected?.gradeLevel === opt.gradeLevel
+                  selected?.grade === opt.grade
                     ? 'border-teal-500 bg-teal-50 text-teal-700'
-                    : 'border-gray-200 bg-white text-gray-700 hover:border-teal-300'
+                    : opt.available
+                      ? 'border-gray-200 bg-white text-gray-700 hover:border-teal-300'
+                      : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
                 }`}
               >
                 {opt.label}
@@ -66,12 +74,239 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
           className="w-full py-4 rounded-2xl text-white font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ backgroundColor: selected ? '#1D9E75' : '#9CA3AF' }}
         >
-          開始評估
+          下一步
         </button>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          免費 · 無需登入 · 約10至15分鐘
+          免費 · 無需登入 · 約 10 至 15 分鐘
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ── Unit (大單元) Selection ────────────────────────────────────────────────
+
+function UnitSelect({
+  units,
+  initialSelected,
+  onProceed,
+  onDrillDown,
+  onBack,
+}: {
+  units: CurriculumUnit[]
+  initialSelected: Set<string>
+  onProceed: (selectedUnitIds: string[]) => void
+  onDrillDown: (selectedUnitIds: string[]) => void
+  onBack: () => void
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected))
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // Group units by semester for display
+  const semA = units.filter((u) => u.semester === 'A')
+  const semB = units.filter((u) => u.semester === 'B')
+  const selectedCount = selected.size
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-32">
+      <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
+        <button onClick={onBack} className="text-sm text-gray-400 mb-2">← 返回</button>
+        <h2 className="text-lg font-bold text-gray-800">揀番學生已學嘅單元</h2>
+        <p className="text-xs text-gray-500 mt-1">可揀多個。揀越多單元，題目覆蓋範圍越大。</p>
+      </div>
+
+      <div className="p-5 space-y-6">
+        {semA.length > 0 && (
+          <Section title="3A 上學期" units={semA} selected={selected} onToggle={toggle} />
+        )}
+        {semB.length > 0 && (
+          <Section title="3B 下學期" units={semB} selected={selected} onToggle={toggle} />
+        )}
+      </div>
+
+      {/* Sticky bottom bar */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex flex-col gap-2 shadow-lg">
+        <p className="text-center text-xs text-gray-500">
+          已揀 <span className="font-semibold text-teal-600">{selectedCount}</span> 個大單元
+        </p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => selectedCount > 0 && onDrillDown(Array.from(selected))}
+            disabled={selectedCount === 0}
+            className="flex-1 py-3 rounded-xl border-2 border-teal-500 text-teal-600 text-sm font-medium disabled:opacity-40"
+          >
+            想再精準啲？揀小單元
+          </button>
+          <button
+            onClick={() => selectedCount > 0 && onProceed(Array.from(selected))}
+            disabled={selectedCount === 0}
+            className="flex-1 py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40"
+            style={{ backgroundColor: selectedCount > 0 ? '#1D9E75' : '#9CA3AF' }}
+          >
+            開始評估 →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Section({
+  title,
+  units,
+  selected,
+  onToggle,
+}: {
+  title: string
+  units: CurriculumUnit[]
+  selected: Set<string>
+  onToggle: (id: string) => void
+}) {
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-600 mb-2 px-1">{title}</h3>
+      <div className="space-y-2">
+        {units.map((u) => (
+          <button
+            key={u.id}
+            onClick={() => onToggle(u.id)}
+            className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-start gap-3 ${
+              selected.has(u.id) ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'
+            }`}
+          >
+            <div
+              className={`mt-0.5 w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
+                selected.has(u.id) ? 'border-teal-500 bg-teal-500' : 'border-gray-300 bg-white'
+              }`}
+            >
+              {selected.has(u.id) && <span className="text-white text-xs">✓</span>}
+            </div>
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${selected.has(u.id) ? 'text-teal-700' : 'text-gray-700'}`}>
+                {u.name}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {u.topics.length} 個小單元
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Topic (小單元) Selection ───────────────────────────────────────────────
+
+function TopicSelect({
+  units,
+  selectedUnitIds,
+  initialTopicIds,
+  onProceed,
+  onBack,
+}: {
+  units: CurriculumUnit[]
+  selectedUnitIds: string[]
+  initialTopicIds: Set<string>
+  onProceed: (topicIds: string[]) => void
+  onBack: () => void
+}) {
+  const visibleUnits = units.filter((u) => selectedUnitIds.includes(u.id))
+  const allTopicIds = visibleUnits.flatMap((u) => u.topics.map((t) => t.id))
+
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    if (initialTopicIds.size > 0) return new Set(initialTopicIds)
+    // Default: select all topics under the chosen units
+    return new Set(allTopicIds)
+  })
+
+  const toggle = (id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const toggleAllInUnit = (unit: CurriculumUnit) => {
+    const allChecked = unit.topics.every((t) => selected.has(t.id))
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const t of unit.topics) {
+        if (allChecked) next.delete(t.id)
+        else next.add(t.id)
+      }
+      return next
+    })
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 pb-32">
+      <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
+        <button onClick={onBack} className="text-sm text-gray-400 mb-2">← 返回大單元</button>
+        <h2 className="text-lg font-bold text-gray-800">細揀學生已學嘅小單元</h2>
+        <p className="text-xs text-gray-500 mt-1">每個小單元 = 一堂課嘅內容。</p>
+      </div>
+
+      <div className="p-5 space-y-5">
+        {visibleUnits.map((unit) => (
+          <div key={unit.id}>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <h3 className="text-sm font-semibold text-gray-700">{unit.name}</h3>
+              <button
+                onClick={() => toggleAllInUnit(unit)}
+                className="text-xs text-teal-600 font-medium"
+              >
+                全選 / 全清
+              </button>
+            </div>
+            <div className="space-y-2">
+              {unit.topics.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => toggle(t.id)}
+                  className={`w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3 ${
+                    selected.has(t.id) ? 'border-teal-500 bg-teal-50' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                      selected.has(t.id) ? 'border-teal-500 bg-teal-500' : 'border-gray-300 bg-white'
+                    }`}
+                  >
+                    {selected.has(t.id) && <span className="text-white text-[10px]">✓</span>}
+                  </div>
+                  <p className={`text-sm ${selected.has(t.id) ? 'text-teal-700 font-medium' : 'text-gray-600'}`}>
+                    第 {t.lesson_number} 堂 · {t.name}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex flex-col gap-2 shadow-lg">
+        <p className="text-center text-xs text-gray-500">
+          已揀 <span className="font-semibold text-teal-600">{selected.size}</span> 個小單元
+        </p>
+        <button
+          onClick={() => selected.size > 0 && onProceed(Array.from(selected))}
+          disabled={selected.size === 0}
+          className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40"
+          style={{ backgroundColor: selected.size > 0 ? '#1D9E75' : '#9CA3AF' }}
+        >
+          開始評估 →
+        </button>
       </div>
     </div>
   )
@@ -99,6 +334,13 @@ function QuestionCard({
   const [feedback, setFeedback] = useState<FeedbackState>(null)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Reset typed value when question changes
+  useEffect(() => {
+    setFillValue('')
+    setSelectedOption(null)
+    setFeedback(null)
+  }, [question.id])
+
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -118,6 +360,20 @@ function QuestionCard({
 
   const progressPct = ((questionNumber - 1) / totalQuestions) * 100
 
+  // Group sub-question label e.g. "(a)" / "(b)"
+  const subLabel = question.group_id && (question.sub_order ?? 1) > 0
+    ? ` (${String.fromCharCode(96 + (question.sub_order ?? 1))})`
+    : ''
+
+  // Tier badge
+  const tierBadge = question.difficulty_tier === 'basic'
+    ? { text: '基礎', cls: 'bg-teal-50 text-teal-600' }
+    : question.difficulty_tier === 'enhancement'
+      ? { text: '能力提升', cls: 'bg-amber-50 text-amber-600' }
+      : question.difficulty_tier === 'advanced'
+        ? { text: '拔尖', cls: 'bg-orange-100 text-orange-600' }
+        : null
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Progress */}
@@ -130,12 +386,19 @@ function QuestionCard({
             />
           </div>
           <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
-            {questionNumber}/{totalQuestions}
+            {questionNumber}{subLabel}/{totalQuestions}
           </span>
         </div>
-        <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-600 font-medium">
-          {moduleName}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="inline-block text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-600 font-medium">
+            {moduleName}
+          </span>
+          {tierBadge && (
+            <span className={`inline-block text-xs px-2 py-0.5 rounded-full font-medium ${tierBadge.cls}`}>
+              {tierBadge.text}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Question */}
@@ -144,6 +407,13 @@ function QuestionCard({
           <p className="text-base text-gray-800 leading-relaxed font-medium">
             <InlineMath text={question.question_text} />
           </p>
+          {question.question_image_url && (
+            <img
+              src={question.question_image_url}
+              alt={question.image_alt_text ?? '題目附圖'}
+              className="mt-4 max-w-full rounded-lg border border-gray-100"
+            />
+          )}
         </div>
 
         {/* Multiple Choice */}
@@ -183,34 +453,14 @@ function QuestionCard({
           </div>
         )}
 
-        {/* Fill In */}
-        {(question.question_type === 'fill_in' || question.question_type === 'fill_in_number') && (
-          <div className="space-y-3">
-            <input
-              type={question.question_type === 'fill_in_number' ? 'text' : 'text'}
-              inputMode="text"
-              value={fillValue}
-              onChange={(e) => !feedback && setFillValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && fillValue.trim() && !feedback) {
-                  submitAnswer(fillValue.trim())
-                }
-              }}
-              disabled={!!feedback}
-              placeholder="輸入答案"
-              className="w-full px-4 py-4 rounded-xl border-2 border-gray-200 text-base text-gray-800 focus:outline-none focus:border-teal-400 bg-white disabled:bg-gray-50"
-            />
-            {!feedback && (
-              <button
-                onClick={() => fillValue.trim() && submitAnswer(fillValue.trim())}
-                disabled={!fillValue.trim()}
-                className="w-full py-4 rounded-xl text-white font-semibold text-base disabled:opacity-40 transition-all"
-                style={{ backgroundColor: '#1D9E75' }}
-              >
-                確認
-              </button>
-            )}
-          </div>
+        {/* Unified keyboard for all non-MC types (fill_in / fill_in_number / calculation) */}
+        {question.question_type !== 'multiple_choice' && (
+          <UnifiedKeyboard
+            value={fillValue}
+            onChange={setFillValue}
+            onSubmit={() => fillValue.trim() && submitAnswer(fillValue.trim())}
+            disabled={!!feedback}
+          />
         )}
       </div>
 
@@ -364,10 +614,7 @@ function GeneratingScreen() {
       <div className="text-center">
         <div className="w-16 h-16 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin mx-auto mb-6" />
         <h2 className="text-lg font-bold text-gray-800 mb-2">正在生成診斷報告</h2>
-        <p className="text-gray-500 text-sm">
-          AI 老師正在分析您的答題情況{dots.slice(0, count).join('')}
-        </p>
-        <p className="text-gray-400 text-xs mt-2">約需 5 至 10 秒，請稍候</p>
+        <p className="text-gray-500 text-sm">請稍候{dots.slice(0, count).join('')}</p>
       </div>
     </div>
   )
@@ -375,20 +622,18 @@ function GeneratingScreen() {
 
 // ── Empty State ────────────────────────────────────────────────────────────
 
-function EmptyState({ gradeLabel, onBack }: { gradeLabel: string; onBack: () => void }) {
+function EmptyState({ message, onBack }: { message: string; onBack: () => void }) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
       <div className="text-center max-w-sm">
         <div className="text-5xl mb-4">🔧</div>
         <h2 className="text-xl font-bold text-gray-800 mb-2">題庫準備中</h2>
-        <p className="text-gray-500 text-sm mb-6">
-          {gradeLabel}的評估題庫正在整理，敬請期待！歡迎聯絡我們預約試堂。
-        </p>
+        <p className="text-gray-500 text-sm mb-6">{message}</p>
         <button
           onClick={onBack}
           className="px-6 py-3 rounded-xl border-2 border-teal-500 text-teal-600 font-medium text-sm"
         >
-          返回選擇年級
+          返回重新揀
         </button>
       </div>
     </div>
@@ -401,24 +646,45 @@ export default function AssessmentFlow() {
   const router = useRouter()
   const [step, setStep] = useState<Step>('grade_select')
   const [selectedGrade, setSelectedGrade] = useState<GradeOption | null>(null)
+  const [units, setUnits] = useState<CurriculumUnit[]>([])
+  const [selectedUnitIds, setSelectedUnitIds] = useState<string[]>([])
+  const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([])
   const [questions, setQuestions] = useState<AssessmentQuestion[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<AssessmentAnswer[]>([])
   const [errorMsg, setErrorMsg] = useState('')
+  const [emptyMsg, setEmptyMsg] = useState('')
 
   const handleGradeStart = async (opt: GradeOption) => {
     setSelectedGrade(opt)
-    setStep('loading_questions')
-
+    setStep('loading_curriculum')
     try {
-      const res = await fetch(`/api/assessment/questions?grade=${opt.grade}&month=${opt.month}`)
+      const res = await fetch(`/api/assessment/curriculum?grade=${opt.grade}`)
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '載入課程失敗')
+      setUnits(data.units ?? [])
+      setStep('unit_select')
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : '載入課程失敗')
+      setStep('error')
+    }
+  }
 
+  const loadQuestions = async (unitIds: string[], topicIds: string[]) => {
+    setStep('loading_questions')
+    setSelectedUnitIds(unitIds)
+    setSelectedTopicIds(topicIds)
+    try {
+      const params = new URLSearchParams({ grade: String(selectedGrade!.grade) })
+      if (topicIds.length > 0) params.set('topic_ids', topicIds.join(','))
+      else params.set('unit_ids', unitIds.join(','))
+      const res = await fetch(`/api/assessment/questions?${params}`)
+      const data = await res.json()
       if (data.empty || !data.questions?.length) {
+        setEmptyMsg(data.warnings?.[0] ?? '題庫尚未準備好')
         setStep('empty')
         return
       }
-
       setQuestions(data.questions)
       setCurrentIndex(0)
       setAnswers([])
@@ -428,6 +694,13 @@ export default function AssessmentFlow() {
       setStep('error')
     }
   }
+
+  const handleUnitsProceed = (unitIds: string[]) => loadQuestions(unitIds, [])
+  const handleDrillDown = (unitIds: string[]) => {
+    setSelectedUnitIds(unitIds)
+    setStep('topic_select')
+  }
+  const handleTopicsProceed = (topicIds: string[]) => loadQuestions(selectedUnitIds, topicIds)
 
   const handleAnswer = (answer: string, isCorrect: boolean) => {
     const q = questions[currentIndex]
@@ -441,6 +714,13 @@ export default function AssessmentFlow() {
       category_id: q.category_id ?? '',
       category_code: q.category?.code ?? '',
       module_name: q.module_name,
+      topic_id: q.topic_id ?? null,
+      topic_name: q.topic_name ?? null,
+      unit_id: q.unit_id ?? null,
+      unit_name: q.unit_name ?? null,
+      difficulty_tier: q.difficulty_tier ?? null,
+      group_id: q.group_id ?? null,
+      sub_order: q.sub_order ?? null,
     }
     const updatedAnswers = [...answers, newAnswer]
     setAnswers(updatedAnswers)
@@ -452,23 +732,17 @@ export default function AssessmentFlow() {
     }
   }
 
-  const handleContactSubmit = async (info: {
-    student_name: string
-    school_name: string
-    grade_display: string
-    parent_phone: string
-    parent_email: string
-  }) => {
+  const handleContactSubmit = async (info: ContactInfo) => {
     setStep('generating')
-
     try {
       const res = await fetch('/api/assessment/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           grade: selectedGrade!.grade,
-          month: selectedGrade!.month,
           grade_level: info.grade_display || selectedGrade!.gradeLevel,
+          selected_unit_ids: selectedUnitIds,
+          selected_topic_ids: selectedTopicIds,
           student_name: info.student_name,
           school_name: info.school_name,
           parent_phone: info.parent_phone,
@@ -494,22 +768,46 @@ export default function AssessmentFlow() {
     return <GradeSelect onStart={handleGradeStart} />
   }
 
-  if (step === 'loading_questions') {
+  if (step === 'loading_curriculum' || step === 'loading_questions') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">正在載入題目⋯</p>
+          <p className="text-gray-500 text-sm">{step === 'loading_curriculum' ? '正在載入課程⋯' : '正在抽題⋯'}</p>
         </div>
       </div>
+    )
+  }
+
+  if (step === 'unit_select') {
+    return (
+      <UnitSelect
+        units={units}
+        initialSelected={new Set(selectedUnitIds)}
+        onProceed={handleUnitsProceed}
+        onDrillDown={handleDrillDown}
+        onBack={() => setStep('grade_select')}
+      />
+    )
+  }
+
+  if (step === 'topic_select') {
+    return (
+      <TopicSelect
+        units={units}
+        selectedUnitIds={selectedUnitIds}
+        initialTopicIds={new Set(selectedTopicIds)}
+        onProceed={handleTopicsProceed}
+        onBack={() => setStep('unit_select')}
+      />
     )
   }
 
   if (step === 'empty') {
     return (
       <EmptyState
-        gradeLabel={selectedGrade?.gradeLevel ?? ''}
-        onBack={() => setStep('grade_select')}
+        message={emptyMsg}
+        onBack={() => setStep('unit_select')}
       />
     )
   }
@@ -522,7 +820,7 @@ export default function AssessmentFlow() {
         question={q}
         questionNumber={currentIndex + 1}
         totalQuestions={questions.length}
-        moduleName={q.module_name}
+        moduleName={q.unit_name ?? q.topic_name ?? q.module_name}
         onAnswer={handleAnswer}
       />
     )
