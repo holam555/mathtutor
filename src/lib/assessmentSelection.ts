@@ -80,14 +80,25 @@ function buildCandidateItems(
   return items
 }
 
-// ── Per-tier quota allocation across scopes (linear weighted) ──────────────
+// ── Per-tier quota allocation across scopes (dampened linear weighting) ───────
+//
+// Weight formula: w[i] = 1 + (MAX_RATIO - 1) * i / (N - 1)
+// → first scope always gets weight 1, last scope always gets weight MAX_RATIO,
+//   regardless of how many scopes are selected.
+// MAX_RATIO = 2 means the latest unit gets at most 2× the questions of the
+// earliest unit — much flatter than the old i+1 formula where a 10-unit
+// selection gave the last unit 10× more questions than the first.
+
+const MAX_WEIGHT_RATIO = 2   // last scope gets at most 2× questions vs first scope
 
 function allocateByLinearWeight(
   scopeCount: number,
   totalQuota: number,
 ): number[] {
-  // weights[i] = i+1; later scopes (more recently learned) get more questions.
-  const weights = Array.from({ length: scopeCount }, (_, i) => i + 1)
+  // Normalised linear: spread weights evenly from 1 to MAX_WEIGHT_RATIO.
+  const weights = Array.from({ length: scopeCount }, (_, i) =>
+    scopeCount === 1 ? 1 : 1 + (MAX_WEIGHT_RATIO - 1) * i / (scopeCount - 1),
+  )
   const totalWeight = weights.reduce((s, w) => s + w, 0)
 
   // Floor allocation, then distribute remainder to the largest fractional parts
