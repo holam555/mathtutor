@@ -483,16 +483,14 @@ export async function generateAssessmentReport(
   const totalQuestions = answers.length
   const score = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0
 
-  let band: string
+  // Use a single neutral 「AI 建議」 label regardless of score; description varies.
+  const band = 'AI 建議'
   let bandDescription: string
   if (score >= 85) {
-    band = 'Band 1'
     bandDescription = '數學基礎扎實，各範疇表現優異，具備升讀高年級的能力'
   } else if (score >= 65) {
-    band = 'Band 2'
     bandDescription = '整體掌握良好，部分範疇需要加強，有一定的提升空間'
   } else {
-    band = 'Band 3'
     bandDescription = '基礎知識需要加強，建議針對重點範疇進行系統性練習'
   }
 

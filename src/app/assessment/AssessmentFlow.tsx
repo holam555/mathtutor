@@ -18,7 +18,30 @@ type Step =
   | 'questions'
   | 'contact_form'
   | 'generating'
+  | 'time_up'
   | 'error'
+
+// Count "main questions": each unique group_id counts as 1, standalone
+// questions count as 1 each. Used to compute the timer budget (1 min each).
+function countMainQuestions(qs: AssessmentQuestion[]): number {
+  const seen = new Set<string>()
+  let n = 0
+  for (const q of qs) {
+    const key = q.group_id ?? `solo:${q.id}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      n += 1
+    }
+  }
+  return n
+}
+
+function formatTime(totalSec: number): string {
+  const s = Math.max(0, totalSec)
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+}
 
 type GradeOption = { label: string; grade: number; gradeLevel: string; available: boolean }
 
@@ -321,12 +344,14 @@ function QuestionCard({
   totalQuestions,
   moduleName,
   onAnswer,
+  timeLeft,
 }: {
   question: AssessmentQuestion
   questionNumber: number
   totalQuestions: number
   moduleName: string
   onAnswer: (answer: string, isCorrect: boolean) => void
+  timeLeft: number
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [fillValue, setFillValue] = useState('')
@@ -400,6 +425,15 @@ function QuestionCard({
               {tierBadge.text}
             </span>
           )}
+          <span
+            className={`ml-auto inline-flex items-center gap-1 text-xs font-mono font-semibold tabular-nums ${
+              timeLeft <= 60 ? 'text-orange-600' : 'text-gray-500'
+            }`}
+            aria-label="剩餘時間"
+          >
+            <span aria-hidden>⏱</span>
+            {formatTime(timeLeft)}
+          </span>
         </div>
       </div>
 
@@ -650,6 +684,24 @@ export default function AssessmentFlow() {
   const [answers, setAnswers] = useState<AssessmentAnswer[]>([])
   const [errorMsg, setErrorMsg] = useState('')
   const [emptyMsg, setEmptyMsg] = useState('')
+  const [timeLeft, setTimeLeft] = useState(0)
+
+  // Countdown: only ticks while answering. 1 minute per main question
+  // (a group of linked sub-questions counts as one main question).
+  useEffect(() => {
+    if (step !== 'questions' || timeLeft <= 0) return
+    const id = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          clearInterval(id)
+          setStep('time_up')
+          return 0
+        }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [step, timeLeft])
 
   const handleGradeStart = async (opt: GradeOption) => {
     setSelectedGrade(opt)
@@ -684,6 +736,8 @@ export default function AssessmentFlow() {
       setQuestions(data.questions)
       setCurrentIndex(0)
       setAnswers([])
+      // Initialize timer: 60 seconds × number of main questions.
+      setTimeLeft(countMainQuestions(data.questions) * 60)
       setStep('questions')
     } catch {
       setErrorMsg('載入題目失敗，請重試')
@@ -818,7 +872,35 @@ export default function AssessmentFlow() {
         totalQuestions={questions.length}
         moduleName={q.unit_name ?? q.topic_name ?? q.module_name}
         onAnswer={handleAnswer}
+        timeLeft={timeLeft}
       />
+    )
+  }
+
+  if (step === 'time_up') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex flex-col items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="text-5xl mb-4">⏰</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">時間到</h2>
+          <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+            每題大約 1 分鐘，超出限時表示題目可能太多，請重新嘗試。
+          </p>
+          <button
+            onClick={() => {
+              setAnswers([])
+              setQuestions([])
+              setCurrentIndex(0)
+              setTimeLeft(0)
+              setStep('grade_select')
+            }}
+            className="px-6 py-3 rounded-xl text-white font-medium text-sm"
+            style={{ backgroundColor: '#1D9E75' }}
+          >
+            重新開始
+          </button>
+        </div>
+      </div>
     )
   }
 

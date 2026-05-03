@@ -62,7 +62,7 @@ export default async function AssessmentReportPage({
       ? Math.round((report.totalCorrect / report.totalQuestions) * 100)
       : 0
   )
-  const band = report.band ?? (score >= 85 ? 'Band 1' : score >= 65 ? 'Band 2' : 'Band 3')
+  const band = report.band ?? 'AI 建議'
   const bandDescription = report.bandDescription ?? ''
   const strongAreas = report.strongAreas ?? []
   const weakAreas = report.weakAreas ?? []
@@ -75,7 +75,8 @@ export default async function AssessmentReportPage({
     wrongByModule.get(a.module_name)!.push(a)
   }
 
-  const bandColor = band === 'Band 1' ? '#1D9E75' : band === 'Band 2' ? '#F59E0B' : '#EF4444'
+  // Color reflects score (Band 1/2/3 strings replaced with neutral 「AI 建議」 label)
+  const bandColor = score >= 85 ? '#1D9E75' : score >= 65 ? '#F59E0B' : '#EF4444'
   const diagnosticTier = report.diagnosticTier
   const unitMastery = report.unitMastery ?? []
   const topicMastery = report.topicMastery ?? []
@@ -133,8 +134,7 @@ export default async function AssessmentReportPage({
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
             <div className="text-2xl font-bold mt-1" style={{ color: bandColor }}>{band}</div>
-            <div className="text-xs text-gray-500 mt-1">呈分試預估</div>
-            <div className="text-xs text-gray-400 leading-tight">{bandDescription}</div>
+            <div className="text-xs text-gray-400 leading-tight mt-1">{bandDescription}</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
             <div className="text-4xl font-bold" style={{ color: '#1D9E75' }}>{strongAreas.length}個</div>
@@ -439,7 +439,7 @@ export default async function AssessmentReportPage({
             了解針對{s.student_name}的個人備考方案
           </p>
           <a
-            href="https://wa.me/85291234567"
+            href="https://wa.me/85256011931"
             className="inline-block px-8 py-3 bg-white rounded-xl font-semibold text-sm w-full max-w-xs"
             style={{ color: '#1D9E75' }}
           >
