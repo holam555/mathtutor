@@ -480,12 +480,9 @@ function QuestionCard({
                       submitAnswer(opt)
                     }
                   }}
-                  className={`w-full text-left px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium flex items-center justify-between ${style}`}
+                  className={`w-full text-left px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium ${style}`}
                 >
-                  <span>{opt}</span>
-                  {feedback && isChosen && (
-                    <span className="text-lg leading-none ml-2">✓</span>
-                  )}
+                  {opt}
                 </button>
               )
             })}
