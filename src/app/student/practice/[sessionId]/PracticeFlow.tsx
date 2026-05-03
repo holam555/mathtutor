@@ -174,10 +174,18 @@ export default function PracticeFlow({
 
       {/* Question area */}
       <div className="flex-1 px-5 pt-6 pb-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm min-h-[140px] flex items-start">
+        <div className="bg-white rounded-2xl p-5 shadow-sm min-h-[140px] flex flex-col items-start gap-4">
           <p className="text-[18px] text-gray-800" style={{ lineHeight: '1.6' }}>
             <InlineMath text={currentQuestion.question_text} />
           </p>
+          {currentQuestion.question_image_url && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={currentQuestion.question_image_url}
+              alt={currentQuestion.image_alt_text ?? ''}
+              className="self-center max-w-full h-auto rounded-lg"
+            />
+          )}
         </div>
 
         {/* System text keyboard input (text answers: units, names, expressions, ordering) */}

@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { createServiceClient } from '@/lib/supabase/server'
 import { RATING_COLORS } from '@/lib/assessmentUtils'
 import type { ReportData, Rating, AssessmentAnswer } from '@/types/assessment'
+import { DIAGNOSTIC_TIER_LABELS } from '@/types/assessment'
 
 type AssessmentSession = {
   id: string
@@ -75,6 +76,9 @@ export default async function AssessmentReportPage({
   }
 
   const bandColor = band === 'Band 1' ? '#1D9E75' : band === 'Band 2' ? '#F59E0B' : '#EF4444'
+  const diagnosticTier = report.diagnosticTier
+  const unitMastery = report.unitMastery ?? []
+  const topicMastery = report.topicMastery ?? []
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -97,6 +101,28 @@ export default async function AssessmentReportPage({
             學生：{s.student_name} ｜ {s.grade_level} ｜ {dateStr}
           </p>
         </div>
+
+        {/* ── Diagnostic banner (P3 only) ── */}
+        {diagnosticTier && (() => {
+          const meta = DIAGNOSTIC_TIER_LABELS[diagnosticTier]
+          const colorMap: Record<string, { bg: string; border: string; text: string }> = {
+            teal:   { bg: 'bg-teal-50',   border: 'border-teal-300',   text: 'text-teal-800' },
+            amber:  { bg: 'bg-amber-50',  border: 'border-amber-300',  text: 'text-amber-800' },
+            orange: { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-800' },
+          }
+          const c = colorMap[meta.color] ?? colorMap.amber
+          return (
+            <div className={`rounded-2xl border-2 px-5 py-4 ${c.bg} ${c.border}`}>
+              <div className="flex items-start gap-3">
+                <span className="text-3xl flex-shrink-0">{meta.emoji}</span>
+                <div>
+                  <p className={`font-bold text-base mb-1 ${c.text}`}>{meta.title}</p>
+                  <p className={`text-xs leading-relaxed ${c.text} opacity-90`}>{meta.description}</p>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── 3-column score card ── */}
         <div className="grid grid-cols-3 gap-3">
@@ -124,7 +150,7 @@ export default async function AssessmentReportPage({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <span className="text-lg">✅</span>
-              <h2 className="font-bold text-gray-800 text-base">孩子的強項</h2>
+              <h2 className="font-bold text-gray-800 text-base">{s.student_name}的強項</h2>
             </div>
             <div className="divide-y divide-gray-50">
               {strongAreas.map((area, i) => (
@@ -217,30 +243,79 @@ export default async function AssessmentReportPage({
           </div>
         )}
 
-        {/* ── Module Mastery Grid (large %) ── */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-            <span className="text-lg">📊</span>
-            <h2 className="font-bold text-gray-800 text-base">各範疇掌握度分析</h2>
+        {/* ── Unit Mastery (P3) or legacy Module Mastery ── */}
+        {unitMastery.length > 0 ? (
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <h2 className="font-bold text-gray-800 text-base">大單元掌握度</h2>
+            </div>
+            <div className="px-5 py-5 grid grid-cols-2 gap-x-6 gap-y-5">
+              {unitMastery.map((m) => {
+                const color = m.pct >= 75 ? '#1D9E75' : m.pct >= 50 ? '#F59E0B' : '#EF4444'
+                const rc = RATING_COLORS[m.rating as Rating]
+                return (
+                  <div key={m.unit_id} className="text-center">
+                    <p className="text-xs text-gray-500 mb-1 truncate">{m.unit_name}</p>
+                    <p className="text-3xl font-bold" style={{ color }}>{m.pct}%</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{m.correct_marks}/{m.total_marks} 分</p>
+                    <span className={`inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded border ${rc.bg} ${rc.text} ${rc.border}`}>
+                      {m.rating}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <div className="px-5 py-5 grid grid-cols-2 gap-x-6 gap-y-5">
-            {report.modules.map((mod) => {
-              const pct = mod.total > 0 ? Math.round((mod.correct / mod.total) * 100) : 0
-              const color = pct >= 75 ? '#1D9E75' : pct >= 50 ? '#F59E0B' : '#EF4444'
-              const rating = mod.rating as Rating
-              const rc = RATING_COLORS[rating]
-              return (
-                <div key={mod.name} className="text-center">
-                  <p className="text-xs text-gray-500 mb-1 truncate">{mod.name}</p>
-                  <p className="text-3xl font-bold" style={{ color }}>{pct}%</p>
-                  <span className={`inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded border ${rc.bg} ${rc.text} ${rc.border}`}>
-                    {rating}
-                  </span>
-                </div>
-              )
-            })}
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+              <span className="text-lg">📊</span>
+              <h2 className="font-bold text-gray-800 text-base">各範疇掌握度分析</h2>
+            </div>
+            <div className="px-5 py-5 grid grid-cols-2 gap-x-6 gap-y-5">
+              {report.modules.map((mod) => {
+                const pct = mod.total > 0 ? Math.round((mod.correct / mod.total) * 100) : 0
+                const color = pct >= 75 ? '#1D9E75' : pct >= 50 ? '#F59E0B' : '#EF4444'
+                const rating = mod.rating as Rating
+                const rc = RATING_COLORS[rating]
+                return (
+                  <div key={mod.name} className="text-center">
+                    <p className="text-xs text-gray-500 mb-1 truncate">{mod.name}</p>
+                    <p className="text-3xl font-bold" style={{ color }}>{pct}%</p>
+                    <span className={`inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded border ${rc.bg} ${rc.text} ${rc.border}`}>
+                      {rating}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* ── Topic Mastery (P3 drill-down only) ── */}
+        {topicMastery.length > 0 && (
+          <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
+              <span className="text-lg">🔍</span>
+              <h2 className="font-bold text-gray-800 text-base">小單元掌握度</h2>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {topicMastery.map((m) => {
+                const color = m.pct >= 75 ? '#1D9E75' : m.pct >= 50 ? '#F59E0B' : '#EF4444'
+                return (
+                  <div key={m.topic_id} className="px-5 py-3 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-700 truncate">{m.topic_name}</p>
+                      <p className="text-xs text-gray-400">{m.unit_name} · {m.correct_marks}/{m.total_marks} 分</p>
+                    </div>
+                    <p className="text-2xl font-bold flex-shrink-0" style={{ color }}>{m.pct}%</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Learning Plan ── */}
         {learningPlan.length > 0 && (
@@ -364,7 +439,7 @@ export default async function AssessmentReportPage({
             了解針對{s.student_name}的個人備考方案
           </p>
           <a
-            href="https://wa.me/85200000000"
+            href="https://wa.me/85291234567"
             className="inline-block px-8 py-3 bg-white rounded-xl font-semibold text-sm w-full max-w-xs"
             style={{ color: '#1D9E75' }}
           >
@@ -377,9 +452,9 @@ export default async function AssessmentReportPage({
 
         {/* ── Footer ── */}
         <div className="text-center pb-6 text-xs text-gray-400">
-          <p>霖楓學苑 LF Academy · 小五小六數學升分專家</p>
+          <p>霖楓學苑 LF Academy · 小學數學升分專家</p>
           <a href="/assessment" className="text-teal-600 underline mt-1 inline-block">
-            讓其他孩子也做評估
+            讓其他學生也做評估
           </a>
         </div>
 

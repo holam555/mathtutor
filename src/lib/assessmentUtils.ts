@@ -6,7 +6,11 @@ import type {
   Rating,
   StrongArea,
   WeakArea,
+  DifficultyTier,
+  TopicMastery,
+  UnitMastery,
 } from '@/types/assessment'
+import { TIER_MARKS } from '@/types/assessment'
 
 export type { AssessmentAnswer, ModuleResult, ReportData, Rating }
 
@@ -109,6 +113,140 @@ export function buildModuleResultsByName(
   }))
 }
 
+// ── P3 group-aware scoring ────────────────────────────────────────────────
+
+// Group sub-questions sharing the same group_id together. Each group counts
+// as one quota slot. Tier marks (basic 3 / enhancement 5 / advanced 10) are
+// split equally among sub-questions; a sub-question correct ⇒ earns its share.
+type GroupedScore = { earned: number; possible: number; correctSubs: number; totalSubs: number; tier: DifficultyTier }
+
+function groupAnswers(answers: AssessmentAnswer[]): Map<string, AssessmentAnswer[]> {
+  const m = new Map<string, AssessmentAnswer[]>()
+  for (const a of answers) {
+    const key = a.group_id ?? `solo:${a.question_id}`
+    if (!m.has(key)) m.set(key, [])
+    m.get(key)!.push(a)
+  }
+  for (const [, list] of Array.from(m.entries())) {
+    list.sort((a: AssessmentAnswer, b: AssessmentAnswer) => (a.sub_order ?? 1) - (b.sub_order ?? 1))
+  }
+  return m
+}
+
+function scoreGroup(members: AssessmentAnswer[]): GroupedScore {
+  const tier = (members[0].difficulty_tier ?? 'basic') as DifficultyTier
+  const tierMarks = TIER_MARKS[tier]
+  const N = members.length
+  const perSub = tierMarks / N
+  let earned = 0
+  let correctSubs = 0
+  for (const m of members) {
+    if (m.is_correct) {
+      earned += perSub
+      correctSubs += 1
+    }
+  }
+  return { earned, possible: tierMarks, correctSubs, totalSubs: N, tier }
+}
+
+export function computeTotalScore(answers: AssessmentAnswer[]): { earned: number; possible: number; pct: number } {
+  if (answers.length === 0) return { earned: 0, possible: 0, pct: 0 }
+  // Detect if any answer has a tier (P3 mode). If none have tier, fall back
+  // to plain correct/total ratio (legacy P5/P6 mode).
+  const hasTier = answers.some((a) => a.difficulty_tier)
+  if (!hasTier) {
+    const correct = answers.filter((a) => a.is_correct).length
+    const total = answers.length
+    return { earned: correct, possible: total, pct: total > 0 ? Math.round((correct / total) * 100) : 0 }
+  }
+
+  const groups = groupAnswers(answers)
+  let earned = 0
+  let possible = 0
+  for (const [, members] of Array.from(groups.entries())) {
+    const s = scoreGroup(members)
+    earned += s.earned
+    possible += s.possible
+  }
+  const pct = possible > 0 ? Math.round((earned / possible) * 100) : 0
+  return {
+    earned: Math.round(earned * 10) / 10,
+    possible: Math.round(possible * 10) / 10,
+    pct,
+  }
+}
+
+// Build per-大單元 mastery (always shown if answers carry unit_id).
+export function buildUnitMastery(answers: AssessmentAnswer[]): UnitMastery[] {
+  const byUnit = new Map<string, AssessmentAnswer[]>()
+  for (const a of answers) {
+    if (!a.unit_id) continue
+    if (!byUnit.has(a.unit_id)) byUnit.set(a.unit_id, [])
+    byUnit.get(a.unit_id)!.push(a)
+  }
+  return Array.from(byUnit.entries()).map(([unitId, list]) => {
+    const score = computeTotalScore(list)
+    return {
+      unit_id: unitId,
+      unit_name: list[0].unit_name ?? '',
+      textbook_ref: '',
+      correct_marks: score.earned,
+      total_marks: score.possible,
+      pct: score.pct,
+      rating: getModuleRating(score.earned, score.possible),
+    } satisfies UnitMastery
+  })
+}
+
+// Build per-小單元 mastery (only when parent drilled down to topics).
+export function buildTopicMastery(answers: AssessmentAnswer[]): TopicMastery[] {
+  const byTopic = new Map<string, AssessmentAnswer[]>()
+  for (const a of answers) {
+    if (!a.topic_id) continue
+    if (!byTopic.has(a.topic_id)) byTopic.set(a.topic_id, [])
+    byTopic.get(a.topic_id)!.push(a)
+  }
+  return Array.from(byTopic.entries()).map(([topicId, list]) => {
+    const score = computeTotalScore(list)
+    return {
+      topic_id: topicId,
+      topic_name: list[0].topic_name ?? '',
+      unit_id: list[0].unit_id ?? '',
+      unit_name: list[0].unit_name ?? '',
+      correct_marks: score.earned,
+      total_marks: score.possible,
+      pct: score.pct,
+      rating: getModuleRating(score.earned, score.possible),
+    } satisfies TopicMastery
+  })
+}
+
+// Build module results from P3 unit/topic-tagged answers. The "module" name
+// is the unit name (or topic name if drilled down). Used by Gemini prompt and
+// the report's strong/weak areas. Counts here use sub-question level (not
+// group-level) so accuracy-based rating reflects how many sub-Qs were correct.
+export function buildModuleResultsFromP3Answers(
+  answers: AssessmentAnswer[],
+  drillDownToTopic: boolean,
+): Omit<ModuleResult, 'comment'>[] {
+  const moduleMap = new Map<string, AssessmentAnswer[]>()
+  for (const a of answers) {
+    const moduleName = drillDownToTopic ? (a.topic_name ?? a.unit_name ?? '其他') : (a.unit_name ?? '其他')
+    if (!moduleMap.has(moduleName)) moduleMap.set(moduleName, [])
+    moduleMap.get(moduleName)!.push(a)
+  }
+  return Array.from(moduleMap.entries()).map(([name, list]) => ({
+    name,
+    correct: list.filter((a) => a.is_correct).length,
+    total: list.length,
+    rating: getModuleRating(
+      list.filter((a) => a.is_correct).length,
+      list.length,
+    ),
+    wrongCategoryCodes: [],
+  }))
+}
+
 // ── Priority assignment ────────────────────────────────────────────────────
 
 function assignPriorities(
@@ -141,6 +279,11 @@ type CorrectPair = { question: string; correctAnswer: string }
 
 // ── Gemini: rich report sections ──────────────────────────────────────────
 
+// Optional curriculum context: per-module teaching methods extracted from P3 大綱.
+// Keys are module names (unit_name or topic_name). Values are short method names
+// like "公分母先行法", "進位「滿十進位搬家故事」", "斷尺必殺技公式" etc.
+export type CurriculumMethods = Record<string, string[]>
+
 async function generateRichReport(
   ai: GoogleGenAI,
   studentName: string,
@@ -151,6 +294,7 @@ async function generateRichReport(
   moduleCorrectExamples: Map<string, CorrectPair[]>,
   score: number,
   band: string,
+  curriculumMethods: CurriculumMethods = {},
 ): Promise<{
   strongAreas: StrongArea[]
   weakAreas: WeakArea[]
@@ -177,6 +321,16 @@ async function generateRichReport(
       }).join('\n\n')
     : '無'
 
+  // Build curriculum methods reference for weak modules
+  const methodsCtx = weakWithPriority
+    .map(({ module: m }) => {
+      const methods = curriculumMethods[m.name] ?? []
+      if (methods.length === 0) return null
+      return `- ${m.name}：${methods.map((mt) => `「${mt}」`).join('、')}`
+    })
+    .filter(Boolean)
+    .join('\n')
+
   const prompt = `你是香港霖楓學苑補習社的資深數學老師，正在為小學生${studentName}（${gradeLabel}）撰寫學前評估診斷報告。
 整體得分：${score}分（${band}）
 
@@ -186,10 +340,11 @@ ${strongStr}
 ===需要加強的範疇（B/C評級，含答錯示例）===
 ${weakStr}
 
+${methodsCtx ? `===霖楓學苑針對以下弱項範疇的專屬教學方法（請只用呢啲方法名做 solutions.title）===\n${methodsCtx}\n` : ''}
 ⚠️ 核心要求（違反任何一條視為失敗輸出）：
-1. errorTypes：每條必須在括號內直接引用上方「答錯示例」中的具體題目文字和學生的錯誤答案。例如：「分數通分錯誤（如題目「1/3 + 1/4」學生答「2/7」，未找公分母）」。禁止使用「計算出錯」「理解不足」等空泛描述。
-2. rootCause：必須點名具體知識點（如「帶分數加減中借位」「梯形面積公式中上下底順序」），並說明學生「已掌握X，但Y環節出現缺口」。
-3. solutions：每個方法名稱必須是針對此題型的專業四至六字名稱（如「公分母先行法」「借位圖解訓練」「梯形分解法」），detail必須以「我們的[X系統]中有一套「[方法名稱]」」開頭，並包含一個具體操作步驟或計算示例。
+1. errorTypes：每條只描述錯誤類型本身，要簡短具體（4 至 12 字），不可引用題目文字、學生答案、或正確答案。例如：「垂直線辨識錯誤」「同分母加減未化簡」「進位忘記加 1」「角度估算偏大」。禁止使用「計算出錯」「理解不足」等空泛描述，也禁止寫「如題目『...』」。
+2. rootCause：必須點名具體知識點（如「帶分數加減中借位」「梯形面積公式中上下底順序」），並說明${studentName}「已掌握X，但Y環節出現缺口」。
+3. solutions：${methodsCtx ? '優先使用上方「霖楓學苑專屬教學方法」中提供的方法名稱作為 title。如果無對應方法，再自擬四至六字方法名。' : '每個方法名稱必須是針對此題型的專業四至六字名稱（如「公分母先行法」「借位圖解訓練」「梯形分解法」）。'} detail 須包含一個具體操作步驟或計算示例（40至60字）。
 4. learningPlan的action：必須包含①每天/每週題量、②對應哪個solution方法名稱、③幾週內達到什麼具體目標（如「正確率提升至80%」）。
 5. observation（強項）：必須引用上方提供的至少一道實際答對題目。
 
@@ -209,14 +364,14 @@ ${weakStr}
       "name": "範疇名稱（與輸入完全一致）",
       "priority": "最高優先|高優先|中優先（與輸入完全一致）",
       "errorTypes": [
-        "具體錯誤類型一（必須引用實際題目）：格式「[錯誤描述]（如題目『[原題文字]』，學生答『[學生答案]』，正確為『[正確答案]』，問題在於[具體出錯步驟]）」",
-        "具體錯誤類型二（同樣必須引用實際題目，若只有一道錯題則從不同角度分析同一道題）"
+        "錯誤類型一（4 至 12 字短語，例：垂直線辨識錯誤）",
+        "錯誤類型二（4 至 12 字短語，例：分數通分未化簡）"
       ],
       "rootCause": "40至60字。格式：「${studentName}已能[已掌握的具體操作]，但在[具體知識點名稱]上出現缺口。當[遇到什麼具體題型情況]時，[會出現什麼具體計算問題]，導致[後果]。」",
       "solutions": [
         {
           "title": "「[四至六字方法名]」訓練",
-          "detail": "以「我們的[X系統]中有一套「[方法名稱]」」開頭（40至60字），說明具體訓練步驟，並包含一個對應此弱項題型的操作示例。"
+          "detail": "說明具體訓練步驟，並包含一個對應此弱項題型的操作示例（40至60字）。"
         },
         {
           "title": "「[四至六字方法名]」練習",
@@ -296,7 +451,7 @@ ${weakStr}
           { title: '錯題針對分析', detail: '仔細分析每道錯題的原因，找出規律避免重複犯錯。' },
         ],
       })),
-      overallSummary: `${studentName}完成了本次學前評估，整體得分${score}分（${band}）。各範疇表現有強有弱，建議針對薄弱範疇進行系統性練習。歡迎預約免費試堂，讓我們的老師為孩子制定個人化學習計劃。`,
+      overallSummary: `${studentName}完成了本次學前評估，整體得分${score}分（${band}）。各範疇表現有強有弱，建議針對薄弱範疇進行系統性練習。歡迎預約免費試堂，讓我們的老師為學生制定個人化學習計劃。`,
       learningPlan: [
         ...weakWithPriority.slice(0, 3).map(({ module: m }, i) => ({
           priority: ['第一優先', '第二優先', '第三優先'][i],
@@ -319,7 +474,8 @@ export async function generateAssessmentReport(
   studentName: string,
   gradeLabel: string,
   moduleResults: Omit<ModuleResult, 'comment'>[],
-  answers: AssessmentAnswer[]
+  answers: AssessmentAnswer[],
+  curriculumMethods: CurriculumMethods = {},
 ): Promise<ReportData> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
@@ -369,6 +525,7 @@ export async function generateAssessmentReport(
     strongModules, weakWithPriority,
     moduleWrongAnswers, moduleCorrectExamples,
     score, band,
+    curriculumMethods,
   )
 
   const modules: ModuleResult[] = moduleResults.map((m) => ({ ...m, comment: '' }))

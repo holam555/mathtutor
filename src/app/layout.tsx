@@ -3,7 +3,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: '數學練習',
-  description: '香港小五小六數學練習平台',
+  description: '香港小學數學練習平台',
 }
 
 export const viewport: Viewport = {

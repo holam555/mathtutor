@@ -1,5 +1,21 @@
 // Shared types for the 學前評估 feature — no server-only imports here
 
+export type DifficultyTier = 'basic' | 'enhancement' | 'advanced'
+
+// Marks per tier (matches P3 assessment template):
+//   basic 3, enhancement 5, advanced 10. Total 20 Qs = 100 marks.
+export const TIER_MARKS: Record<DifficultyTier, number> = {
+  basic: 3,
+  enhancement: 5,
+  advanced: 10,
+}
+
+export const TIER_QUOTA: Record<DifficultyTier, number> = {
+  basic: 10,
+  enhancement: 6,
+  advanced: 4,
+}
+
 export type AssessmentAnswer = {
   question_id: string
   question_text: string
@@ -7,9 +23,18 @@ export type AssessmentAnswer = {
   correct_answer: string
   student_answer: string
   is_correct: boolean
+  // legacy fields (kept for old P5/P6 hardcoded sessions)
   category_id: string
   category_code: string
   module_name: string
+  // P3 new schema:
+  topic_id?: string | null
+  topic_name?: string | null
+  unit_id?: string | null
+  unit_name?: string | null
+  difficulty_tier?: DifficultyTier | null
+  group_id?: string | null
+  sub_order?: number | null
 }
 
 export type AssessmentQuestion = {
@@ -25,6 +50,33 @@ export type AssessmentQuestion = {
   created_at: string
   category?: { id: string; name: string; code: string }
   module_name: string
+  // P3 new schema additions:
+  topic_id?: string | null
+  topic_name?: string | null
+  unit_id?: string | null
+  unit_name?: string | null
+  difficulty_tier?: DifficultyTier | null
+  group_id?: string | null
+  sub_order?: number | null
+  image_alt_text?: string | null
+}
+
+// Curriculum tree returned by /api/assessment/curriculum
+export type CurriculumTopic = {
+  id: string
+  name: string
+  lesson_number: number
+  display_order: number
+}
+
+export type CurriculumUnit = {
+  id: string
+  name: string
+  textbook_ref: string
+  unit_number: number
+  semester: 'A' | 'B'
+  display_order: number
+  topics: CurriculumTopic[]
 }
 
 export type Rating = 'S' | 'A' | 'B' | 'C'
@@ -52,6 +104,58 @@ export type WeakArea = {
   solutions: { title: string; detail: string }[]
 }
 
+// P3 diagnostic tier (per the user's assessment rubric)
+export type DiagnosticTier = 'advanced' | 'basic_mastery' | 'weak'
+
+export const DIAGNOSTIC_TIER_LABELS: Record<DiagnosticTier, { title: string; description: string; emoji: string; color: string }> = {
+  advanced: {
+    title: '基礎極為紮實，靈活運用突出',
+    description: '已具備後續課程入學能力，可匹配拔尖拓展教學計劃，提前滲透後續課程重點考點。',
+    emoji: '🎯',
+    color: 'teal',
+  },
+  basic_mastery: {
+    title: '基礎基本掌握，需強化綜合解題',
+    description: '具備基本計算與應用能力，但靈活運用、綜合解題能力不足。需針對性強化兩步及以上應用題、分數基礎、有餘數除法等核心模塊，鞏固後順利銜接。',
+    emoji: '📚',
+    color: 'amber',
+  },
+  weak: {
+    title: '基礎薄弱，需先進行補強',
+    description: '核心計算、基礎概念存在明顯漏洞。需先進行基礎知識補強，重點鞏固三位數加減、一位數乘兩位數、有餘數除法等核心內容，為後續課程學習打下基礎。',
+    emoji: '⚠️',
+    color: 'orange',
+  },
+}
+
+export function computeDiagnosticTier(score: number): DiagnosticTier {
+  if (score >= 80) return 'advanced'
+  if (score >= 50) return 'basic_mastery'
+  return 'weak'
+}
+
+// 大/小單元 mastery summary (separate from legacy modules)
+export type UnitMastery = {
+  unit_id: string
+  unit_name: string
+  textbook_ref: string
+  correct_marks: number
+  total_marks: number
+  pct: number             // 0–100
+  rating: Rating
+}
+
+export type TopicMastery = {
+  topic_id: string
+  topic_name: string
+  unit_id: string
+  unit_name: string
+  correct_marks: number
+  total_marks: number
+  pct: number
+  rating: Rating
+}
+
 export type ReportData = {
   modules: ModuleResult[]
   totalCorrect: number
@@ -64,6 +168,10 @@ export type ReportData = {
   overallSummary: string
   learningPlan: { priority: string; area: string; action: string }[]
   generatedAt: string
+  // P3 new fields:
+  diagnosticTier?: DiagnosticTier
+  unitMastery?: UnitMastery[]
+  topicMastery?: TopicMastery[]   // present only when parent drilled down to topics
   // legacy fields kept for old records
   nextSteps?: string[]
 }

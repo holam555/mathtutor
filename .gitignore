@@ -43,6 +43,15 @@ _pdfs/
 _pdfs:/
 _tmp/
 _tmp_resized/
+_crops:/
+
+# Past paper input PDFs (not for deployment)
+/public/Prelesson assessment/
+/p3 mock/
+/pre assessment curriculum/
+
+# Supabase CLI temp
+supabase/.temp/
 
 # Root-level dev scripts (not part of deployed app)
 /lib/
