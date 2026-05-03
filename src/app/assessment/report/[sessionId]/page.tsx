@@ -395,7 +395,7 @@ export default async function AssessmentReportPage({
             {[
               '教育局電子學習資源：www.hkedcity.net',
               '教育城 MathConcept：www.mathconcept.com',
-              'YouTube：「小五數學 各題型 教學」系列',
+              'YouTube：「小學數學 各題型 教學」系列',
               '教育局《數學與我》網頁遊戲',
             ].map((r, i) => (
               <li key={i} className="flex items-start gap-2 text-xs text-gray-600">
