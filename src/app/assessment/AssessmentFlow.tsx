@@ -604,11 +604,11 @@ function GeneratingScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
-      <div className="text-center max-w-sm">
+      <div className="text-center max-w-md">
         <div className="w-16 h-16 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin mx-auto mb-6" />
         <h2 className="text-lg font-bold text-gray-800 mb-2">正在生成診斷報告</h2>
         <p className="text-gray-500 text-sm">請稍候{dots.slice(0, count).join('')}</p>
-        <p className="text-gray-400 text-xs mt-3 leading-relaxed">
+        <p className="text-gray-400 text-xs mt-3 leading-relaxed break-keep px-2">
           AI 正在分析作答情況，可能需時數分鐘，請耐心等候，切勿關閉此頁面。
         </p>
       </div>
