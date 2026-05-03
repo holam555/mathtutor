@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { isAnswerCorrect } from '@/lib/answerUtils'
-import FractionDisplay, { InlineMath } from '@/components/FractionDisplay'
+import { InlineMath } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
 
@@ -348,10 +347,11 @@ function QuestionCard({
   }, [])
 
   const submitAnswer = (answer: string) => {
-    const correct = isAnswerCorrect(answer, question.correct_answer)
-    setFeedback({ correct, correctAnswer: question.correct_answer })
+    // Server grades on submit — client never sees the correct answer.
+    // The neutral feedback flag just disables the buttons during the 600ms transition.
+    setFeedback({ correct: true, correctAnswer: '' })
     timerRef.current = setTimeout(() => {
-      onAnswer(answer, correct)
+      onAnswer(answer, false)
       setSelectedOption(null)
       setFillValue('')
       setFeedback(null)
@@ -422,11 +422,10 @@ function QuestionCard({
             {question.options.map((opt) => {
               let style = 'border-gray-200 bg-white text-gray-700'
               if (feedback) {
-                const isThisCorrect = isAnswerCorrect(opt, question.correct_answer)
-                if (isThisCorrect) {
+                // Post-tap: highlight only the chosen option (neutral teal); dim others.
+                // Server grades on submit, so no correct/incorrect reveal here.
+                if (opt === selectedOption) {
                   style = 'border-teal-500 bg-teal-50 text-teal-700'
-                } else if (opt === selectedOption && !feedback.correct) {
-                  style = 'border-amber-400 bg-amber-50 text-amber-700'
                 } else {
                   style = 'border-gray-200 bg-white text-gray-400'
                 }
