@@ -55,8 +55,17 @@ export async function POST(request: NextRequest) {
     const base64 = buffer.toString('base64')
     const mimeType = file.type
 
-    // Upload to Supabase Storage
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+    // Upload to Supabase Storage. Derive ext from validated MIME type, not the
+    // attacker-controlled filename, to avoid path-traversal / injection.
+    const extFromMime: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/jpg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+      'image/heic': 'heic',
+      'image/heif': 'heif',
+    }
+    const ext = extFromMime[mimeType] ?? 'jpg'
     const storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
     const { error: uploadError } = await service.storage

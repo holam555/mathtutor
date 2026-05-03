@@ -18,7 +18,6 @@ export async function POST(request: NextRequest) {
     session_id: string
     question_id: string
     student_answer: string
-    correct_answer: string
     category_id: string
     time_spent_seconds?: number
   }
@@ -29,8 +28,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '請求格式錯誤' }, { status: 400 })
   }
 
-  const { session_id, question_id, student_answer, correct_answer, category_id, time_spent_seconds } = body
-  const correct = isAnswerCorrect(student_answer, correct_answer)
+  const { session_id, question_id, student_answer, category_id, time_spent_seconds } = body
+
+  // Look up correct_answer server-side — never trust the client.
+  const { data: questionRow, error: lookupError } = await supabase
+    .from('questions')
+    .select('correct_answer')
+    .eq('id', question_id)
+    .single()
+
+  if (lookupError || !questionRow) {
+    return NextResponse.json({ error: '題目不存在' }, { status: 404 })
+  }
+
+  const correct = isAnswerCorrect(student_answer, questionRow.correct_answer)
 
   // Record answer
   const { error: answerError } = await supabase.from('answer_records').insert({
