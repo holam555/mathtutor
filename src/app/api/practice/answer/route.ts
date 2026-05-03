@@ -31,6 +31,26 @@ export async function POST(request: NextRequest) {
 
   const { session_id, question_id, student_answer, category_id, time_spent_seconds } = body
 
+  // SECURITY: confirm this session belongs to the caller AND that the
+  // question is actually in this session's question_ids. Without this,
+  // a student could (a) post answers under another student's session_id
+  // or (b) grind any question for ⭐ outside their session's list.
+  const { data: sessionRow, error: sessionError } = await supabase
+    .from('practice_sessions')
+    .select('student_id, question_ids')
+    .eq('id', session_id)
+    .single()
+
+  if (sessionError || !sessionRow) {
+    return NextResponse.json({ error: '練習記錄不存在' }, { status: 404 })
+  }
+  if (sessionRow.student_id !== user.id) {
+    return NextResponse.json({ error: '無權記錄此練習' }, { status: 403 })
+  }
+  if (!Array.isArray(sessionRow.question_ids) || !sessionRow.question_ids.includes(question_id)) {
+    return NextResponse.json({ error: '此題不屬於此練習' }, { status: 400 })
+  }
+
   // Look up correct_answer server-side — never trust the client.
   const { data: questionRow, error: lookupError } = await supabase
     .from('questions')
