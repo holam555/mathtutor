@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAnswerCorrect } from '@/lib/answerUtils'
 import FractionDisplay, { InlineMath } from '@/components/FractionDisplay'
@@ -8,7 +8,7 @@ import type { AssessmentQuestion, AssessmentAnswer } from '@/types/assessment'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type Step = 'grade_select' | 'loading_questions' | 'empty' | 'questions' | 'contact_form' | 'generating' | 'error'
+type Step = 'grade_select' | 'loading_questions' | 'empty' | 'questions' | 'review' | 'contact_form' | 'generating' | 'error'
 
 type GradeOption = { label: string; grade: number; month: number; gradeLevel: string }
 
@@ -79,8 +79,6 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
 
 // ── Question Card ──────────────────────────────────────────────────────────
 
-type FeedbackState = { correct: boolean; correctAnswer: string } | null
-
 function QuestionCard({
   question,
   questionNumber,
@@ -96,24 +94,12 @@ function QuestionCard({
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [fillValue, setFillValue] = useState('')
-  const [feedback, setFeedback] = useState<FeedbackState>(null)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [])
 
   const submitAnswer = (answer: string) => {
     const correct = isAnswerCorrect(answer, question.correct_answer)
-    setFeedback({ correct, correctAnswer: question.correct_answer })
-    timerRef.current = setTimeout(() => {
-      onAnswer(answer, correct)
-      setSelectedOption(null)
-      setFillValue('')
-      setFeedback(null)
-    }, 1500)
+    onAnswer(answer, correct)
+    setSelectedOption(null)
+    setFillValue('')
   }
 
   const progressPct = ((questionNumber - 1) / totalQuestions) * 100
@@ -150,29 +136,16 @@ function QuestionCard({
         {question.question_type === 'multiple_choice' && question.options && (
           <div className="space-y-3">
             {question.options.map((opt) => {
-              let style = 'border-gray-200 bg-white text-gray-700'
-              if (feedback) {
-                const isThisCorrect = isAnswerCorrect(opt, question.correct_answer)
-                if (isThisCorrect) {
-                  style = 'border-teal-500 bg-teal-50 text-teal-700'
-                } else if (opt === selectedOption && !feedback.correct) {
-                  style = 'border-amber-400 bg-amber-50 text-amber-700'
-                } else {
-                  style = 'border-gray-200 bg-white text-gray-400'
-                }
-              } else if (opt === selectedOption) {
-                style = 'border-teal-400 bg-teal-50 text-teal-700'
-              }
+              const style = opt === selectedOption
+                ? 'border-teal-400 bg-teal-50 text-teal-700'
+                : 'border-gray-200 bg-white text-gray-700'
 
               return (
                 <button
                   key={opt}
-                  disabled={!!feedback}
                   onClick={() => {
-                    if (!feedback) {
-                      setSelectedOption(opt)
-                      submitAnswer(opt)
-                    }
+                    setSelectedOption(opt)
+                    submitAnswer(opt)
                   }}
                   className={`w-full text-left px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium ${style}`}
                 >
@@ -187,55 +160,106 @@ function QuestionCard({
         {(question.question_type === 'fill_in' || question.question_type === 'fill_in_number') && (
           <div className="space-y-3">
             <input
-              type={question.question_type === 'fill_in_number' ? 'text' : 'text'}
+              type="text"
               inputMode="text"
               value={fillValue}
-              onChange={(e) => !feedback && setFillValue(e.target.value)}
+              onChange={(e) => setFillValue(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && fillValue.trim() && !feedback) {
+                if (e.key === 'Enter' && fillValue.trim()) {
                   submitAnswer(fillValue.trim())
                 }
               }}
-              disabled={!!feedback}
               placeholder="輸入答案"
-              className="w-full px-4 py-4 rounded-xl border-2 border-gray-200 text-base text-gray-800 focus:outline-none focus:border-teal-400 bg-white disabled:bg-gray-50"
+              className="w-full px-4 py-4 rounded-xl border-2 border-gray-200 text-base text-gray-800 focus:outline-none focus:border-teal-400 bg-white"
             />
-            {!feedback && (
-              <button
-                onClick={() => fillValue.trim() && submitAnswer(fillValue.trim())}
-                disabled={!fillValue.trim()}
-                className="w-full py-4 rounded-xl text-white font-semibold text-base disabled:opacity-40 transition-all"
-                style={{ backgroundColor: '#1D9E75' }}
-              >
-                確認
-              </button>
-            )}
+            <button
+              onClick={() => fillValue.trim() && submitAnswer(fillValue.trim())}
+              disabled={!fillValue.trim()}
+              className="w-full py-4 rounded-xl text-white font-semibold text-base disabled:opacity-40 transition-all"
+              style={{ backgroundColor: '#1D9E75' }}
+            >
+              確認
+            </button>
           </div>
         )}
       </div>
+    </div>
+  )
+}
 
-      {/* Feedback banner */}
-      {feedback && (
-        <div
-          className={`fixed bottom-0 left-0 right-0 px-5 py-4 flex items-center gap-3 transition-all ${
-            feedback.correct
-              ? 'bg-teal-500 text-white'
-              : 'bg-amber-400 text-white'
-          }`}
-        >
-          <span className="text-2xl">{feedback.correct ? '✓' : '💪'}</span>
-          <div>
-            <p className="font-semibold text-sm">
-              {feedback.correct ? '答對了！' : '再試一次！'}
-            </p>
-            {!feedback.correct && (
-              <p className="text-xs opacity-90 flex items-center gap-1 flex-wrap">
-                正確答案：<FractionDisplay value={feedback.correctAnswer} />
-              </p>
-            )}
-          </div>
+// ── Review Answers ─────────────────────────────────────────────────────────
+
+function ReviewAnswers({
+  answers,
+  onContinue,
+}: {
+  answers: AssessmentAnswer[]
+  onContinue: () => void
+}) {
+  const correctCount = answers.filter((a) => a.is_correct).length
+  const totalCount = answers.length
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-6 px-4">
+      <div className="max-w-md mx-auto">
+        {/* Header */}
+        <div className="text-center mb-6">
+          <div className="text-5xl mb-3">📋</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-1">作答總結</h2>
+          <p className="text-gray-500 text-sm">
+            共 {totalCount} 題，答對 <span className="font-semibold text-teal-600">{correctCount}</span> 題
+          </p>
         </div>
-      )}
+
+        {/* Answer list */}
+        <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100 mb-6">
+          {answers.map((a, i) => (
+            <div key={i} className="px-4 py-3 flex items-start gap-3">
+              <span
+                className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
+                  a.is_correct ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {a.is_correct ? '✓' : '✗'}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs text-gray-400 font-medium">第 {i + 1} 題</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                    {a.module_name}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-800 leading-snug mb-1">
+                  <InlineMath text={a.question_text} />
+                </p>
+                <div className="text-xs text-gray-500 flex items-center gap-1 flex-wrap">
+                  你的答案：
+                  <span className={a.is_correct ? 'text-teal-600 font-medium' : 'text-amber-600 font-medium'}>
+                    <FractionDisplay value={a.student_answer} />
+                  </span>
+                  {!a.is_correct && (
+                    <>
+                      <span className="text-gray-300 mx-1">·</span>
+                      正確答案：
+                      <span className="text-gray-700 font-medium">
+                        <FractionDisplay value={a.correct_answer} />
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          onClick={onContinue}
+          className="w-full py-4 rounded-2xl text-white font-semibold text-base"
+          style={{ backgroundColor: '#1D9E75' }}
+        >
+          繼續查看診斷報告
+        </button>
+      </div>
     </div>
   )
 }
@@ -448,7 +472,7 @@ export default function AssessmentFlow() {
     if (currentIndex + 1 < questions.length) {
       setCurrentIndex((i) => i + 1)
     } else {
-      setStep('contact_form')
+      setStep('review')
     }
   }
 
@@ -524,6 +548,15 @@ export default function AssessmentFlow() {
         totalQuestions={questions.length}
         moduleName={q.module_name}
         onAnswer={handleAnswer}
+      />
+    )
+  }
+
+  if (step === 'review') {
+    return (
+      <ReviewAnswers
+        answers={answers}
+        onContinue={() => setStep('contact_form')}
       />
     )
   }
