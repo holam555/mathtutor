@@ -355,7 +355,7 @@ function QuestionCard({
       setSelectedOption(null)
       setFillValue('')
       setFeedback(null)
-    }, 1500)
+    }, 600)
   }
 
   const progressPct = ((questionNumber - 1) / totalQuestions) * 100
@@ -464,28 +464,7 @@ function QuestionCard({
         )}
       </div>
 
-      {/* Feedback banner */}
-      {feedback && (
-        <div
-          className={`fixed bottom-0 left-0 right-0 px-5 py-4 flex items-center gap-3 transition-all ${
-            feedback.correct
-              ? 'bg-teal-500 text-white'
-              : 'bg-amber-400 text-white'
-          }`}
-        >
-          <span className="text-2xl">{feedback.correct ? '✓' : '💪'}</span>
-          <div>
-            <p className="font-semibold text-sm">
-              {feedback.correct ? '答對了！' : '再試一次！'}
-            </p>
-            {!feedback.correct && (
-              <p className="text-xs opacity-90 flex items-center gap-1 flex-wrap">
-                正確答案：<FractionDisplay value={feedback.correctAnswer} />
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
