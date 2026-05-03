@@ -153,5 +153,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '無法建立練習記錄' }, { status: 500 })
   }
 
-  return NextResponse.json({ session_id: session.id, questions })
+  // SECURITY: never send correct_answer to the client. Server grades on
+  // /api/practice/answer and returns correct_answer post-submit (so the
+  // wrong-answer banner can still show 「正確答案：…」 after the student
+  // commits an answer). We also derive numeric_answer here so the client
+  // can still pick the right keyboard without seeing the answer itself.
+  const isNumericAnswer = (s: string | null | undefined) =>
+    !!s && /^-?\d+(\.\d+)?(又\d+\/\d+|\/\d+)?$/.test(s.trim())
+
+  const sanitised = questions.map((q) => ({
+    ...q,
+    numeric_answer: isNumericAnswer(q.correct_answer),
+    correct_answer: '',
+  }))
+
+  return NextResponse.json({ session_id: session.id, questions: sanitised })
 }

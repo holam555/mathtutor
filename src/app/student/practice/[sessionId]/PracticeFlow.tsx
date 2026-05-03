@@ -3,16 +3,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Question } from '@/types/database'
-import { isAnswerCorrect } from '@/lib/answerUtils'
 import FractionDisplay, { InlineMath } from '@/components/FractionDisplay'
 
 type FeedbackState = 'idle' | 'correct' | 'wrong'
 
-/** Returns true if the answer is a pure number, decimal, fraction or mixed number.
- *  Used to auto-show the custom fraction keyboard for fill_in questions. */
-function isNumericAnswer(answer: string): boolean {
-  return /^-?\d+(\.\d+)?(又\d+\/\d+|\/\d+)?$/.test(answer.trim())
-}
+// Server-augmented question: numeric_answer flag tells us whether the
+// fill_in question expects a number/fraction (custom keyboard) without
+// leaking the answer itself.
+type SessionQuestion = Question & { numeric_answer?: boolean }
 
 // 4-column numeric keyboard rows: [label, value] pairs
 // value === 'backspace' | 'confirm' are special actions
@@ -28,14 +26,14 @@ export default function PracticeFlow({
   questions,
 }: {
   sessionId: string
-  questions: Question[]
+  questions: SessionQuestion[]
 }) {
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [fillInput, setFillInput] = useState('')
   const [feedback, setFeedback] = useState<FeedbackState>('idle')
-  const [correctCount, setCorrectCount] = useState(0)
+  const [revealedAnswer, setRevealedAnswer] = useState<string>('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const textInputRef = useRef<HTMLInputElement>(null)
   const startTimeRef = useRef(Date.now())
@@ -45,19 +43,21 @@ export default function PracticeFlow({
   const progress = ((currentIndex + (feedback !== 'idle' ? 1 : 0)) / questions.length) * 100
 
   // Show the custom fraction keyboard for fill_in_number, calculation, OR fill_in
-  // questions whose correct answer is a number/fraction (no need to re-tag in DB).
+  // questions whose correct answer is a number/fraction. The numeric_answer flag
+  // is set server-side from the actual answer so the client doesn't need it.
   const useCustomKeyboard =
     qType === 'fill_in_number' ||
     qType === 'calculation' ||
-    (qType === 'fill_in' && isNumericAnswer(currentQuestion.correct_answer))
+    (qType === 'fill_in' && !!currentQuestion.numeric_answer)
 
   const advanceOrFinish = useCallback(
-    async (finalCorrectCount: number) => {
+    async () => {
       if (currentIndex + 1 >= questions.length) {
+        // Server recomputes correct_count from answer_records — no need to send it.
         await fetch('/api/practice/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ session_id: sessionId, correct_count: finalCorrectCount }),
+          body: JSON.stringify({ session_id: sessionId }),
         })
         router.push(`/student/results/${sessionId}`)
       } else {
@@ -65,6 +65,7 @@ export default function PracticeFlow({
         setSelectedOption(null)
         setFillInput('')
         setFeedback('idle')
+        setRevealedAnswer('')
         startTimeRef.current = Date.now()
       }
     },
@@ -74,9 +75,9 @@ export default function PracticeFlow({
   // Auto-advance after 1.5s feedback
   useEffect(() => {
     if (feedback === 'idle') return
-    const timer = setTimeout(() => advanceOrFinish(correctCount), 1500)
+    const timer = setTimeout(() => advanceOrFinish(), 1500)
     return () => clearTimeout(timer)
-  }, [feedback, correctCount, advanceOrFinish])
+  }, [feedback, advanceOrFinish])
 
   // Focus text input when using system keyboard
   useEffect(() => {
@@ -90,24 +91,34 @@ export default function PracticeFlow({
     setIsSubmitting(true)
 
     const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000)
-    const correct = isAnswerCorrect(answer, currentQuestion.correct_answer)
-    const newCorrectCount = correct ? correctCount + 1 : correctCount
 
-    setFeedback(correct ? 'correct' : 'wrong')
-    setCorrectCount(newCorrectCount)
-
-    fetch('/api/practice/answer', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        session_id: sessionId,
-        question_id: currentQuestion.id,
-        student_answer: answer,
-        correct_answer: currentQuestion.correct_answer,
-        category_id: currentQuestion.category_id,
-        time_spent_seconds: timeSpent,
-      }),
-    }).finally(() => setIsSubmitting(false))
+    // Server grades and returns {correct, correct_answer}. We wait for the
+    // response before showing feedback so the banner can reveal the right
+    // answer on a wrong tap.
+    try {
+      const res = await fetch('/api/practice/answer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          question_id: currentQuestion.id,
+          student_answer: answer,
+          category_id: currentQuestion.category_id,
+          time_spent_seconds: timeSpent,
+        }),
+      })
+      const data: { correct?: boolean; correct_answer?: string } = await res.json().catch(() => ({}))
+      const correct = !!data.correct
+      setRevealedAnswer(data.correct_answer ?? '')
+      setFeedback(correct ? 'correct' : 'wrong')
+    } catch {
+      // Network failure: fall back to a neutral "wrong" feedback so the
+      // student can still progress; nothing is recorded if the request died.
+      setRevealedAnswer('')
+      setFeedback('wrong')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   function handleOptionSelect(option: string) {
@@ -133,7 +144,9 @@ export default function PracticeFlow({
     if (feedback === 'idle') {
       return `${base} bg-white border-[#1D9E75] text-gray-800 hover:bg-[#1D9E75]/5`
     }
-    if (option === currentQuestion.correct_answer) {
+    // Use the server-revealed correct answer (post-submit) — the question
+    // payload itself never carries it.
+    if (revealedAnswer && option === revealedAnswer) {
       return `${base} bg-[#1D9E75] border-[#1D9E75] text-white`
     }
     if (option === selectedOption && feedback === 'wrong') {
@@ -296,9 +309,11 @@ export default function PracticeFlow({
           </div>
           {feedback === 'wrong' && (
             <div className="mt-1">
-              <p className="text-sm font-semibold text-white flex items-center gap-1 flex-wrap">
-                正確答案：<FractionDisplay value={currentQuestion.correct_answer} />
-              </p>
+              {revealedAnswer && (
+                <p className="text-sm font-semibold text-white flex items-center gap-1 flex-wrap">
+                  正確答案：<FractionDisplay value={revealedAnswer} />
+                </p>
+              )}
               <p className="text-xs text-white/70 mt-0.5">已加入挑戰題，下次再戰！</p>
             </div>
           )}
