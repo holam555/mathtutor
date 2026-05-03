@@ -348,14 +348,16 @@ function QuestionCard({
 
   const submitAnswer = (answer: string) => {
     // Server grades on submit — client never sees the correct answer.
-    // The neutral feedback flag just disables the buttons during the 600ms transition.
+    // The neutral feedback flag locks the buttons and shows a 「已記錄」
+    // toast so the student gets clear visual confirmation without
+    // leaking right/wrong.
     setFeedback({ correct: true, correctAnswer: '' })
     timerRef.current = setTimeout(() => {
       onAnswer(answer, false)
       setSelectedOption(null)
       setFillValue('')
       setFeedback(null)
-    }, 600)
+    }, 800)
   }
 
   const progressPct = ((questionNumber - 1) / totalQuestions) * 100
@@ -421,15 +423,16 @@ function QuestionCard({
           <div className="space-y-3">
             {question.options.map((opt) => {
               let style = 'border-gray-200 bg-white text-gray-700'
+              const isChosen = opt === selectedOption
               if (feedback) {
-                // Post-tap: highlight only the chosen option (neutral teal); dim others.
-                // Server grades on submit, so no correct/incorrect reveal here.
-                if (opt === selectedOption) {
-                  style = 'border-teal-500 bg-teal-50 text-teal-700'
+                // Post-tap: chosen option goes solid teal with a ✓; others dim.
+                // Neutral — no correctness reveal.
+                if (isChosen) {
+                  style = 'border-teal-500 bg-teal-500 text-white shadow-sm'
                 } else {
-                  style = 'border-gray-200 bg-white text-gray-400'
+                  style = 'border-gray-100 bg-gray-50 text-gray-300'
                 }
-              } else if (opt === selectedOption) {
+              } else if (isChosen) {
                 style = 'border-teal-400 bg-teal-50 text-teal-700'
               }
 
@@ -443,9 +446,12 @@ function QuestionCard({
                       submitAnswer(opt)
                     }
                   }}
-                  className={`w-full text-left px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium ${style}`}
+                  className={`w-full text-left px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium flex items-center justify-between ${style}`}
                 >
-                  {opt}
+                  <span>{opt}</span>
+                  {feedback && isChosen && (
+                    <span className="text-lg leading-none ml-2">✓</span>
+                  )}
                 </button>
               )
             })}
@@ -463,7 +469,16 @@ function QuestionCard({
         )}
       </div>
 
-
+      {/* Neutral "submitted" toast — no correctness reveal */}
+      {feedback && (
+        <div className="fixed bottom-0 left-0 right-0 px-5 py-4 bg-teal-500 text-white flex items-center justify-between">
+          <span className="font-semibold text-sm flex items-center gap-2">
+            <span className="text-lg leading-none">✓</span>
+            已記錄
+          </span>
+          <span className="text-xs opacity-80">下一題…</span>
+        </div>
+      )}
     </div>
   )
 }
