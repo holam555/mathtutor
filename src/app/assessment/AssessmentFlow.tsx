@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAnswerCorrect } from '@/lib/answerUtils'
-import FractionDisplay, { InlineMath } from '@/components/FractionDisplay'
+import { InlineMath } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
 
@@ -17,7 +17,6 @@ type Step =
   | 'loading_questions'
   | 'empty'
   | 'questions'
-  | 'review'
   | 'contact_form'
   | 'generating'
   | 'error'
@@ -439,83 +438,6 @@ function QuestionCard({
   )
 }
 
-// ── Review Answers ─────────────────────────────────────────────────────────
-
-function ReviewAnswers({
-  answers,
-  onContinue,
-}: {
-  answers: AssessmentAnswer[]
-  onContinue: () => void
-}) {
-  const correctCount = answers.filter((a) => a.is_correct).length
-  const totalCount = answers.length
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-6 px-4">
-      <div className="max-w-md mx-auto">
-        {/* Header */}
-        <div className="text-center mb-6">
-          <div className="text-5xl mb-3">📋</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-1">作答總結</h2>
-          <p className="text-gray-500 text-sm">
-            共 {totalCount} 題，答對 <span className="font-semibold text-teal-600">{correctCount}</span> 題
-          </p>
-        </div>
-
-        {/* Answer list */}
-        <div className="bg-white rounded-2xl shadow-sm divide-y divide-gray-100 mb-6">
-          {answers.map((a, i) => (
-            <div key={i} className="px-4 py-3 flex items-start gap-3">
-              <span
-                className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold ${
-                  a.is_correct ? 'bg-teal-100 text-teal-700' : 'bg-amber-100 text-amber-700'
-                }`}
-              >
-                {a.is_correct ? '✓' : '✗'}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xs text-gray-400 font-medium">第 {i + 1} 題</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
-                    {a.module_name}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-800 leading-snug mb-1">
-                  <InlineMath text={a.question_text} />
-                </p>
-                <div className="text-xs text-gray-500 flex items-center gap-1 flex-wrap">
-                  你的答案：
-                  <span className={a.is_correct ? 'text-teal-600 font-medium' : 'text-amber-600 font-medium'}>
-                    <FractionDisplay value={a.student_answer} />
-                  </span>
-                  {!a.is_correct && (
-                    <>
-                      <span className="text-gray-300 mx-1">·</span>
-                      正確答案：
-                      <span className="text-gray-700 font-medium">
-                        <FractionDisplay value={a.correct_answer} />
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <button
-          onClick={onContinue}
-          className="w-full py-4 rounded-2xl text-white font-semibold text-base"
-          style={{ backgroundColor: '#1D9E75' }}
-        >
-          繼續查看診斷報告
-        </button>
-      </div>
-    </div>
-  )
-}
-
 // ── Contact Form ───────────────────────────────────────────────────────────
 
 type ContactInfo = {
@@ -637,10 +559,13 @@ function GeneratingScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
-      <div className="text-center">
+      <div className="text-center max-w-sm">
         <div className="w-16 h-16 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin mx-auto mb-6" />
         <h2 className="text-lg font-bold text-gray-800 mb-2">正在生成診斷報告</h2>
         <p className="text-gray-500 text-sm">請稍候{dots.slice(0, count).join('')}</p>
+        <p className="text-gray-400 text-xs mt-3 leading-relaxed">
+          AI 正在分析作答情況，可能需時數分鐘，請耐心等候，切勿關閉此頁面。
+        </p>
       </div>
     </div>
   )
@@ -754,7 +679,7 @@ export default function AssessmentFlow() {
     if (currentIndex + 1 < questions.length) {
       setCurrentIndex((i) => i + 1)
     } else {
-      setStep('review')
+      setStep('contact_form')
     }
   }
 
@@ -848,15 +773,6 @@ export default function AssessmentFlow() {
         totalQuestions={questions.length}
         moduleName={q.unit_name ?? q.topic_name ?? q.module_name}
         onAnswer={handleAnswer}
-      />
-    )
-  }
-
-  if (step === 'review') {
-    return (
-      <ReviewAnswers
-        answers={answers}
-        onContinue={() => setStep('contact_form')}
       />
     )
   }
