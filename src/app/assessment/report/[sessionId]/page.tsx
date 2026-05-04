@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { RATING_COLORS } from '@/lib/assessmentUtils'
 import type { ReportData, Rating, AssessmentAnswer } from '@/types/assessment'
 import { DIAGNOSTIC_TIER_LABELS } from '@/types/assessment'
+import PrintButton from './PrintButton'
 
 type AssessmentSession = {
   id: string
@@ -81,8 +82,21 @@ export default async function AssessmentReportPage({
   const topicMastery = report.topicMastery ?? []
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0 print:px-0">
+      <style>{`
+        @media print {
+          @page { margin: 12mm; }
+          body { background: white !important; }
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          .rounded-2xl { break-inside: avoid; page-break-inside: avoid; }
+        }
+      `}</style>
       <div className="max-w-2xl mx-auto space-y-6">
+
+        {/* ── PDF export button ── */}
+        <div className="flex justify-end print:hidden">
+          <PrintButton />
+        </div>
 
         {/* ── Header ── */}
         <div className="text-center">
