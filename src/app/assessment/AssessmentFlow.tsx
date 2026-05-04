@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { isAnswerCorrect } from '@/lib/answerUtils'
 import { InlineMath } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
@@ -19,7 +18,30 @@ type Step =
   | 'questions'
   | 'contact_form'
   | 'generating'
+  | 'time_up'
   | 'error'
+
+// Count "main questions": each unique group_id counts as 1, standalone
+// questions count as 1 each. Used to compute the timer budget (1 min each).
+function countMainQuestions(qs: AssessmentQuestion[]): number {
+  const seen = new Set<string>()
+  let n = 0
+  for (const q of qs) {
+    const key = q.group_id ?? `solo:${q.id}`
+    if (!seen.has(key)) {
+      seen.add(key)
+      n += 1
+    }
+  }
+  return n
+}
+
+function formatTime(totalSec: number): string {
+  const s = Math.max(0, totalSec)
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`
+}
 
 type GradeOption = { label: string; grade: number; gradeLevel: string; available: boolean }
 
@@ -314,33 +336,53 @@ function TopicSelect({
 
 // ── Question Card ──────────────────────────────────────────────────────────
 
+type FeedbackState = { correct: boolean; correctAnswer: string } | null
+
 function QuestionCard({
   question,
   questionNumber,
   totalQuestions,
   moduleName,
   onAnswer,
+  timeLeft,
 }: {
   question: AssessmentQuestion
   questionNumber: number
   totalQuestions: number
   moduleName: string
   onAnswer: (answer: string, isCorrect: boolean) => void
+  timeLeft: number
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [fillValue, setFillValue] = useState('')
+  const [feedback, setFeedback] = useState<FeedbackState>(null)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Reset typed value when question changes
   useEffect(() => {
     setFillValue('')
     setSelectedOption(null)
+    setFeedback(null)
   }, [question.id])
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
+
   const submitAnswer = (answer: string) => {
-    const correct = isAnswerCorrect(answer, question.correct_answer)
-    onAnswer(answer, correct)
-    setSelectedOption(null)
-    setFillValue('')
+    // Server grades on submit — client never sees the correct answer.
+    // The neutral feedback flag locks the buttons and shows a 「已記錄」
+    // toast so the student gets clear visual confirmation without
+    // leaking right/wrong.
+    setFeedback({ correct: true, correctAnswer: '' })
+    timerRef.current = setTimeout(() => {
+      onAnswer(answer, false)
+      setSelectedOption(null)
+      setFillValue('')
+      setFeedback(null)
+    }, 800)
   }
 
   const progressPct = ((questionNumber - 1) / totalQuestions) * 100
@@ -383,6 +425,15 @@ function QuestionCard({
               {tierBadge.text}
             </span>
           )}
+          <span
+            className={`ml-auto inline-flex items-center gap-1 text-xs font-mono font-semibold tabular-nums ${
+              timeLeft <= 60 ? 'text-orange-600' : 'text-gray-500'
+            }`}
+            aria-label="剩餘時間"
+          >
+            <span aria-hidden>⏱</span>
+            {formatTime(timeLeft)}
+          </span>
         </div>
       </div>
 
@@ -405,16 +456,29 @@ function QuestionCard({
         {question.question_type === 'multiple_choice' && question.options && (
           <div className="space-y-3">
             {question.options.map((opt) => {
-              const style = opt === selectedOption
-                ? 'border-teal-400 bg-teal-50 text-teal-700'
-                : 'border-gray-200 bg-white text-gray-700'
+              let style = 'border-gray-200 bg-white text-gray-700'
+              const isChosen = opt === selectedOption
+              if (feedback) {
+                // Post-tap: chosen option goes solid teal with a ✓; others dim.
+                // Neutral — no correctness reveal.
+                if (isChosen) {
+                  style = 'border-teal-500 bg-teal-500 text-white shadow-sm'
+                } else {
+                  style = 'border-gray-100 bg-gray-50 text-gray-300'
+                }
+              } else if (isChosen) {
+                style = 'border-teal-400 bg-teal-50 text-teal-700'
+              }
 
               return (
                 <button
                   key={opt}
+                  disabled={!!feedback}
                   onClick={() => {
-                    setSelectedOption(opt)
-                    submitAnswer(opt)
+                    if (!feedback) {
+                      setSelectedOption(opt)
+                      submitAnswer(opt)
+                    }
                   }}
                   className={`w-full text-left px-4 py-4 rounded-xl border-2 transition-all text-sm font-medium ${style}`}
                 >
@@ -431,9 +495,21 @@ function QuestionCard({
             value={fillValue}
             onChange={setFillValue}
             onSubmit={() => fillValue.trim() && submitAnswer(fillValue.trim())}
+            disabled={!!feedback}
           />
         )}
       </div>
+
+      {/* Neutral "submitted" toast — no correctness reveal */}
+      {feedback && (
+        <div className="fixed bottom-0 left-0 right-0 px-5 py-4 bg-teal-500 text-white flex items-center justify-between">
+          <span className="font-semibold text-sm flex items-center gap-2">
+            <span className="text-lg leading-none">✓</span>
+            已記錄
+          </span>
+          <span className="text-xs opacity-80">下一題…</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -559,11 +635,11 @@ function GeneratingScreen() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
-      <div className="text-center max-w-sm">
+      <div className="text-center max-w-md">
         <div className="w-16 h-16 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin mx-auto mb-6" />
         <h2 className="text-lg font-bold text-gray-800 mb-2">正在生成診斷報告</h2>
         <p className="text-gray-500 text-sm">請稍候{dots.slice(0, count).join('')}</p>
-        <p className="text-gray-400 text-xs mt-3 leading-relaxed">
+        <p className="text-gray-400 text-xs mt-3 leading-relaxed break-keep px-2">
           AI 正在分析作答情況，可能需時數分鐘，請耐心等候，切勿關閉此頁面。
         </p>
       </div>
@@ -605,6 +681,24 @@ export default function AssessmentFlow() {
   const [answers, setAnswers] = useState<AssessmentAnswer[]>([])
   const [errorMsg, setErrorMsg] = useState('')
   const [emptyMsg, setEmptyMsg] = useState('')
+  const [timeLeft, setTimeLeft] = useState(0)
+
+  // Countdown: only ticks while answering. 1 minute per main question
+  // (a group of linked sub-questions counts as one main question).
+  useEffect(() => {
+    if (step !== 'questions' || timeLeft <= 0) return
+    const id = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) {
+          clearInterval(id)
+          setStep('time_up')
+          return 0
+        }
+        return t - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [step, timeLeft])
 
   const handleGradeStart = async (opt: GradeOption) => {
     setSelectedGrade(opt)
@@ -639,6 +733,8 @@ export default function AssessmentFlow() {
       setQuestions(data.questions)
       setCurrentIndex(0)
       setAnswers([])
+      // Initialize timer: 60 seconds × number of main questions.
+      setTimeLeft(countMainQuestions(data.questions) * 60)
       setStep('questions')
     } catch {
       setErrorMsg('載入題目失敗，請重試')
@@ -773,7 +869,35 @@ export default function AssessmentFlow() {
         totalQuestions={questions.length}
         moduleName={q.unit_name ?? q.topic_name ?? q.module_name}
         onAnswer={handleAnswer}
+        timeLeft={timeLeft}
       />
+    )
+  }
+
+  if (step === 'time_up') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex flex-col items-center justify-center p-6">
+        <div className="text-center max-w-sm">
+          <div className="text-5xl mb-4">⏰</div>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">時間到</h2>
+          <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+            每題大約 1 分鐘，超出限時表示題目可能太多，請重新嘗試。
+          </p>
+          <button
+            onClick={() => {
+              setAnswers([])
+              setQuestions([])
+              setCurrentIndex(0)
+              setTimeLeft(0)
+              setStep('grade_select')
+            }}
+            className="px-6 py-3 rounded-xl text-white font-medium text-sm"
+            style={{ backgroundColor: '#1D9E75' }}
+          >
+            重新開始
+          </button>
+        </div>
+      </div>
     )
   }
 

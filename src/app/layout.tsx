@@ -2,8 +2,11 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: '數學練習',
-  description: '香港小學數學練習平台',
+  title: {
+    default: '霖楓學院數學升分平台',
+    template: '%s | 霖楓學院數學升分平台',
+  },
+  description: '霖楓學院 — 香港小學數學練習與升分平台',
 }
 
 export const viewport: Viewport = {

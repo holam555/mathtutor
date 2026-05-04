@@ -11,6 +11,8 @@ import {
 } from '@/lib/assessmentUtils'
 import { computeDiagnosticTier } from '@/types/assessment'
 import type { AssessmentAnswer } from '@/types/assessment'
+import { isAnswerCorrect } from '@/lib/answerUtils'
+import { getAssessmentPaper } from '@/data/assessmentQuestions'
 
 type SubmitBody = {
   grade: number
@@ -48,6 +50,48 @@ export async function POST(request: NextRequest) {
   const isP3Mode = grade === 3
   const drillDownToTopic = isP3Mode && (selected_topic_ids?.length ?? 0) > 0
 
+  // ── SECURITY: re-grade every answer server-side ──────────────────────────
+  // The client never sees the correct answer (stripped from /api/assessment/questions).
+  // Trusting client-supplied is_correct/correct_answer would let anyone score 100%.
+  {
+    const supabaseGrade = createServiceClient()
+
+    if (isP3Mode) {
+      const p3Ids = answers.map((a) => a.question_id).filter((id) => !id.startsWith('hc-'))
+      if (p3Ids.length > 0) {
+        const { data: rows } = await supabaseGrade
+          .from('assessment_questions')
+          .select('id, correct_answer')
+          .in('id', p3Ids)
+        const answerMap = new Map<string, string>()
+        for (const r of rows ?? []) answerMap.set(r.id as string, (r.correct_answer as string) ?? '')
+        for (const a of answers) {
+          const ca = answerMap.get(a.question_id) ?? ''
+          a.correct_answer = ca
+          a.is_correct = ca ? isAnswerCorrect(a.student_answer, ca) : false
+        }
+      }
+    } else {
+      // Legacy P5/P6 hardcoded path: derive correct_answer by index encoded in id.
+      const paper = month ? getAssessmentPaper(grade, month) : null
+      if (paper) {
+        for (const a of answers) {
+          const m = /^hc-(\d+)-(\d+)-(\d+)$/.exec(a.question_id)
+          if (!m) {
+            a.is_correct = false
+            a.correct_answer = ''
+            continue
+          }
+          const idx = parseInt(m[3], 10)
+          const q = paper.questions[idx]
+          const ca = q?.correct_answer ?? ''
+          a.correct_answer = ca
+          a.is_correct = ca ? isAnswerCorrect(a.student_answer, ca) : false
+        }
+      }
+    }
+  }
+
   // ── Score (group-aware for P3, simple for legacy) ─────────────────────────
   const totalScore = computeTotalScore(answers)
   // Legacy view also wants raw correct/total counts:
@@ -55,16 +99,14 @@ export async function POST(request: NextRequest) {
   const totalQuestions = answers.length
   const score = totalScore.pct
 
-  let band: string
+  // Use a single neutral 「AI 建議」 label regardless of score; description varies.
+  const band = 'AI 建議'
   let bandDescription: string
   if (score >= 85) {
-    band = 'Band 1'
     bandDescription = '數學基礎扎實，各範疇表現優異，具備升讀高年級的能力'
   } else if (score >= 65) {
-    band = 'Band 2'
     bandDescription = '整體掌握良好，部分範疇需要加強，有一定的提升空間'
   } else {
-    band = 'Band 3'
     bandDescription = '基礎知識需要加強，建議針對重點範疇進行系統性練習'
   }
 

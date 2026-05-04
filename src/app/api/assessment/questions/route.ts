@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '暫未支援該版本評估，敬請期待', empty: true }, { status: 200 })
     }
 
+    // SECURITY: never send correct_answer to the client — server grades on submit.
     const questions: AssessmentQuestion[] = paper.questions.map((q, i) => ({
       id: `hc-${grade}-${month}-${i}`,
       category_id: '',
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
       question_image_url: null,
       question_type: q.question_type,
       options: q.options ?? null,
-      correct_answer: q.correct_answer,
+      correct_answer: '',
       difficulty: 1,
       is_active: true,
       created_at: new Date().toISOString(),
@@ -268,7 +269,8 @@ export async function GET(request: NextRequest) {
       question_image_url: q.image_url ?? null,
       question_type: q.question_type as AssessmentQuestion['question_type'],
       options: (q.options as string[] | null) ?? null,
-      correct_answer: q.correct_answer,
+      // SECURITY: never send correct_answer to the client — server grades on submit.
+      correct_answer: '',
       difficulty: q.difficulty_tier === 'basic' ? 1 : q.difficulty_tier === 'enhancement' ? 2 : 3,
       is_active: true,
       created_at: new Date().toISOString(),
