@@ -147,7 +147,16 @@ export default async function AssessmentReportPage({
             <div className="text-xs text-gray-400">滿分100</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
-            <div className="text-2xl font-bold mt-1" style={{ color: bandColor }}>{band}</div>
+            <div className="text-2xl font-bold mt-1 leading-tight" style={{ color: bandColor }}>
+              {band === 'AI 建議' ? (
+                <>
+                  <span className="block">AI</span>
+                  <span className="block">建議</span>
+                </>
+              ) : (
+                band
+              )}
+            </div>
             <div className="text-xs text-gray-400 leading-tight mt-1">{bandDescription}</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">

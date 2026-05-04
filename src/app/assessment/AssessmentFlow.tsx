@@ -640,7 +640,10 @@ function GeneratingScreen() {
         <h2 className="text-lg font-bold text-gray-800 mb-2">正在生成診斷報告</h2>
         <p className="text-gray-500 text-sm">請稍候{dots.slice(0, count).join('')}</p>
         <p className="text-gray-400 text-xs mt-3 leading-relaxed break-keep px-2">
-          AI 正在分析作答情況，可能需時數分鐘，請耐心等候，切勿關閉此頁面。
+          AI 正在分析作答情況，可能需時數分鐘。
+        </p>
+        <p className="text-gray-400 text-xs leading-relaxed break-keep px-2">
+          請耐心等候，切勿關閉此頁面。
         </p>
       </div>
     </div>
