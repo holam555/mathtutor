@@ -468,6 +468,9 @@ export default async function AssessmentReportPage({
           >
             WhatsApp 查詢
           </a>
+          <p className="text-white/90 text-sm mt-3">
+            或致電 <a href="tel:+85256011931" className="font-semibold underline">+852 5601 1931</a>
+          </p>
           <p className="text-white/60 text-xs mt-4">
             此報告由霖楓學苑導師根據評估結果分析後撰寫，僅供家長參考
           </p>
