@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { createServiceClient } from '@/lib/supabase/server'
-import { RATING_COLORS } from '@/lib/assessmentUtils'
+import { RATING_COLORS, RATING_LABELS } from '@/lib/assessmentUtils'
 import type { ReportData, Rating, AssessmentAnswer } from '@/types/assessment'
 import { DIAGNOSTIC_TIER_LABELS } from '@/types/assessment'
 import PrintButton from './PrintButton'
@@ -283,7 +283,7 @@ export default async function AssessmentReportPage({
                     <p className="text-3xl font-bold" style={{ color }}>{m.pct}%</p>
                     <p className="text-xs text-gray-400 mt-0.5">{m.correct_marks}/{m.total_marks} 分</p>
                     <span className={`inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded border ${rc.bg} ${rc.text} ${rc.border}`}>
-                      {m.rating}
+                      {RATING_LABELS[m.rating as Rating]}
                     </span>
                   </div>
                 )
@@ -307,7 +307,7 @@ export default async function AssessmentReportPage({
                     <p className="text-xs text-gray-500 mb-1 truncate">{mod.name}</p>
                     <p className="text-3xl font-bold" style={{ color }}>{pct}%</p>
                     <span className={`inline-block mt-1 text-xs font-semibold px-1.5 py-0.5 rounded border ${rc.bg} ${rc.text} ${rc.border}`}>
-                      {rating}
+                      {RATING_LABELS[rating]}
                     </span>
                   </div>
                 )

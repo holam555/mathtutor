@@ -265,11 +265,11 @@ function assignPriorities(
   return sorted.map((m, i) => {
     let priority: WeakArea['priority']
     if (m.rating === 'C') {
-      priority = '最高優先'
+      priority = '急需加強'
     } else if (i === cCount) {
-      priority = '高優先'
+      priority = '需要加強'
     } else {
-      priority = '中優先'
+      priority = '可以加強'
     }
     return { module: m, priority }
   })
