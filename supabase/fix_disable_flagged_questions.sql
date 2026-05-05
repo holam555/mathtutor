@@ -4,8 +4,8 @@
 -- image, comprehension issues). Questions remain in the DB
 -- so they can be reviewed + re-enabled later.
 --
--- 106 questions disabled. After running, the active
--- pool drops from 704 to ~598 questions.
+-- 105 questions disabled. After running, the active
+-- pool drops from 704 to ~599 questions.
 --
 -- Run in Supabase SQL Editor.
 
@@ -55,7 +55,7 @@ WHERE id IN (
   '61d1c3d9-ea83-4b42-8a97-3c56f2ef3a60', -- curriculum_alignment:concept_not_in_unit
   'f765f609-afc5-4983-8e92-871c8768a93a', -- curriculum_alignment:concept_not_in_unit
   'b019d1e5-8699-477d-a8b8-6ef51d0ca13a', -- curriculum_alignment:advanced_for_unit
-  'e75be4b9-54f5-4e34-9684-1e7276bbd116', -- curriculum_alignment:concept_not_in_unit, comprehension:implicit_quantity
+  'e75be4b9-54f5-4e34-9684-1e7276bbd116', -- curriculum_alignment:concept_not_in_unit
   'b801b8d9-63ff-4dd5-9d80-779b995b9411', -- curriculum_alignment:wrong_topic
   '10f8e2c9-6b32-4d17-ade4-7f8ad9b5387c', -- curriculum_alignment:wrong_topic
   '47150802-5185-4439-97c7-a87963735b18', -- curriculum_alignment:wrong_topic
@@ -64,7 +64,7 @@ WHERE id IN (
   '04015fc8-15ea-4486-9a66-dfc573ae237b', -- comprehension:info_overload
   '3b47c2e5-7583-448b-a23b-1e72739ffca9', -- distractor_quality:distractor_ambiguous
   '3f666519-1792-42c4-937e-321ce4f34a64', -- curriculum_alignment:topic_mismatch
-  'e95803f5-59f3-4c27-a67a-896665f79f42', -- curriculum_alignment:topic_mismatch, curriculum_alignment:topic_off
+  'e95803f5-59f3-4c27-a67a-896665f79f42', -- curriculum_alignment:topic_mismatch
   '4a61e810-a281-4765-abcd-c753627bf798', -- comprehension:ambiguous_wording
   '82ec74e7-5094-439a-b683-29125550a3f7', -- comprehension:ambiguous_wording
   '6a068db5-43ea-4787-877c-be61329e62ac', -- comprehension:ambiguous_wording
@@ -75,8 +75,7 @@ WHERE id IN (
   'da9af35c-00cf-4d7b-bf33-0597267693c0', -- comprehension:needs_prior_question
   '135bfbcc-26dc-486e-99aa-86d7639b2ec3', -- comprehension:ambiguous_wording
   'a9aca3bd-3f06-4c11-b589-ec821c351515', -- distractor_quality:topic_mixes_unit
-  '574-7d8dfccf-12e3-42c5-877f-e8ad1cd3e180', -- image_integrity:image_alt_too_vague
-  '7d8dfccf-12e3-42c5-877f-e8ad1cd3e180', -- image_integrity:alt_contradicts_answer
+  '7d8dfccf-12e3-42c5-877f-e8ad1cd3e180', -- image_integrity:image_alt_too_vague
   '27f4cc11-5eb6-4220-98b0-b766533df307', -- comprehension:needs_prior_question
   '814f54b6-24de-4ea9-8b19-d50dc4b8b835', -- image_integrity:image_alt_too_vague
   '11c17ec3-d431-49ba-82f0-2206795262ff', -- image_integrity:image_alt_too_vague
@@ -124,8 +123,4 @@ WHERE id IN (
 
 COMMIT;
 
--- To re-enable a specific question later:
---   UPDATE assessment_questions SET is_active = true WHERE id = '<uuid>';
--- To re-enable all of them at once (revert this whole file):
---   UPDATE assessment_questions SET is_active = true
---   WHERE id IN (...same UUIDs...);
+-- Revert: set is_active = true on the same UUIDs above.
