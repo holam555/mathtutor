@@ -1,5 +1,53 @@
 import { GoogleGenAI } from '@google/genai'
 
+// ── Resilient generateContent wrapper ──────────────────────────────────────
+// Gemini occasionally returns 503 UNAVAILABLE during demand spikes. Retry
+// transient errors a couple of times, then fall through to a cheaper/older
+// backup model before giving up. Callers that already wrap the result in
+// try/catch (e.g. the assessment report builder) will still degrade to a
+// template report if every option fails — but that's now a much rarer path.
+
+const PRIMARY_MODEL = 'gemini-2.5-flash'
+const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.0-flash'] as const
+const RETRY_DELAYS_MS = [500, 1500] as const
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504])
+
+type GenerateContentArgs = Parameters<GoogleGenAI['models']['generateContent']>[0]
+type GenerateContentResult = Awaited<ReturnType<GoogleGenAI['models']['generateContent']>>
+
+export async function generateContentWithFallback(
+  ai: GoogleGenAI,
+  args: Omit<GenerateContentArgs, 'model'>,
+  primaryModel: string = PRIMARY_MODEL,
+): Promise<GenerateContentResult> {
+  const models = [primaryModel, ...FALLBACK_MODELS.filter((m) => m !== primaryModel)]
+  let lastErr: unknown
+
+  for (const model of models) {
+    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+      try {
+        return await ai.models.generateContent({ ...args, model })
+      } catch (err) {
+        lastErr = err
+        const status = (err as { status?: number })?.status
+        const transient = status == null || RETRYABLE_STATUSES.has(status)
+        if (!transient) {
+          console.warn(`Gemini ${model} non-transient error (status=${status}); trying next model`)
+          break
+        }
+        if (attempt < RETRY_DELAYS_MS.length) {
+          const delay = RETRY_DELAYS_MS[attempt]
+          console.warn(`Gemini ${model} attempt ${attempt + 1} (status=${status}); retry in ${delay}ms`)
+          await new Promise((r) => setTimeout(r, delay))
+        } else {
+          console.warn(`Gemini ${model} exhausted retries (status=${status}); trying next model`)
+        }
+      }
+    }
+  }
+  throw lastErr
+}
+
 // ── Past-paper extraction ──────────────────────────────────────────────────
 
 const CATEGORY_LIST = `
@@ -69,8 +117,7 @@ export async function extractQuestionsFromImages(
     { text: prompt },
   ]
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const response = await generateContentWithFallback(ai, {
     contents: [{ role: 'user', parts }],
     config: {
       responseMimeType: 'application/json',
@@ -122,8 +169,7 @@ export async function generateVariations(
 
   const prompt = `${SYSTEM_PREFIX}\n${templatePrompt}\n\n請生成 ${count} 條題目。直接輸出JSON，不要\`\`\`json標記。`
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+  const response = await generateContentWithFallback(ai, {
     contents: prompt,
     config: {
       responseMimeType: 'application/json',
