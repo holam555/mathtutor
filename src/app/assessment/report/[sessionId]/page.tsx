@@ -17,9 +17,9 @@ type AssessmentSession = {
 }
 
 const PRIORITY_COLORS = {
-  '最高優先': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500' },
-  '高優先':   { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
-  '中優先':   { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
+  '急需加強': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500' },
+  '需要加強': { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', dot: 'bg-amber-500' },
+  '可以加強': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' },
 }
 
 export default async function AssessmentReportPage({
@@ -203,7 +203,7 @@ export default async function AssessmentReportPage({
             </div>
             <div className="divide-y divide-gray-50">
               {weakAreas.map((area, i) => {
-                const colors = PRIORITY_COLORS[area.priority] ?? PRIORITY_COLORS['中優先']
+                const colors = PRIORITY_COLORS[area.priority as keyof typeof PRIORITY_COLORS] ?? PRIORITY_COLORS['可以加強']
                 return (
                   <div key={i} className="px-5 py-5">
                     {/* Title row */}

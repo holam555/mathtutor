@@ -105,7 +105,7 @@ export type StrongArea = {
 
 export type WeakArea = {
   name: string
-  priority: '最高優先' | '高優先' | '中優先'
+  priority: '急需加強' | '需要加強' | '可以加強'
   errorTypes: string[]
   rootCause: string
   solutions: { title: string; detail: string }[]
