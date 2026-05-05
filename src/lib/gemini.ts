@@ -8,8 +8,15 @@ import { GoogleGenAI } from '@google/genai'
 // template report if every option fails — but that's now a much rarer path.
 
 const PRIMARY_MODEL = 'gemini-2.5-flash'
-const FALLBACK_MODELS = ['gemini-2.5-flash-lite', 'gemini-2.0-flash'] as const
-const RETRY_DELAYS_MS = [500, 1500] as const
+// Backup models — keep small + recent. We deliberately avoid the older
+// gemini-2.0-flash because its prose quality is noticeably weaker on the
+// assessment prompt; we'd rather surface a 「請稍後重試」 to the user than
+// silently downgrade output.
+const FALLBACK_MODELS = ['gemini-2.5-flash-lite'] as const
+// 4 attempts per model: initial + 3 retries with exponential-ish backoff.
+// At ~3s per Gemini call this gives ~17s per model worst case, ~34s total
+// for both models (well within the 60s function budget).
+const RETRY_DELAYS_MS = [500, 1500, 3000] as const
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504])
 
 type GenerateContentArgs = Parameters<GoogleGenAI['models']['generateContent']>[0]

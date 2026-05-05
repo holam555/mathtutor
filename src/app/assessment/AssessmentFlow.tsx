@@ -683,6 +683,10 @@ export default function AssessmentFlow() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [answers, setAnswers] = useState<AssessmentAnswer[]>([])
   const [errorMsg, setErrorMsg] = useState('')
+  // Remember the last contact-form submission so the error screen can offer a
+  // 「重試」 button (re-fires generation without forcing the parent to redo
+  // the quiz).
+  const [lastContactInfo, setLastContactInfo] = useState<ContactInfo | null>(null)
   const [emptyMsg, setEmptyMsg] = useState('')
   const [timeLeft, setTimeLeft] = useState(0)
 
@@ -783,6 +787,7 @@ export default function AssessmentFlow() {
   }
 
   const handleContactSubmit = async (info: ContactInfo) => {
+    setLastContactInfo(info)
     setStep('generating')
     try {
       const res = await fetch('/api/assessment/submit', {
@@ -923,14 +928,32 @@ export default function AssessmentFlow() {
         <div className="text-center max-w-sm">
           <div className="text-5xl mb-4">😔</div>
           <h2 className="text-xl font-bold text-gray-800 mb-2">出現問題</h2>
-          <p className="text-gray-500 text-sm mb-6">{errorMsg}</p>
-          <button
-            onClick={() => setStep('grade_select')}
-            className="px-6 py-3 rounded-xl text-white font-medium text-sm"
-            style={{ backgroundColor: '#1D9E75' }}
-          >
-            重新開始
-          </button>
+          <p className="text-gray-500 text-sm mb-6 leading-relaxed">{errorMsg}</p>
+          {lastContactInfo ? (
+            <div className="space-y-3">
+              <button
+                onClick={() => handleContactSubmit(lastContactInfo)}
+                className="w-full px-6 py-3 rounded-xl text-white font-medium text-sm"
+                style={{ backgroundColor: '#1D9E75' }}
+              >
+                重試
+              </button>
+              <button
+                onClick={() => setStep('grade_select')}
+                className="w-full px-6 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-sm bg-white"
+              >
+                重新開始
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setStep('grade_select')}
+              className="px-6 py-3 rounded-xl text-white font-medium text-sm"
+              style={{ backgroundColor: '#1D9E75' }}
+            >
+              重新開始
+            </button>
+          )}
         </div>
       </div>
     )

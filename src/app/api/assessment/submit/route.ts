@@ -1,4 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+
+// AI report generation can take ~5–35s with the retry/fallback chain
+// (gemini-2.5-flash 4× then gemini-2.5-flash-lite 4×). Default Vercel
+// timeout is 10s — bump to 60 so we don't kill an in-flight retry.
+export const maxDuration = 60
 import { createServiceClient } from '@/lib/supabase/server'
 import {
   buildModuleResultsByName,
@@ -93,22 +98,9 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Score (group-aware for P3, simple for legacy) ─────────────────────────
-  const totalScore = computeTotalScore(answers)
-  // Legacy view also wants raw correct/total counts:
-  const totalCorrect = answers.filter((a) => a.is_correct).length
-  const totalQuestions = answers.length
-  const score = totalScore.pct
-
-  // Use a single neutral 「AI 建議」 label regardless of score; description varies.
-  const band = 'AI 建議'
-  let bandDescription: string
-  if (score >= 85) {
-    bandDescription = '數學基礎扎實，各範疇表現優異，具備升讀高年級的能力'
-  } else if (score >= 65) {
-    bandDescription = '整體掌握良好，部分範疇需要加強，有一定的提升空間'
-  } else {
-    bandDescription = '基礎知識需要加強，建議針對重點範疇進行系統性練習'
-  }
+  // Only used downstream for computeDiagnosticTier; band/bandDescription are
+  // computed inside generateAssessmentReport now.
+  const score = computeTotalScore(answers).pct
 
   // ── Module results: P3 uses unit/topic name; legacy uses module_name string
   const moduleResults = isP3Mode
@@ -150,50 +142,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ── Generate Gemini-driven rich report (or fallback) ─────────────────────
+  // ── Generate Gemini-driven rich report ───────────────────────────────────
+  // No template fallback: if every retry on every model fails, return a
+  // 503 with code AI_UNAVAILABLE so the client can surface a 「重試」 button
+  // instead of saving a templated session that the parent would mistake
+  // for the real diagnostic report.
   let reportData
   try {
     reportData = await generateAssessmentReport(student_name, grade_level, moduleResults, answers, curriculumMethods)
   } catch (err) {
-    console.error('Gemini report generation failed:', err)
-    reportData = {
-      modules: moduleResults.map((m) => ({ ...m, comment: '' })),
-      totalCorrect,
-      totalQuestions,
-      score,
-      band,
-      bandDescription,
-      strongAreas: moduleResults
-        .filter((m) => m.rating === 'S' || m.rating === 'A')
-        .map((m) => ({
-          title: m.name,
-          observation: `${student_name}在${m.name}範疇表現良好，正確率達${m.total > 0 ? Math.round((m.correct / m.total) * 100) : 0}%。`,
-          tip: '建議每週保持練習，鞏固已掌握的知識。',
-        })),
-      weakAreas: moduleResults
-        .filter((m) => m.rating === 'B' || m.rating === 'C')
-        .map((m, i) => ({
-          name: m.name,
-          priority: (m.rating === 'C' ? '最高優先' : i === 0 ? '高優先' : '中優先') as '最高優先' | '高優先' | '中優先',
-          errorTypes: ['需要加強練習', '建議針對性訓練'],
-          rootCause: '需要系統性練習以鞏固基礎概念。',
-          solutions: [
-            { title: '基礎鞏固', detail: '從基礎題目開始，逐步建立對核心概念的理解。' },
-            { title: '重複操練', detail: '每天練習同類題型，透過重複加深印象。' },
-            { title: '錯題分析', detail: '仔細分析錯誤原因，找出規律避免重複犯錯。' },
-          ],
-        })),
-      overallSummary: `${student_name}完成了本次學前評估，整體得分${score}分（${band}）。建議預約試堂，讓老師為學生制定個人化學習計劃。`,
-      learningPlan: moduleResults
-        .filter((m) => m.rating === 'B' || m.rating === 'C')
-        .slice(0, 3)
-        .map((m, i) => ({
-          priority: (['第一優先', '第二優先', '第三優先'] as const)[i],
-          area: m.name,
-          action: '針對薄弱知識點進行系統練習，每週至少3次',
-        })),
-      generatedAt: new Date().toISOString(),
-    }
+    console.error('Gemini report generation failed (all retries exhausted):', err)
+    return NextResponse.json(
+      { error: 'AI 暫時繁忙，請稍後重試', code: 'AI_UNAVAILABLE' },
+      { status: 503 },
+    )
   }
 
   // ── Append P3-only report fields ─────────────────────────────────────────
