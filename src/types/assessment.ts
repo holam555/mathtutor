@@ -10,10 +10,17 @@ export const TIER_MARKS: Record<DifficultyTier, number> = {
   advanced: 10,
 }
 
+// Target quota per assessment.  Total = 20.
+// advanced is intentionally low (2) because the active pool only has ~26
+// advanced questions across all topics — a 4-per-assessment target made
+// most single-topic / single-unit selections unable to reach 20 questions.
+// The selector also has cross-tier fallback (see assessmentSelection.ts)
+// so if a chosen scope has 0 advanced, the slot is taken from enhancement
+// or basic instead.
 export const TIER_QUOTA: Record<DifficultyTier, number> = {
   basic: 10,
-  enhancement: 6,
-  advanced: 4,
+  enhancement: 8,
+  advanced: 2,
 }
 
 export type AssessmentAnswer = {

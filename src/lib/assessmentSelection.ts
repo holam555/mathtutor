@@ -215,6 +215,30 @@ export function selectQuestions(
     }
   }
 
+  // ── Cross-tier fill pass ────────────────────────────────────────────────
+  // After per-tier quotas + neighbour borrow, if total < TOTAL_QUOTA we
+  // pull more items from selected scopes regardless of tier. Without this
+  // step a parent who picks a thin topic (e.g. one that has 0 advanced)
+  // would get fewer than 20 questions even when the SAME scope has more
+  // questions available in other tiers. Fill up to TOTAL_QUOTA, capped at
+  // MAX_TOTAL. Order: enhancement → basic → advanced (mid-difficulty first
+  // so the assessment doesn't tilt to easy if cross-tier fill kicks in).
+  const TOTAL_QUOTA = tiers.reduce((s, t) => s + TIER_QUOTA[t], 0)
+  const xfillOrder: DifficultyTier[] = ['enhancement', 'basic', 'advanced']
+  for (const tier of xfillOrder) {
+    if (selected.length >= TOTAL_QUOTA) break
+    for (let i = 0; i < sortedScopes.length && selected.length < TOTAL_QUOTA; i++) {
+      const available = buckets[tier][i].filter((it) => !usedKeys.has(it.key))
+      shuffleInPlace(available)
+      for (const it of available) {
+        if (selected.length >= TOTAL_QUOTA) break
+        selected.push(it)
+        usedKeys.add(it.key)
+        perTierActual[tier] += 1
+      }
+    }
+  }
+
   // Gap-fill pass: every selected scope must have ≥1 question.
   // If the base quota left a scope empty, add one question (basic preferred)
   // using the budget up to MAX_TOTAL.
