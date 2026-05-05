@@ -1,22 +1,12 @@
 import { GoogleGenAI } from '@google/genai'
 
 // ── Resilient generateContent wrapper ──────────────────────────────────────
-// Gemini occasionally returns 503 UNAVAILABLE during demand spikes. Retry
-// transient errors a couple of times, then fall through to a cheaper/older
-// backup model before giving up. Callers that already wrap the result in
-// try/catch (e.g. the assessment report builder) will still degrade to a
-// template report if every option fails — but that's now a much rarer path.
-
+// Gemini occasionally returns 503 UNAVAILABLE during demand spikes.
+// Strategy (Vercel Hobby, 10s limit): 1 attempt on primary model, if a
+// transient error is returned (~200ms) try once on the lite fallback, then
+// give up so the caller can surface a retry button. No inter-attempt delays.
 const PRIMARY_MODEL = 'gemini-2.5-flash'
-// Backup models — keep small + recent. We deliberately avoid the older
-// gemini-2.0-flash because its prose quality is noticeably weaker on the
-// assessment prompt; we'd rather surface a 「請稍後重試」 to the user than
-// silently downgrade output.
 const FALLBACK_MODELS = ['gemini-2.5-flash-lite'] as const
-// 4 attempts per model: initial + 3 retries with exponential-ish backoff.
-// At ~3s per Gemini call this gives ~17s per model worst case, ~34s total
-// for both models (well within the 60s function budget).
-const RETRY_DELAYS_MS = [500, 1500, 3000] as const
 const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504])
 
 type GenerateContentArgs = Parameters<GoogleGenAI['models']['generateContent']>[0]
@@ -31,24 +21,16 @@ export async function generateContentWithFallback(
   let lastErr: unknown
 
   for (const model of models) {
-    for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
-      try {
-        return await ai.models.generateContent({ ...args, model })
-      } catch (err) {
-        lastErr = err
-        const status = (err as { status?: number })?.status
-        const transient = status == null || RETRYABLE_STATUSES.has(status)
-        if (!transient) {
-          console.warn(`Gemini ${model} non-transient error (status=${status}); trying next model`)
-          break
-        }
-        if (attempt < RETRY_DELAYS_MS.length) {
-          const delay = RETRY_DELAYS_MS[attempt]
-          console.warn(`Gemini ${model} attempt ${attempt + 1} (status=${status}); retry in ${delay}ms`)
-          await new Promise((r) => setTimeout(r, delay))
-        } else {
-          console.warn(`Gemini ${model} exhausted retries (status=${status}); trying next model`)
-        }
+    try {
+      return await ai.models.generateContent({ ...args, model })
+    } catch (err) {
+      lastErr = err
+      const status = (err as { status?: number })?.status
+      const transient = status == null || RETRYABLE_STATUSES.has(status)
+      if (transient) {
+        console.warn(`Gemini ${model} transient error (status=${status}); trying next model`)
+      } else {
+        console.warn(`Gemini ${model} non-transient error (status=${status}); trying next model`)
       }
     }
   }

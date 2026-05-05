@@ -1,9 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// AI report generation can take ~5–35s with the retry/fallback chain
-// (gemini-2.5-flash 4× then gemini-2.5-flash-lite 4×). Default Vercel
-// timeout is 10s — bump to 60 so we don't kill an in-flight retry.
-export const maxDuration = 60
 import { createServiceClient } from '@/lib/supabase/server'
 import {
   buildModuleResultsByName,
