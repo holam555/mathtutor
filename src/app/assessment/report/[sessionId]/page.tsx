@@ -462,7 +462,7 @@ export default async function AssessmentReportPage({
             了解針對{s.student_name}的個人備考方案
           </p>
           <a
-            href="https://wa.me/85256011931"
+            href="https://api.whatsapp.com/send?phone=85256011931"
             className="inline-block px-8 py-3 bg-white rounded-xl font-semibold text-sm w-full max-w-xs"
             style={{ color: '#1D9E75' }}
           >
