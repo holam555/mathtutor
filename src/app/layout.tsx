@@ -3,10 +3,10 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: {
-    default: '霖楓學院數學升分平台',
-    template: '%s | 霖楓學院數學升分平台',
+    default: '霖楓學苑數學升分平台',
+    template: '%s | 霖楓學苑數學升分平台',
   },
-  description: '霖楓學院 — 香港小學數學練習與升分平台',
+  description: '霖楓學苑 — 香港小學數學練習與升分平台',
 }
 
 export const viewport: Viewport = {
