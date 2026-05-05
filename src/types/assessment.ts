@@ -129,7 +129,7 @@ export const DIAGNOSTIC_TIER_LABELS: Record<DiagnosticTier, { title: string; des
   },
   weak: {
     title: '基礎薄弱，需先進行補強',
-    description: '核心計算、基礎概念存在明顯漏洞。需先進行基礎知識補強，重點鞏固三位數加減、一位數乘兩位數、有餘數除法等核心內容，為後續課程學習打下基礎。',
+    description: '核心計算、基礎概念存在明顯漏洞。需先進行基礎知識補強，為後續課程學習打下基礎。',
     emoji: '⚠️',
     color: 'orange',
   },
