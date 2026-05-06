@@ -48,7 +48,7 @@ type GradeOption = { label: string; grade: number; gradeLevel: string; available
 const GRADE_OPTIONS: GradeOption[] = [
   { label: '小三（P3）', grade: 3, gradeLevel: '小三', available: true },
   { label: '小四（即將推出）', grade: 4, gradeLevel: '小四', available: false },
-  { label: '小五（即將推出）', grade: 5, gradeLevel: '小五', available: false },
+  { label: '小五（P5）', grade: 5, gradeLevel: '小五', available: true },
   { label: '小六（即將推出）', grade: 6, gradeLevel: '小六', available: false },
 ]
 
