@@ -1,6 +1,5 @@
--- P6 curriculum: brand new from New assessment question and answer/P6 Ax Question.pdf
--- 7 大單元 (unit-level assessment only — no 小單元 drill-down)
--- Each unit gets 1 placeholder topic so the assessment_questions FK works.
+-- P6 curriculum: brand new from P6 Ax Question.pdf (all 13 units).
+-- Each unit has 1 placeholder topic for the assessment_questions FK.
 -- Idempotent: clears existing P6 rows then re-inserts.
 
 BEGIN;
@@ -17,7 +16,13 @@ WITH ins AS (
     (6, 'A', 4, '圓的認識', 'P6 單元 4 圓的認識', 4),
     (6, 'A', 5, '軸對稱和旋轉對稱圖形', 'P6 單元 5 軸對稱和旋轉對稱圖形', 5),
     (6, 'A', 6, '容量和體積', 'P6 單元 6 容量和體積', 6),
-    (6, 'A', 7, '圓周的計算', 'P6 單元 7 圓周的計算', 7)
+    (6, 'A', 7, '圓周的計算', 'P6 單元 7 圓周的計算', 7),
+    (6, 'A', 8, '折線圖', 'P6 單元 8 折線圖', 8),
+    (6, 'B', 9, '百分數應用', 'P6 單元 9 百分數應用', 9),
+    (6, 'B', 10, '簡易方程 (三)', 'P6 單元 10 簡易方程 (三)', 10),
+    (6, 'B', 11, '截面與圓面積', 'P6 單元 11 截面與圓面積', 11),
+    (6, 'B', 12, '速率與行程圖', 'P6 單元 12 速率與行程圖', 12),
+    (6, 'B', 13, '圓形圖', 'P6 單元 13 圓形圖', 13)
   RETURNING id, unit_number
 )
 INSERT INTO curriculum_topics (unit_id, lesson_number, name, display_order)
@@ -29,10 +34,15 @@ FROM ins JOIN (VALUES
   (4, 4, '圓的認識'),
   (5, 5, '軸對稱和旋轉對稱圖形'),
   (6, 6, '容量和體積'),
-  (7, 7, '圓周的計算')
+  (7, 7, '圓周的計算'),
+  (8, 8, '折線圖'),
+  (9, 9, '百分數應用'),
+  (10, 10, '簡易方程 (三)'),
+  (11, 11, '截面與圓面積'),
+  (12, 12, '速率與行程圖'),
+  (13, 13, '圓形圖')
 ) AS t(unit_number, lesson_number, name) ON ins.unit_number = t.unit_number;
 
 COMMIT;
 
--- Sanity: SELECT count(*) FROM curriculum_units WHERE grade=6;  -- expect 7
--- Sanity: SELECT count(*) FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6;  -- expect 7
+-- Sanity: SELECT count(*) FROM curriculum_units WHERE grade=6;  -- expect 13
