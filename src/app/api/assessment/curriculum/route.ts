@@ -5,6 +5,19 @@ import type { CurriculumUnit } from '@/types/assessment'
 // GET /api/assessment/curriculum?grade=3
 // Returns the unit/topic tree for the assessment unit-selection UI.
 export async function GET(request: NextRequest) {
+  try {
+    return await handleGet(request)
+  } catch (err) {
+    // Catch-all so the route NEVER returns an empty 500. Without this, an
+    // uncaught throw (e.g. missing env var, bad import) leaves the browser
+    // with "Unexpected end of JSON input" instead of an actionable message.
+    console.error('curriculum route crashed:', err)
+    const detail = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: '載入課程大綱失敗', detail }, { status: 500 })
+  }
+}
+
+async function handleGet(request: NextRequest) {
   const grade = parseInt(new URL(request.url).searchParams.get('grade') ?? '', 10)
   if (!grade) return NextResponse.json({ error: '請提供年級' }, { status: 400 })
 
@@ -17,7 +30,7 @@ export async function GET(request: NextRequest) {
 
   if (uErr || !units) {
     console.error('Failed to load curriculum units:', uErr)
-    return NextResponse.json({ error: '載入課程大綱失敗' }, { status: 500 })
+    return NextResponse.json({ error: '載入課程大綱失敗', detail: uErr?.message }, { status: 500 })
   }
 
   if (units.length === 0) {
