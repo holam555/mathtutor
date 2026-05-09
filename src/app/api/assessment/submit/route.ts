@@ -17,7 +17,7 @@ import { getAssessmentPaper } from '@/data/assessmentQuestions'
 // Gemini report generation can take 20–40 s; 60 s keeps us under Vercel Pro limit.
 export const maxDuration = 60
 
-const DB_BACKED_GRADES = new Set([3, 5])
+const DB_BACKED_GRADES = new Set([3, 4, 5, 6])
 
 type SubmitBody = {
   grade: number

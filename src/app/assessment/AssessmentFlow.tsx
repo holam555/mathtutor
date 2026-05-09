@@ -70,9 +70,9 @@ type GradeOption = { label: string; grade: number; gradeLevel: string; available
 
 const GRADE_OPTIONS: GradeOption[] = [
   { label: '小三（P3）', grade: 3, gradeLevel: '小三', available: true },
-  { label: '小四（即將推出）', grade: 4, gradeLevel: '小四', available: false },
+  { label: '小四（P4）', grade: 4, gradeLevel: '小四', available: true },
   { label: '小五（P5）', grade: 5, gradeLevel: '小五', available: true },
-  { label: '小六（即將推出）', grade: 6, gradeLevel: '小六', available: false },
+  { label: '小六（P6）', grade: 6, gradeLevel: '小六', available: true },
 ]
 
 // ── Grade Selection ────────────────────────────────────────────────────────
@@ -138,12 +138,16 @@ function UnitSelect({
   onProceed,
   onDrillDown,
   onBack,
+  grade,
+  allowDrillDown,
 }: {
   units: CurriculumUnit[]
   initialSelected: Set<string>
   onProceed: (selectedUnitIds: string[]) => void
   onDrillDown: (selectedUnitIds: string[]) => void
   onBack: () => void
+  grade: number
+  allowDrillDown: boolean
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected))
 
@@ -171,10 +175,10 @@ function UnitSelect({
 
       <div className="p-5 space-y-6">
         {semA.length > 0 && (
-          <Section title="3A 上學期" units={semA} selected={selected} onToggle={toggle} />
+          <Section title={`${grade}A 上學期`} units={semA} selected={selected} onToggle={toggle} />
         )}
         {semB.length > 0 && (
-          <Section title="3B 下學期" units={semB} selected={selected} onToggle={toggle} />
+          <Section title={`${grade}B 下學期`} units={semB} selected={selected} onToggle={toggle} />
         )}
       </div>
 
@@ -184,13 +188,15 @@ function UnitSelect({
           已揀 <span className="font-semibold text-teal-600">{selectedCount}</span> 個大單元
         </p>
         <div className="flex gap-2">
-          <button
-            onClick={() => selectedCount > 0 && onDrillDown(Array.from(selected))}
-            disabled={selectedCount === 0}
-            className="flex-1 py-3 rounded-xl border-2 border-teal-500 text-teal-600 text-sm font-medium disabled:opacity-40"
-          >
-            想再精準啲？揀小單元
-          </button>
+          {allowDrillDown && (
+            <button
+              onClick={() => selectedCount > 0 && onDrillDown(Array.from(selected))}
+              disabled={selectedCount === 0}
+              className="flex-1 py-3 rounded-xl border-2 border-teal-500 text-teal-600 text-sm font-medium disabled:opacity-40"
+            >
+              想再精準啲？揀小單元
+            </button>
+          )}
           <button
             onClick={() => selectedCount > 0 && onProceed(Array.from(selected))}
             disabled={selectedCount === 0}
@@ -867,6 +873,10 @@ export default function AssessmentFlow() {
         onProceed={handleUnitsProceed}
         onDrillDown={handleDrillDown}
         onBack={() => setStep('grade_select')}
+        grade={selectedGrade?.grade ?? 3}
+        // P3 keeps the 小單元 drill-down; P4-P6 are unit-level only
+        // (their question pools are smaller and parents pick whole units).
+        allowDrillDown={selectedGrade?.grade === 3}
       />
     )
   }
