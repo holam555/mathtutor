@@ -757,7 +757,11 @@ VALUES
    '25',
    'p4_ax_2026', 'U17Q7b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'multiple_choice',
-   '四年級一班和二班體育達標統計：一班優秀 15、良好 20、合格 10、待合格 2；二班優秀 18、良好 16、合格 12、待合格 1。哪個班的優秀人數更多？多多少人？',
+   '四年級一班和二班體育達標統計：
+一班：優秀 15、良好 20、合格 10、待合格 2
+二班：優秀 18、良好 16、合格 12、待合格 1
+
+哪個班的優秀人數更多？多多少人？',
    '["A. 二班，多 3 人", "B. 一班，多 3 人", "C. 二班，多 2 人", "D. 一班，多 2 人"]'::jsonb,
    'A. 二班，多 3 人',
    'p4_ax_2026', 'U18Q2_1', true),
@@ -772,22 +776,36 @@ VALUES
    '47',
    'p4_ax_2026', 'U18Q2_4', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'fill_in_number',
-   '一班優秀 15、良好 20、合格 10、待合格 2；二班優秀 18、良好 16、合格 12、待合格 1。良好等級的人數相差多少人？',
+   '四年級一班和二班體育達標統計：
+一班：優秀 15、良好 20、合格 10、待合格 2
+二班：優秀 18、良好 16、合格 12、待合格 1
+
+良好等級的人數相差多少人？',
    NULL,
    '4',
    'p4_ax_2026', 'U18Q3_2', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'fill_in_number',
-   '上半年電視銷量：1月80、2月75、3月60、4月50、5月45、6月65 台。上半年電視一共銷售了多少台？',
+   '上半年電視銷量（台）：
+1月 80、2月 75、3月 60、4月 50、5月 45、6月 65
+
+上半年電視一共銷售了多少台？',
    NULL,
    '375',
    'p4_ax_2026', 'U18Q4_2a', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'fill_in_number',
-   '上半年冰箱銷量：1月40、2月35、3月30、4月45、5月60、6月70 台。上半年冰箱一共銷售了多少台？',
+   '上半年冰箱銷量（台）：
+1月 40、2月 35、3月 30、4月 45、5月 60、6月 70
+
+上半年冰箱一共銷售了多少台？',
    NULL,
    '280',
    'p4_ax_2026', 'U18Q4_2b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'advanced', 'multiple_choice',
-   '電視：1月80、2月70、3月60、4月50、5月45、6月65 台；冰箱：1月40、2月35、3月30、4月45、5月60、6月70 台。哪個月電視和冰箱的銷量相差最大？相差多少台？',
+   '上半年銷量（台）：
+電視：1月 80、2月 70、3月 60、4月 50、5月 45、6月 65
+冰箱：1月 40、2月 35、3月 30、4月 45、5月 60、6月 70
+
+哪個月電視和冰箱的銷量相差最大？相差多少台？',
    '["A. 1月，相差 40 台", "B. 6月，相差 5 台", "C. 3月，相差 30 台", "D. 2月，相差 40 台"]'::jsonb,
    'A. 1月，相差 40 台',
    'p4_ax_2026', 'U18Q4_3', true);

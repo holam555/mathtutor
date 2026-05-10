@@ -1,7 +1,7 @@
--- P6 assessment questions: 169 questions
--- Sources: P6 Ax Question.pdf + P6 Ax Answer.pdf (U1-U7 — answer key authoritative)
---          P6 Ax Question.pdf only (U8-U13 — answers computed by sub-agent, math verified twice)
+-- P6 assessment questions: 179 questions
+-- Source: New assessment question and answer/P6 Ax Question.pdf + Answer.pdf
 -- All reference the unit's placeholder topic (lesson_number = unit_number).
+-- source_paper = 'p6_ax_2026'
 
 BEGIN;
 
@@ -432,7 +432,11 @@ VALUES
    '15',
    'p6_ax_2026', 'U8Q7b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'enhancement', 'fill_in_number',
-   '折線圖展示了某公司 1 月到 6 月的營業額，1 月營業額 50 萬元，6 月營業額 200 萬元，請問該公司 1 月到 6 月平均每月營業額增長多少萬元？',
+   '折線圖展示了某公司 1 月到 6 月的營業額：
+1 月營業額 50 萬元
+6 月營業額 200 萬元
+
+請問該公司 1 月到 6 月平均每月營業額增長多少萬元？',
    NULL,
    '30',
    'p6_ax_2026', 'U8Q8', true),
@@ -855,8 +859,82 @@ VALUES
    '六年級學生參加興趣小組，美術組有 30 人，對應的圓心角是 72 度，音樂組占總人數的 20%，音樂組有多少人？',
    NULL,
    '30',
-   'p6_ax_2026', 'U13Q13b', true);
+   'p6_ax_2026', 'U13Q13b', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'enhancement', 'multiple_choice',
+   '小明從一年級到六年級的身高（厘米）：
+一年級 120、二年級 125、三年級 130
+四年級 138、五年級 145、六年級 152
+
+從幾年級到幾年級身高增長最快？增長了多少厘米？',
+   '["A. 三年級到四年級，增 8 厘米", "B. 四年級到五年級，增 7 厘米", "C. 一年級到二年級，增 5 厘米", "D. 五年級到六年級，增 7 厘米"]'::jsonb,
+   'A. 三年級到四年級，增 8 厘米',
+   'p6_ax_2026', 'U8Q4a', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'basic', 'fill_in_number',
+   '小明從一年級到六年級的身高（厘米）：
+一年級 120、二年級 125、三年級 130
+四年級 138、五年級 145、六年級 152
+
+從一年級到六年級一共長高了多少厘米？',
+   NULL,
+   '32',
+   'p6_ax_2026', 'U8Q4b', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'enhancement', 'fill_in_number',
+   '小明從一年級到六年級的身高（厘米）：
+一年級 120、二年級 125、三年級 130
+四年級 138、五年級 145、六年級 152
+
+小明平均每年長高多少厘米？',
+   NULL,
+   '6.4',
+   'p6_ax_2026', 'U8Q4c', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'enhancement', 'fill_in_number',
+   '某商店 2025 年上半年營業額（萬元）：
+1月 20、2月 18、3月 25、4月 30、5月 28、6月 35
+
+上半年平均每月的營業額是多少萬元？',
+   NULL,
+   '26',
+   'p6_ax_2026', 'U8Q5b', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'enhancement', 'multiple_choice',
+   '某商店 2025 年上半年營業額（萬元）：
+1月 20、2月 18、3月 25、4月 30、5月 28、6月 35
+
+哪兩個月之間營業額增長最快？增長了多少萬元？',
+   '["A. 1 月到 2 月，增 2 萬元", "B. 2 月到 3 月，增 7 萬元", "C. 3 月到 4 月，增 5 萬元", "D. 5 月到 6 月，增 7 萬元"]'::jsonb,
+   'B. 2 月到 3 月，增 7 萬元',
+   'p6_ax_2026', 'U8Q5c', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'basic', 'multiple_choice',
+   '要表示「五年級各班的人數」，選用棒形圖還是折線圖比較合適？',
+   '["A. 棒形圖", "B. 折線圖", "C. 圓形圖", "D. 都可以"]'::jsonb,
+   'A. 棒形圖',
+   'p6_ax_2026', 'U8Q6a', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'basic', 'multiple_choice',
+   '要表示「某病人一天內的體溫變化」，選用棒形圖還是折線圖比較合適？',
+   '["A. 棒形圖", "B. 折線圖", "C. 圓形圖", "D. 都可以"]'::jsonb,
+   'B. 折線圖',
+   'p6_ax_2026', 'U8Q6b', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'basic', 'multiple_choice',
+   '要表示「某公司上半年每月的銷量變化」，選用棒形圖還是折線圖比較合適？',
+   '["A. 棒形圖", "B. 折線圖", "C. 圓形圖", "D. 都可以"]'::jsonb,
+   'B. 折線圖',
+   'p6_ax_2026', 'U8Q6c', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'basic', 'multiple_choice',
+   '要表示「學校各圖書室的圖書數量」，選用棒形圖還是折線圖比較合適？',
+   '["A. 棒形圖", "B. 折線圖", "C. 圓形圖", "D. 都可以"]'::jsonb,
+   'A. 棒形圖',
+   'p6_ax_2026', 'U8Q6d', true),
+  ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6 AND u.unit_number=8 AND t.lesson_number=8 LIMIT 1), 'advanced', 'fill_in_number',
+   '小明從家騎車去圖書館，再回家。
+0-10 分鐘騎到 2 公里外的圖書館
+在圖書館停留 20 分鐘
+然後 10 分鐘騎車回家
+
+小明全程的平均速率是多少 km/h？',
+   NULL,
+   '6',
+   'p6_ax_2026', 'U8Q10', true);
 
 COMMIT;
 
--- Sanity: SELECT count(*) FROM assessment_questions WHERE source_paper='p6_ax_2026' AND is_active;  -- expect 169
+-- Sanity: SELECT count(*) FROM assessment_questions WHERE source_paper='p6_ax_2026' AND is_active;
+-- Expect: 179

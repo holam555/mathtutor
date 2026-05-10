@@ -386,7 +386,7 @@ export default async function AssessmentReportPage({
                   <div className="space-y-3">
                     {qs.map((a, i) => (
                       <div key={i} className="rounded-xl bg-gray-50 px-3 py-2.5">
-                        <p className="text-xs text-gray-700 leading-relaxed mb-2">
+                        <p className="text-xs text-gray-700 leading-relaxed mb-2 whitespace-pre-wrap">
                           {a.question_text}
                         </p>
                         <div className="flex items-center gap-4 text-xs flex-wrap">

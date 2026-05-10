@@ -12,7 +12,6 @@ UPDATE curriculum_units SET name = '長方體和正方體的表面積與體積'
 UPDATE assessment_questions SET is_active = false
 WHERE source_paper IN (
   'p5_hardcoded_sept', 'p5_hardcoded_nov', 'p5_hardcoded_jan',
-  'p5_hardcoded_mar', 'p5_hardcoded_may',
   '五年級期末複習手冊', 'p5_image_questions'
 ) AND is_active = true;
 
@@ -1134,37 +1133,62 @@ VALUES
    '82.4',
    'p5_ax_2026', 'U18Q13', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=5 AND u.unit_number=19 ORDER BY t.lesson_number LIMIT 1), 'basic', 'multiple_choice',
-   '香港某地 2025 年每月平均氣溫為 1月15、2月16、3月19、4月23、5月26、6月28、7月30、8月30、9月28、10月25、11月21、12月17 ℃。哪個月的平均氣溫最高？',
+   '香港某地 2025 年每月平均氣溫（℃）：
+1月 15、2月 16、3月 19、4月 23、5月 26、6月 28
+7月 30、8月 30、9月 28、10月 25、11月 21、12月 17
+
+哪個月的平均氣溫最高？',
    '["A. 6 月", "B. 7 月或 8 月", "C. 9 月", "D. 5 月"]'::jsonb,
    'B. 7 月或 8 月',
    'p5_ax_2026', 'U19Q3a', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=5 AND u.unit_number=19 ORDER BY t.lesson_number LIMIT 1), 'basic', 'multiple_choice',
-   '香港某地 2025 年每月平均氣溫為 1月15、2月16、3月19、4月23、5月26、6月28、7月30、8月30、9月28、10月25、11月21、12月17 ℃。哪個月的平均氣溫最低？',
+   '香港某地 2025 年每月平均氣溫（℃）：
+1月 15、2月 16、3月 19、4月 23、5月 26、6月 28
+7月 30、8月 30、9月 28、10月 25、11月 21、12月 17
+
+哪個月的平均氣溫最低？',
    '["A. 12 月", "B. 2 月", "C. 1 月", "D. 11 月"]'::jsonb,
    'C. 1 月',
    'p5_ax_2026', 'U19Q3b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=5 AND u.unit_number=19 ORDER BY t.lesson_number LIMIT 1), 'enhancement', 'multiple_choice',
-   '小明從一年級到六年級身高分別為 120、125、130、138、145、152 厘米。從幾年級到幾年級身高增長最快？',
+   '小明從一年級到六年級的身高（厘米）：
+一年級 120、二年級 125、三年級 130
+四年級 138、五年級 145、六年級 152
+
+從幾年級到幾年級身高增長最快？',
    '["A. 三到四年級", "B. 一到二年級", "C. 四到五年級", "D. 五到六年級"]'::jsonb,
    'A. 三到四年級',
    'p5_ax_2026', 'U19Q4a', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=5 AND u.unit_number=19 ORDER BY t.lesson_number LIMIT 1), 'basic', 'fill_in_number',
-   '小明從一年級到六年級身高分別為 120、125、130、138、145、152 厘米，從一年級到六年級一共長高了多少厘米？',
+   '小明從一年級到六年級的身高（厘米）：
+一年級 120、二年級 125、三年級 130
+四年級 138、五年級 145、六年級 152
+
+從一年級到六年級一共長高了多少厘米？',
    NULL,
    '32',
    'p5_ax_2026', 'U19Q4b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=5 AND u.unit_number=19 ORDER BY t.lesson_number LIMIT 1), 'basic', 'multiple_choice',
-   '某超市 2025 年上半年營業額為 1月20、2月18、3月25、4月30、5月28、6月35 萬元。哪個月的營業額最高？',
+   '某超市 2025 年上半年營業額（萬元）：
+1月 20、2月 18、3月 25、4月 30、5月 28、6月 35
+
+哪個月的營業額最高？',
    '["A. 4 月", "B. 6 月", "C. 3 月", "D. 5 月"]'::jsonb,
    'B. 6 月',
    'p5_ax_2026', 'U19Q5a', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=5 AND u.unit_number=19 ORDER BY t.lesson_number LIMIT 1), 'basic', 'multiple_choice',
-   '某超市上半年營業額為 1月20、2月18、3月25、4月30、5月28、6月35 萬元。哪個月的營業額最低？',
+   '某超市 2025 年上半年營業額（萬元）：
+1月 20、2月 18、3月 25、4月 30、5月 28、6月 35
+
+哪個月的營業額最低？',
    '["A. 1 月", "B. 2 月", "C. 3 月", "D. 5 月"]'::jsonb,
    'B. 2 月',
    'p5_ax_2026', 'U19Q5b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=5 AND u.unit_number=19 ORDER BY t.lesson_number LIMIT 1), 'enhancement', 'fill_in_number',
-   '某超市上半年營業額為 1月20、2月18、3月25、4月30、5月28、6月35 萬元。上半年平均每月的營業額是多少萬元？',
+   '某超市 2025 年上半年營業額（萬元）：
+1月 20、2月 18、3月 25、4月 30、5月 28、6月 35
+
+上半年平均每月的營業額是多少萬元？',
    NULL,
    '26',
    'p5_ax_2026', 'U19Q5c', true),

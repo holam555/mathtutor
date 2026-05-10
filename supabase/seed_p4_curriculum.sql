@@ -5,16 +5,10 @@
 
 BEGIN;
 
--- Drop ALL P4 assessment_questions first (FK with ON DELETE RESTRICT blocks
--- topic deletion otherwise). Safe because seed_p4_assessment.sql will
--- re-insert them immediately after this curriculum is rebuilt.
-DELETE FROM assessment_questions
-  WHERE topic_id IN (
-    SELECT t.id FROM curriculum_topics t
-    JOIN curriculum_units u ON u.id = t.unit_id
-    WHERE u.grade = 4
-  );
-
+-- Drop ALL assessment_questions for this grade first (FK ON DELETE RESTRICT blocks topic deletion otherwise)
+DELETE FROM assessment_questions WHERE topic_id IN (
+  SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id = t.unit_id WHERE u.grade = 4
+);
 DELETE FROM curriculum_topics WHERE unit_id IN (SELECT id FROM curriculum_units WHERE grade = 4);
 DELETE FROM curriculum_units WHERE grade = 4;
 

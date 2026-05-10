@@ -1,19 +1,14 @@
--- P6 curriculum: brand new from P6 Ax Question.pdf (all 13 units).
--- Each unit has 1 placeholder topic for the assessment_questions FK.
+-- P6 curriculum: brand new from New assessment question and answer/P6 Ax Question.pdf
+-- 13 大單元 (unit-level assessment only — no 小單元 drill-down)
+-- Each unit gets 1 placeholder topic so the assessment_questions FK works.
 -- Idempotent: clears existing P6 rows then re-inserts.
 
 BEGIN;
 
--- Drop ALL P6 assessment_questions first (FK with ON DELETE RESTRICT blocks
--- topic deletion otherwise). Safe because seed_p6_assessment.sql will
--- re-insert them immediately after this curriculum is rebuilt.
-DELETE FROM assessment_questions
-  WHERE topic_id IN (
-    SELECT t.id FROM curriculum_topics t
-    JOIN curriculum_units u ON u.id = t.unit_id
-    WHERE u.grade = 6
-  );
-
+-- Drop ALL assessment_questions for this grade first (FK ON DELETE RESTRICT blocks topic deletion otherwise)
+DELETE FROM assessment_questions WHERE topic_id IN (
+  SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id = t.unit_id WHERE u.grade = 6
+);
 DELETE FROM curriculum_topics WHERE unit_id IN (SELECT id FROM curriculum_units WHERE grade = 6);
 DELETE FROM curriculum_units WHERE grade = 6;
 
@@ -56,3 +51,4 @@ FROM ins JOIN (VALUES
 COMMIT;
 
 -- Sanity: SELECT count(*) FROM curriculum_units WHERE grade=6;  -- expect 13
+-- Sanity: SELECT count(*) FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=6;  -- expect 13

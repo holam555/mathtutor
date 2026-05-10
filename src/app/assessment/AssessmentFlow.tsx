@@ -469,7 +469,7 @@ function QuestionCard({
       {/* Question */}
       <div className="flex-1 p-5">
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-          <p className="text-base text-gray-800 leading-relaxed font-medium">
+          <p className="text-base text-gray-800 leading-relaxed font-medium whitespace-pre-wrap">
             <InlineMath text={question.question_text} />
           </p>
           {question.question_image_url && (
