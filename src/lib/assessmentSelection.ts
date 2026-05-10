@@ -1,8 +1,10 @@
-// Question selection algorithm for the P3 assessment.
+// Question selection algorithm for the P3 + P5 assessments.
 //
-// Linear-weighted selection across the units/topics the parent selected, then
-// fill the per-tier quota (basic 10, enhancement 6, advanced 4 = 20 questions
-// per assessment, matching the P3 assessment template).
+// Even (uniform) distribution across the units/topics the parent selected,
+// then fill the per-tier quota (P3: 10/8/2 = 20; P5: 12/8/0 = 20).
+//
+// Tier quota is supplied by the caller — defaults to TIER_QUOTA (P3) for
+// backward compatibility. P5 callers pass TIER_QUOTA_P5.
 //
 // Minimum coverage: every selected scope gets at least 1 question. If the
 // base 20-question budget cannot cover all scopes, up to MAX_TOTAL extra
@@ -84,42 +86,29 @@ function buildCandidateItems(
   return items
 }
 
-// ── Per-tier quota allocation across scopes (dampened linear weighting) ───────
+// ── Per-tier quota allocation across scopes (uniform / even distribution) ───
 //
-// Weight formula: w[i] = 1 + (MAX_RATIO - 1) * i / (N - 1)
-// → first scope always gets weight 1, last scope always gets weight MAX_RATIO,
-//   regardless of how many scopes are selected.
-// MAX_RATIO = 2 means the latest unit gets at most 2× the questions of the
-// earliest unit — much flatter than the old i+1 formula where a 10-unit
-// selection gave the last unit 10× more questions than the first.
+// Each selected scope gets the same allocation (floor), with the remainder
+// distributed to the first (remainder) scopes. e.g. quota=10, 3 scopes →
+// [4, 3, 3]. Earlier scopes (smaller display_order) get the extra in tied cases.
+//
+// Previously this used dampened linear weighting (last scope got up to 2×
+// the first). Switched to even distribution to keep the algorithm simple
+// and predictable across both P3 and P5; safety nets below (neighbour
+// borrow + cross-tier fill + gap-fill) handle thin scopes.
 
-const MAX_WEIGHT_RATIO = 2   // last scope gets at most 2× questions vs first scope
 const MAX_TOTAL = 30         // hard ceiling; extra slots used only to guarantee ≥1 per scope
 
-function allocateByLinearWeight(
+function allocateByEvenDist(
   scopeCount: number,
   totalQuota: number,
 ): number[] {
-  // Normalised linear: spread weights evenly from 1 to MAX_WEIGHT_RATIO.
-  const weights = Array.from({ length: scopeCount }, (_, i) =>
-    scopeCount === 1 ? 1 : 1 + (MAX_WEIGHT_RATIO - 1) * i / (scopeCount - 1),
+  if (scopeCount <= 0) return []
+  const base = Math.floor(totalQuota / scopeCount)
+  const remainder = totalQuota - base * scopeCount
+  return Array.from({ length: scopeCount }, (_, i) =>
+    base + (i < remainder ? 1 : 0),
   )
-  const totalWeight = weights.reduce((s, w) => s + w, 0)
-
-  // Floor allocation, then distribute remainder to the largest fractional parts
-  // (with priority to later scopes when fractions tie — matches "more recent = more").
-  const exact = weights.map((w) => (totalQuota * w) / totalWeight)
-  const floors = exact.map((v) => Math.floor(v))
-  let remainder = totalQuota - floors.reduce((s, v) => s + v, 0)
-  const fractionalsByIdx = exact
-    .map((v, i) => ({ frac: v - Math.floor(v), idx: i }))
-    .sort((a, b) => b.frac - a.frac || b.idx - a.idx)
-  for (const { idx } of fractionalsByIdx) {
-    if (remainder <= 0) break
-    floors[idx] += 1
-    remainder -= 1
-  }
-  return floors
 }
 
 // ── Random pick without replacement ────────────────────────────────────────
@@ -143,6 +132,7 @@ export type SelectionResult = {
 export function selectQuestions(
   rows: CandidateRow[],
   scopes: SelectionScope[],
+  tierQuota: Record<DifficultyTier, number> = TIER_QUOTA,
 ): SelectionResult {
   // Sort scopes by display_order (caller may not have)
   const sortedScopes = [...scopes].sort((a, b) => a.display_order - b.display_order)
@@ -166,8 +156,9 @@ export function selectQuestions(
   const usedKeys = new Set<string>()
 
   for (const tier of tiers) {
-    const quota = TIER_QUOTA[tier]
-    const allocations = allocateByLinearWeight(sortedScopes.length, quota)
+    const quota = tierQuota[tier]
+    if (quota <= 0) continue
+    const allocations = allocateByEvenDist(sortedScopes.length, quota)
 
     // First pass: take min(allocation, available) from each scope
     const shortfalls: number[] = sortedScopes.map(() => 0)
@@ -223,7 +214,7 @@ export function selectQuestions(
   // questions available in other tiers. Fill up to TOTAL_QUOTA, capped at
   // MAX_TOTAL. Order: enhancement → basic → advanced (mid-difficulty first
   // so the assessment doesn't tilt to easy if cross-tier fill kicks in).
-  const TOTAL_QUOTA = tiers.reduce((s, t) => s + TIER_QUOTA[t], 0)
+  const TOTAL_QUOTA = tiers.reduce((s, t) => s + tierQuota[t], 0)
   const xfillOrder: DifficultyTier[] = ['enhancement', 'basic', 'advanced']
   for (const tier of xfillOrder) {
     if (selected.length >= TOTAL_QUOTA) break

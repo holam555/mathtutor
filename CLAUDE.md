@@ -1,10 +1,143 @@
-# CLAUDE.md — 補習社數學練習 App（香港小五小六）
+# CLAUDE.md — 補習社數學練習 App（香港小三至小六）
 
 ## 專案概覽
 
-這是一個為香港網上補習社設計的數學練習 Web App，主要服務小五及小六學生，介面全部使用繁體中文。核心理念是透過錯題追蹤、智能出題和 past paper 分析，給家長一個「升分保證」的體驗。
+這是一個為香港網上補習社設計的數學練習 Web App，服務小三至小六學生，介面全部使用繁體中文。核心理念是透過**學前評估**找出學生弱項、錯題追蹤、智能出題和 past paper 分析，給家長一個「升分保證」的體驗。
 
 設計風格參考 Duolingo：手機優先，一頁一題，即時回饋，流暢直觀。
+
+---
+
+## 🎯 學前評估系統（當前真相來源 / source of truth）
+
+**重要**：以下章節描述的是**目前實際運作的設計**。本文件後面（從 [題目分類與 Variation Prompt](#題目分類與-variation-prompt小五上學期共32個文字題型) 開始）的舊分類 A1-A6, B1-B10 等是 legacy reference，已不再使用 — 題目都改為 DB-backed in `assessment_questions` table。
+
+### 各年級評估流程
+
+| 年級 | 揀題單位 | 大單元 drill-down 至小單元？| 題庫來源 |
+|------|---------|---------------------------|---------|
+| **P3** | 大單元 OR 小單元 (家長可揀) | ✅ 有 (topic_select 介面) | 由 past paper 抽出，逐題人手分類至 `curriculum_topics.lesson_number` |
+| **P4** | 大單元 only | ❌ 沒有 | 《小學數學新思維(第二版)》單元配套習題 PDF |
+| **P5** | 大單元 only | ❌ 沒有 | 同上 |
+| **P6** | 大單元 only | ❌ 沒有 | 同上 |
+
+理由：P3 題庫經過長期人手 curate，每個 lesson 都有夠多題；P4-P6 用新教材，題量較少（每大單元 5-15 條），所以只用大單元層級。
+
+### 抽題規則 (`src/lib/assessmentSelection.ts`)
+
+- **平均分配**（uniform / even distribution）across 揀咗嘅單元 — 每個單元拎差唔多數量。Earlier scopes get the extra in tied cases.
+- **三層難度配額**：`TIER_QUOTA = { basic: 10, enhancement: 8, advanced: 2 }` = 20 條（across all 4 grades）
+- 每個單元至少 1 條（minimum coverage）；如基本配額拎唔晒，可用 cross-tier fill 補到最多 30 條
+- 揀少量單元唔夠 20 條都唔緊要 — 唔強制補
+
+### 題目類型 (`question_type` in `assessment_questions`)
+
+| Type | 何時用 | 答案格式 |
+|------|-------|---------|
+| `fill_in_number` | 答案係純數字、小數、分數、帶分數 | 例 `60`、`5/18`、`1.25`、`1 5/8` (見下文 帶分數) |
+| `multiple_choice` | 答案唔係純數字 (shape names, units, words, comparisons, multiple values) | 4 個選項，正確答案連 prefix `"B. 答案文字"` |
+| `calculation` | 已棄用 (deprecated) | 全部變咗 multiple_choice |
+| `fill_in` | 已棄用 (deprecated) — 答案有 `>` `<` `=` mobile 唔友善 | 全部變咗 multiple_choice |
+
+**MCQ distractor rules**:
+1. 4 個選項全部不同，無兩個 mathematically equivalent (e.g. `0.5` 同 `1/2` 唔可以同時出現)
+2. 干擾項要 plausible (學生常犯嘅錯誤，e.g. 漏咗一步、decimal 移位、顛倒分子分母)
+3. Same domain：if 正確 = 單位名 → 其他選項都係單位名；if = 形狀名 → 都係形狀名
+4. Correct answer 位置要分散（唔好成日係 A 或 C）
+
+### 帶分數格式（重要！）
+
+**統一用 SPACE 格式**：`1 5/8`（整數 + 空格 + 真分數），**唔係** `1又5/8`。
+
+理由：
+- 數學鍵盤 (`src/components/UnifiedKeyboard.tsx`) 輸出嘅就係 space 格式 (`"1 2/3"`)
+- 評分邏輯 (`src/lib/answerUtils.ts` `normalizeAnswer()`) 會自動把 `又` 轉做 space，所以舊資料用 `又` 都仲 grade 正確 — 但所有新題目一律用 space，避免歧義
+
+**Apply scope**:
+- ✅ `correct_answer` for fill_in_number rows
+- ✅ MCQ option text (`"A. 1 5/8 公斤"`)
+- ✅ Question text 中提及嘅帶分數
+- ⚠️ 例外：自然中文嘅 `又` (e.g. "又進貨了 30 公斤") **唔可以** 改 — 只有「`數字又數字/數字`」嘅 pattern 先轉
+
+### Image-dependent questions
+
+**新題庫一律 SKIP** (圖形描述、作圖、補全棒形圖、point-counting 立體積木、圓形圖閱讀、行程圖)。Image questions 由人手另行處理。
+
+當前 P5 仲有 43 條 image questions 由舊 `questions` table migrate 過嚟（`source_paper = 'p5_image_questions'`），目前 `is_active = false` (deactivated)。
+
+### 課程大綱（curriculum）
+
+當前 grade-aware schema：`curriculum_units` (大單元) + `curriculum_topics` (小單元)。
+
+**P3** — 17 大單元 / 32 小單元（lesson 1-40，部分 review 跳過）
+- 詳見 `supabase/migrations/0014_p3_curriculum_assessment.sql`
+- 來源：《天花板級別》香港小三課程大綱
+
+**P4** — 17 大單元（每大單元 1 個 placeholder topic）
+- 4A 上：U1 倍數和因數 / U2 公倍數和公因數 / U3 乘法 / U4 除法 / U5 四則混合運算
+- 4A 上 (B 冊)：U7 平行與垂直 / U8 四邊形 / U9 周界
+- 4B 下 (A 冊)：U10 分數的認識（一） / U11 擴分與約分 / U12 同分母分數加減法 / U13 小數的認識 / U14 圖形的拼砌與分割
+- 4B 下 (B 冊)：U15 對稱圖形 / U16 正方形和長方形面積 / U17 棒形圖（一）單式 / U18 棒形圖（二）複式
+- 詳見 `supabase/seed_p4_curriculum.sql`
+
+**P5** — 19 大單元（每大單元 1 個 placeholder topic）
+- 5A 上：U1 多位數 / U2 異分母分數加法和減法 / U3 分數乘法 / U4 代數符號 / U5 簡易方程（一）/ U6 方向 / U7 多邊形的面積 / U8 體積的認識 / U9 複合棒形圖
+- 5B 下：U10 小數加法和減法 / U11 小數乘法 / U12 小數除法 / U13 小數和分數的互化 / U14 分數除法 / U15 百分數 / U16 圓的初步認識 / U17 長方體和正方體的表面積與體積 / U18 平均數 / U19 折線圖
+- 詳見 `supabase/seed_p5_curriculum.sql`（已存在）+ `seed_p5_replacement.sql`
+
+**P6** — 13 大單元（每大單元 1 個 placeholder topic）
+- 6A 上：U1 小數除法 / U2 百分數的認識 / U3 數型 / U4 圓的認識 / U5 軸對稱和旋轉對稱圖形 / U6 容量和體積 / U7 圓周的計算 / U8 折線圖
+- 6B 下：U9 百分數應用 / U10 簡易方程（三）/ U11 截面與圓面積 / U12 速率與行程圖 / U13 圓形圖
+- 詳見 `supabase/seed_p6_curriculum.sql`
+
+### 題庫種子檔案
+
+| 檔案 | 內容 | 是否 active in DB |
+|------|------|-----------------|
+| `seed_p4_curriculum.sql` + `seed_p4_assessment.sql` | P4 17 大單元 + 156 條題目 | ✅ active |
+| `seed_p5_curriculum.sql` | 舊 P5 curriculum (仲用緊，因為 unit name 一致) | ✅ active (curriculum 部分) |
+| `seed_p5_replacement.sql` | 新 P5 231 條題目 + deactivate 舊 P5 pool | ✅ active (新題目) |
+| `seed_p5_assessment_questions.sql` | 舊 P5 hardcoded sept/nov/jan (52 條) | ❌ inactive (deactivated by replacement) |
+| `seed_p5_exam_review.sql` | 舊 P5 期末複習手冊 (94 條) | ❌ 未 apply (用唔到，新 pool 取代) |
+| `seed_p5_image_questions.sql` | 舊 P5 image questions (43 條) | ❌ 未 apply |
+| `seed_p6_curriculum.sql` + `seed_p6_assessment.sql` | P6 13 大單元 + 169 條題目 | ✅ active |
+
+**Apply order in Supabase SQL editor** (新 setup 由零開始)：
+```
+1. seed_p4_curriculum.sql      → seed_p4_assessment.sql
+2. seed_p6_curriculum.sql      → seed_p6_assessment.sql
+3. seed_p5_replacement.sql     (UPDATE old to inactive + INSERT new)
+```
+
+### C1–C8 驗證 Checklist
+
+每次新加題庫，跑兩 pass：
+
+**Pass A — Pattern scan (fast, free)**
+```bash
+python3 scripts/verify_assessment_answers.py
+```
+捉純算術錯誤、fraction format、MC answer 唔在 options。
+
+**Pass B — LLM deep verify (parallel sub-agent per grade)**
+
+| Code | 檢查 |
+|------|------|
+| C1 | **Math correctness** — 重新 solve, 答案要啱 |
+| C2 | **Right unit/lesson** — 題目內容夾乎指定 unit/topic |
+| C3 | **Single correct answer** — 無 equivalent 正確答案 (e.g. MCQ 兩個都啱) |
+| C4 | **Distinct MCQ options** — 無兩個答案相等 (e.g. `1/2` 同 `0.5`) |
+| C5 | **Grade scope** — 內容啱嗰個年級 (P3 唔好太深、P6 唔好太淺) |
+| C6 | **Mobile chars** — `correct_answer` 唔可以有 `:`, `>`, `<`, `=`, `%` (fill_in_number only) |
+| C7 | **Unit mismatch** — 題目問「多少元/克/升」答案要包含單位 |
+| C8 | **Tier coverage** — 每個 unit 至少 1 條 `basic` + 1 條 `enhancement` |
+
+**Difficulty tier rule** (number of solve steps)：
+- 1 step → `basic`
+- 2-3 steps → `enhancement`
+- 4+ steps → `advanced`
+
+詳細 runbook：`docs/assessment_question_workflow.md`
 
 ---
 
@@ -177,6 +310,56 @@ API：
 
 ## 資料庫 Schema（Supabase）
 
+> ⚠️ **雙表並存**：以下 `questions` + `question_categories` 係**舊** Sprint 1-3 schema（仲存在但已 deprecated for assessment）。
+> **學前評估**用嘅係 newer schema：`curriculum_units` + `curriculum_topics` + `assessment_questions`（見 `0014_p3_curriculum_assessment.sql`）。
+> 詳見上方「🎯 學前評估系統」章節對 `assessment_questions` 嘅 columns。
+
+### Assessment schema (current — for the prelesson assessment)
+
+```sql
+curriculum_units (
+  id uuid PRIMARY KEY,
+  grade int NOT NULL,                -- 3, 4, 5, 6
+  semester text CHECK (IN ('A','B')),-- 上 = A, 下 = B
+  unit_number int NOT NULL,
+  name text NOT NULL,                -- e.g. '異分母分數加法和減法'
+  textbook_ref text,
+  display_order int
+)
+
+curriculum_topics (
+  id uuid PRIMARY KEY,
+  unit_id uuid REFERENCES curriculum_units,
+  lesson_number int NOT NULL,        -- 1-40 for P3; = unit_number for P4-P6 (placeholder)
+  name text NOT NULL,
+  display_order int,
+  teaching_methods jsonb             -- AI generation prompts (P3 only)
+)
+
+assessment_questions (
+  id uuid PRIMARY KEY,
+  topic_id uuid REFERENCES curriculum_topics ON DELETE RESTRICT,
+  question_text text NOT NULL,
+  question_type text CHECK (IN ('multiple_choice','fill_in','fill_in_number','calculation')),
+  options jsonb,                     -- ["A. ...","B. ...","C. ...","D. ..."]
+  correct_answer text NOT NULL,      -- "B. 答案" for MCQ; "60" or "1 5/8" for fill_in_number
+  difficulty_tier text CHECK (IN ('basic','enhancement','advanced')),
+  group_id uuid,                     -- NULL for standalone; UUID for linked sub-questions
+  sub_order int DEFAULT 1,
+  source_paper text,                 -- 'p4_ax_2026' / 'p5_ax_2026' / 'p6_ax_2026' / 'p3_*' / etc.
+  source_question text,              -- 'U1Q1' / 'U2Q5a' / 'CSV row 11'
+  image_url text,                    -- Supabase Storage URL if has figure
+  image_alt_text text,
+  notes text,
+  is_active boolean DEFAULT true,    -- false = soft-disabled (preserved for history)
+  created_at timestamptz
+)
+```
+
+`SECURITY: correct_answer never sent to browser — server grades on /api/assessment/submit.`
+
+### Legacy schema (Sprint 1-3, still used for the wrong-question bank + variation)
+
 ```sql
 -- 題目分類
 question_categories (
@@ -324,6 +507,16 @@ token_redemptions (
 ---
 
 ## 題目分類與 Variation Prompt（小五上學期，共32個文字題型）
+
+> ⚠️ **LEGACY / ARCHIVED** — 以下分類 (A1-A6, B1-B10, C1-C7, D1-D9, E1-E7, F1-F3, G1-G4, H1-H4, I1-I4) 係 Sprint 1-3 設計時用嘅 reference，**已不再使用**。
+>
+> 真實題庫已遷移到 DB-backed `assessment_questions` table，分類用 `topic_id` (FK 去 `curriculum_topics`)，唔再用呢啲 letter codes。
+>
+> **要見當前題庫設計，睇上面「🎯 學前評估系統」章節**。
+>
+> 以下保留作為：
+> 1. AI variation generation prompt 嘅 reference (Phase 2 功能)
+> 2. 對 question_categories table 嘅歷史記錄（仲喺舊 `questions` table 用緊）
 
 以下所有題型已從4份小五上學期 past paper 確認。每個分類包含：題型說明、難度分級、variation prompt 範本。
 

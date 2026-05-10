@@ -5,6 +5,7 @@ import { RATING_COLORS, RATING_LABELS } from '@/lib/assessmentUtils'
 import type { ReportData, Rating, AssessmentAnswer } from '@/types/assessment'
 import { DIAGNOSTIC_TIER_LABELS } from '@/types/assessment'
 import PrintButton from './PrintButton'
+import { QuestionContent } from '@/components/FractionDisplay'
 
 type AssessmentSession = {
   id: string
@@ -386,9 +387,9 @@ export default async function AssessmentReportPage({
                   <div className="space-y-3">
                     {qs.map((a, i) => (
                       <div key={i} className="rounded-xl bg-gray-50 px-3 py-2.5">
-                        <p className="text-xs text-gray-700 leading-relaxed mb-2">
-                          {a.question_text}
-                        </p>
+                        <div className="text-xs text-gray-700 leading-relaxed mb-2">
+                          <QuestionContent text={a.question_text} />
+                        </div>
                         <div className="flex items-center gap-4 text-xs flex-wrap">
                           <span className="flex items-center gap-1 text-amber-600">
                             <span className="font-medium">答：</span>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { InlineMath } from '@/components/FractionDisplay'
+import { QuestionContent } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
 
@@ -20,6 +20,29 @@ type Step =
   | 'generating'
   | 'time_up'
   | 'error'
+
+// Defensive JSON parser. Vercel Hobby kills serverless functions at the 10s
+// timeout and returns an empty body — the browser's res.json() then throws
+// "Unexpected end of JSON input", which leaks to the UI as a cryptic error.
+// This wrapper reads as text first, distinguishes empty/timeout from real
+// payloads, and surfaces friendly messages.
+async function parseJsonResponse<T>(res: Response): Promise<T> {
+  const text = await res.text()
+  if (!text) {
+    if (res.status === 504 || res.status === 408) {
+      throw new Error('伺服器處理時間過長，請重試')
+    }
+    if (res.status >= 500) {
+      throw new Error('伺服器忙碌，請稍後重試')
+    }
+    throw new Error('伺服器無回應，請重試')
+  }
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error('伺服器回覆格式錯誤，請重試')
+  }
+}
 
 // Count "main questions": each unique group_id counts as 1, standalone
 // questions count as 1 each. Used to compute the timer budget (1 min each).
@@ -47,9 +70,9 @@ type GradeOption = { label: string; grade: number; gradeLevel: string; available
 
 const GRADE_OPTIONS: GradeOption[] = [
   { label: '小三（P3）', grade: 3, gradeLevel: '小三', available: true },
-  { label: '小四（即將推出）', grade: 4, gradeLevel: '小四', available: false },
-  { label: '小五（即將推出）', grade: 5, gradeLevel: '小五', available: false },
-  { label: '小六（即將推出）', grade: 6, gradeLevel: '小六', available: false },
+  { label: '小四（P4）', grade: 4, gradeLevel: '小四', available: true },
+  { label: '小五（P5）', grade: 5, gradeLevel: '小五', available: true },
+  { label: '小六（P6）', grade: 6, gradeLevel: '小六', available: true },
 ]
 
 // ── Grade Selection ────────────────────────────────────────────────────────
@@ -115,12 +138,16 @@ function UnitSelect({
   onProceed,
   onDrillDown,
   onBack,
+  grade,
+  allowDrillDown,
 }: {
   units: CurriculumUnit[]
   initialSelected: Set<string>
   onProceed: (selectedUnitIds: string[]) => void
   onDrillDown: (selectedUnitIds: string[]) => void
   onBack: () => void
+  grade: number
+  allowDrillDown: boolean
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected))
 
@@ -148,10 +175,10 @@ function UnitSelect({
 
       <div className="p-5 space-y-6">
         {semA.length > 0 && (
-          <Section title="3A 上學期" units={semA} selected={selected} onToggle={toggle} />
+          <Section title={`${grade}A 上學期`} units={semA} selected={selected} onToggle={toggle} />
         )}
         {semB.length > 0 && (
-          <Section title="3B 下學期" units={semB} selected={selected} onToggle={toggle} />
+          <Section title={`${grade}B 下學期`} units={semB} selected={selected} onToggle={toggle} />
         )}
       </div>
 
@@ -161,13 +188,15 @@ function UnitSelect({
           已揀 <span className="font-semibold text-teal-600">{selectedCount}</span> 個大單元
         </p>
         <div className="flex gap-2">
-          <button
-            onClick={() => selectedCount > 0 && onDrillDown(Array.from(selected))}
-            disabled={selectedCount === 0}
-            className="flex-1 py-3 rounded-xl border-2 border-teal-500 text-teal-600 text-sm font-medium disabled:opacity-40"
-          >
-            想再精準啲？揀小單元
-          </button>
+          {allowDrillDown && (
+            <button
+              onClick={() => selectedCount > 0 && onDrillDown(Array.from(selected))}
+              disabled={selectedCount === 0}
+              className="flex-1 py-3 rounded-xl border-2 border-teal-500 text-teal-600 text-sm font-medium disabled:opacity-40"
+            >
+              想再精準啲？揀小單元
+            </button>
+          )}
           <button
             onClick={() => selectedCount > 0 && onProceed(Array.from(selected))}
             disabled={selectedCount === 0}
@@ -440,9 +469,9 @@ function QuestionCard({
       {/* Question */}
       <div className="flex-1 p-5">
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-          <p className="text-base text-gray-800 leading-relaxed font-medium">
-            <InlineMath text={question.question_text} />
-          </p>
+          <div className="text-base text-gray-800 leading-relaxed font-medium">
+            <QuestionContent text={question.question_text} />
+          </div>
           {question.question_image_url && (
             <img
               src={question.question_image_url}
@@ -712,7 +741,7 @@ export default function AssessmentFlow() {
     setStep('loading_curriculum')
     try {
       const res = await fetch(`/api/assessment/curriculum?grade=${opt.grade}`)
-      const data = await res.json()
+      const data = await parseJsonResponse<{ error?: string; units?: CurriculumUnit[] }>(res)
       if (!res.ok) throw new Error(data.error ?? '載入課程失敗')
       setUnits(data.units ?? [])
       setStep('unit_select')
@@ -731,7 +760,12 @@ export default function AssessmentFlow() {
       if (topicIds.length > 0) params.set('topic_ids', topicIds.join(','))
       else params.set('unit_ids', unitIds.join(','))
       const res = await fetch(`/api/assessment/questions?${params}`)
-      const data = await res.json()
+      const data = await parseJsonResponse<{
+        empty?: boolean
+        warnings?: string[]
+        questions?: AssessmentQuestion[]
+      }>(res)
+      if (!res.ok) throw new Error('載入題目失敗')
       if (data.empty || !data.questions?.length) {
         setEmptyMsg(data.warnings?.[0] ?? '題庫尚未準備好')
         setStep('empty')
@@ -743,8 +777,8 @@ export default function AssessmentFlow() {
       // Initialize timer: 60 seconds × number of main questions.
       setTimeLeft(countMainQuestions(data.questions) * 60)
       setStep('questions')
-    } catch {
-      setErrorMsg('載入題目失敗，請重試')
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : '載入題目失敗，請重試')
       setStep('error')
     }
   }
@@ -806,12 +840,9 @@ export default function AssessmentFlow() {
         }),
       })
 
-      if (!res.ok) {
-        const d = await res.json()
-        throw new Error(d.error ?? '提交失敗')
-      }
-
-      const { session_id } = await res.json()
+      const data = await parseJsonResponse<{ error?: string; session_id?: string }>(res)
+      if (!res.ok) throw new Error(data.error ?? '提交失敗')
+      const { session_id } = data
       router.push(`/assessment/report/${session_id}`)
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : '提交失敗，請重試')
@@ -842,6 +873,10 @@ export default function AssessmentFlow() {
         onProceed={handleUnitsProceed}
         onDrillDown={handleDrillDown}
         onBack={() => setStep('grade_select')}
+        grade={selectedGrade?.grade ?? 3}
+        // P3 keeps the 小單元 drill-down; P4-P6 are unit-level only
+        // (their question pools are smaller and parents pick whole units).
+        allowDrillDown={selectedGrade?.grade === 3}
       />
     )
   }

@@ -14,6 +14,11 @@ import type { AssessmentAnswer } from '@/types/assessment'
 import { isAnswerCorrect } from '@/lib/answerUtils'
 import { getAssessmentPaper } from '@/data/assessmentQuestions'
 
+// Gemini report generation can take 20–40 s; 60 s keeps us under Vercel Pro limit.
+export const maxDuration = 60
+
+const DB_BACKED_GRADES = new Set([3, 4, 5, 6])
+
 type SubmitBody = {
   grade: number
   // legacy P5/P6 path:
@@ -47,8 +52,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '缺少必填資料' }, { status: 400 })
   }
 
+  // DB-backed grades (P3 + P5) use unit/topic-aware module results and server-side regrading.
+  const isDbMode = DB_BACKED_GRADES.has(grade)
   const isP3Mode = grade === 3
-  const drillDownToTopic = isP3Mode && (selected_topic_ids?.length ?? 0) > 0
+  const drillDownToTopic = isDbMode && (selected_topic_ids?.length ?? 0) > 0
 
   // ── SECURITY: re-grade every answer server-side ──────────────────────────
   // The client never sees the correct answer (stripped from /api/assessment/questions).
@@ -56,13 +63,14 @@ export async function POST(request: NextRequest) {
   {
     const supabaseGrade = createServiceClient()
 
-    if (isP3Mode) {
-      const p3Ids = answers.map((a) => a.question_id).filter((id) => !id.startsWith('hc-'))
-      if (p3Ids.length > 0) {
+    if (isDbMode) {
+      // P3 + P5 DB path: fetch correct_answer from assessment_questions by UUID.
+      const dbIds = answers.map((a) => a.question_id).filter((id) => !id.startsWith('hc-'))
+      if (dbIds.length > 0) {
         const { data: rows } = await supabaseGrade
           .from('assessment_questions')
           .select('id, correct_answer')
-          .in('id', p3Ids)
+          .in('id', dbIds)
         const answerMap = new Map<string, string>()
         for (const r of rows ?? []) answerMap.set(r.id as string, (r.correct_answer as string) ?? '')
         for (const a of answers) {
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } else {
-      // Legacy P5/P6 hardcoded path: derive correct_answer by index encoded in id.
+      // Legacy P4/P6 hardcoded path: derive correct_answer by index encoded in id.
       const paper = month ? getAssessmentPaper(grade, month) : null
       if (paper) {
         for (const a of answers) {
@@ -97,8 +105,8 @@ export async function POST(request: NextRequest) {
   // computed inside generateAssessmentReport now.
   const score = computeTotalScore(answers).pct
 
-  // ── Module results: P3 uses unit/topic name; legacy uses module_name string
-  const moduleResults = isP3Mode
+  // ── Module results: DB-backed grades use unit/topic name; legacy uses module_name string
+  const moduleResults = isDbMode
     ? buildModuleResultsFromP3Answers(answers, drillDownToTopic)
     : buildModuleResultsByName(answers)
 
@@ -153,8 +161,8 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // ── Append P3-only report fields ─────────────────────────────────────────
-  if (isP3Mode) {
+  // ── Append DB-mode report fields (P3 + P5) ───────────────────────────────
+  if (isDbMode) {
     reportData.diagnosticTier = computeDiagnosticTier(score)
     reportData.unitMastery = buildUnitMastery(answers)
     if (drillDownToTopic) {
@@ -163,8 +171,8 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Persist session ──────────────────────────────────────────────────────
-  // For P3, semester column stores 'A' or 'B'; legacy stored month as string.
-  const semesterValue = isP3Mode ? 'A' : (month ? String(month) : '上')
+  // For DB-backed grades, semester stores 'A'; legacy stored month as string.
+  const semesterValue = isDbMode ? 'A' : (month ? String(month) : '上')
 
   const { data: session, error } = await supabase
     .from('assessment_sessions')
@@ -180,7 +188,7 @@ export async function POST(request: NextRequest) {
       report_data: reportData,
       selected_unit_ids: selected_unit_ids ?? null,
       selected_topic_ids: selected_topic_ids ?? null,
-      diagnostic_tier: isP3Mode ? computeDiagnosticTier(score) : null,
+      diagnostic_tier: isDbMode ? computeDiagnosticTier(score) : null,
     })
     .select('id')
     .single()

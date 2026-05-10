@@ -8,10 +8,13 @@ import {
   type CandidateRow,
 } from '@/lib/assessmentSelection'
 import type { AssessmentQuestion, DifficultyTier } from '@/types/assessment'
+import { TIER_QUOTA } from '@/types/assessment'
 
 // GET /api/assessment/questions
-//   Legacy mode (P5/P6): ?grade=5&month=9  → reads hardcoded data
-//   New P3 mode: ?grade=3&unit_ids=uuid,uuid (or topic_ids=uuid,uuid)
+//   DB-backed mode (P3, P5): ?grade=3&unit_ids=uuid,uuid (or topic_ids=uuid,uuid)
+//   Legacy mode (P4, P6): ?grade=4&month=9  → reads hardcoded data
+const DB_BACKED_GRADES = new Set([3, 4, 5, 6])
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const grade = parseInt(searchParams.get('grade') ?? '', 10)
@@ -20,8 +23,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '請提供年級' }, { status: 400 })
   }
 
-  // ─── Legacy P5/P6 path ───────────────────────────────────────────────────
-  if (grade !== 3) {
+  // ─── Legacy P4/P6 path ───────────────────────────────────────────────────
+  if (!DB_BACKED_GRADES.has(grade)) {
     const month = parseInt(searchParams.get('month') ?? '', 10)
     if (!month) {
       return NextResponse.json({ error: '請提供入學月份' }, { status: 400 })
@@ -52,7 +55,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ questions, modules })
   }
 
-  // ─── P3 new path: load curriculum + select from assessment_questions ────
+  // ─── DB-backed path (P3, P4, P5, P6): load curriculum + select from assessment_questions ────
+  // The new P4-P6 pools all have basic/enhancement/advanced; use default quota.
+  // TIER_QUOTA_P5 (advanced=0) was for the legacy P5 pool which is now deactivated.
+  const tierQuota = TIER_QUOTA
   const unitIdsRaw = searchParams.get('unit_ids') ?? ''
   const topicIdsRaw = searchParams.get('topic_ids') ?? ''
   const unitIds = unitIdsRaw.split(',').map((s) => s.trim()).filter(Boolean)
@@ -162,7 +168,7 @@ export async function GET(request: NextRequest) {
     sub_order: p.sub_order ?? 1,
   }))
 
-  const result = selectQuestions(candidateRows, scopes)
+  const result = selectQuestions(candidateRows, scopes, tierQuota)
   const orderedRows = flattenItemsToRowOrder(result.selectedItems)
   const orderedRowIds = orderedRows.map((r) => r.id)
 
