@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { InlineMath } from '@/components/FractionDisplay'
+import { InlineMath, QuestionContent } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
 
@@ -469,9 +469,9 @@ function QuestionCard({
       {/* Question */}
       <div className="flex-1 p-5">
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-          <p className="text-base text-gray-800 leading-relaxed font-medium whitespace-pre-wrap">
-            <InlineMath text={question.question_text} />
-          </p>
+          <div className="text-base text-gray-800 leading-relaxed font-medium">
+            <QuestionContent text={question.question_text} />
+          </div>
           {question.question_image_url && (
             <img
               src={question.question_image_url}

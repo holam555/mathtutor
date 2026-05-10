@@ -757,53 +757,97 @@ VALUES
    '25',
    'p4_ax_2026', 'U17Q7b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'multiple_choice',
-   '四年級一班和二班體育達標統計：
-一班：優秀 15、良好 20、合格 10、待合格 2
-二班：優秀 18、良好 16、合格 12、待合格 1
+   '四年級一班和二班體育達標統計（人數）：
+| 等級 | 一班 | 二班 |
+| --- | --- | --- |
+| 優秀 | 15 | 18 |
+| 良好 | 20 | 16 |
+| 合格 | 10 | 12 |
+| 待合格 | 2 | 1 |
 
 哪個班的優秀人數更多？多多少人？',
    '["A. 二班，多 3 人", "B. 一班，多 3 人", "C. 二班，多 2 人", "D. 一班，多 2 人"]'::jsonb,
    'A. 二班，多 3 人',
    'p4_ax_2026', 'U18Q2_1', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'basic', 'fill_in_number',
-   '一班良好 20 人，二班良好 16 人。兩個班良好等級的一共有多少人？',
+   '四年級一班和二班體育達標統計（人數）：
+| 等級 | 一班 | 二班 |
+| --- | --- | --- |
+| 優秀 | 15 | 18 |
+| 良好 | 20 | 16 |
+| 合格 | 10 | 12 |
+| 待合格 | 2 | 1 |
+
+兩個班良好等級的一共有多少人？',
    NULL,
    '36',
    'p4_ax_2026', 'U18Q2_3', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'basic', 'fill_in_number',
-   '一班：優秀 15、良好 20、合格 10、待合格 2。四年級一班一共有多少人？',
+   '四年級一班和二班體育達標統計（人數）：
+| 等級 | 一班 | 二班 |
+| --- | --- | --- |
+| 優秀 | 15 | 18 |
+| 良好 | 20 | 16 |
+| 合格 | 10 | 12 |
+| 待合格 | 2 | 1 |
+
+四年級一班一共有多少人？',
    NULL,
    '47',
    'p4_ax_2026', 'U18Q2_4', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'fill_in_number',
-   '四年級一班和二班體育達標統計：
-一班：優秀 15、良好 20、合格 10、待合格 2
-二班：優秀 18、良好 16、合格 12、待合格 1
+   '四年級一班和二班體育達標統計（人數）：
+| 等級 | 一班 | 二班 |
+| --- | --- | --- |
+| 優秀 | 15 | 18 |
+| 良好 | 20 | 16 |
+| 合格 | 10 | 12 |
+| 待合格 | 2 | 1 |
 
 良好等級的人數相差多少人？',
    NULL,
    '4',
    'p4_ax_2026', 'U18Q3_2', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'fill_in_number',
-   '上半年電視銷量（台）：
-1月 80、2月 75、3月 60、4月 50、5月 45、6月 65
+   '某商場上半年電視和冰箱的銷量：
+| 月份 | 電視（台） | 冰箱（台） |
+| --- | --- | --- |
+| 1月 | 80 | 40 |
+| 2月 | 70 | 35 |
+| 3月 | 60 | 30 |
+| 4月 | 50 | 45 |
+| 5月 | 45 | 60 |
+| 6月 | 65 | 70 |
 
 上半年電視一共銷售了多少台？',
    NULL,
    '375',
    'p4_ax_2026', 'U18Q4_2a', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'enhancement', 'fill_in_number',
-   '上半年冰箱銷量（台）：
-1月 40、2月 35、3月 30、4月 45、5月 60、6月 70
+   '某商場上半年電視和冰箱的銷量：
+| 月份 | 電視（台） | 冰箱（台） |
+| --- | --- | --- |
+| 1月 | 80 | 40 |
+| 2月 | 70 | 35 |
+| 3月 | 60 | 30 |
+| 4月 | 50 | 45 |
+| 5月 | 45 | 60 |
+| 6月 | 65 | 70 |
 
 上半年冰箱一共銷售了多少台？',
    NULL,
    '280',
    'p4_ax_2026', 'U18Q4_2b', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=18 AND t.lesson_number=18 LIMIT 1), 'advanced', 'multiple_choice',
-   '上半年銷量（台）：
-電視：1月 80、2月 70、3月 60、4月 50、5月 45、6月 65
-冰箱：1月 40、2月 35、3月 30、4月 45、5月 60、6月 70
+   '某商場上半年電視和冰箱的銷量：
+| 月份 | 電視（台） | 冰箱（台） |
+| --- | --- | --- |
+| 1月 | 80 | 40 |
+| 2月 | 70 | 35 |
+| 3月 | 60 | 30 |
+| 4月 | 50 | 45 |
+| 5月 | 45 | 60 |
+| 6月 | 65 | 70 |
 
 哪個月電視和冰箱的銷量相差最大？相差多少台？',
    '["A. 1月，相差 40 台", "B. 6月，相差 5 台", "C. 3月，相差 30 台", "D. 2月，相差 40 台"]'::jsonb,

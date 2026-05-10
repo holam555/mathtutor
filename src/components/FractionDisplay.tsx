@@ -117,3 +117,88 @@ export function InlineMath({ text, className }: { text: string; className?: stri
     </span>
   )
 }
+
+/**
+ * Renders a question's text body. Recognises:
+ *   - Markdown tables (lines starting with "|"). Consecutive `|`-rows
+ *     become an HTML <table>. The line right after the header that
+ *     looks like `| --- | --- |` (separator) is dropped.
+ *   - Plain lines pass through InlineMath (which renders fractions).
+ *   - Empty lines render as a small vertical gap.
+ *
+ * Designed for question_text where data is best presented as a table
+ * (e.g. a sales chart over 6 months). Falls back to plain rendering
+ * if the text has no table.
+ *
+ * Usage: <QuestionContent text={question.question_text} />
+ */
+export function QuestionContent({ text, className }: { text: string; className?: string }) {
+  const lines = text.split('\n')
+  type Block = { kind: 'text'; lines: string[] } | { kind: 'table'; rows: string[][] }
+  const blocks: Block[] = []
+  let i = 0
+  while (i < lines.length) {
+    const line = lines[i]
+    if (line.trimStart().startsWith('|')) {
+      // Collect consecutive table lines
+      const tableLines: string[] = []
+      while (i < lines.length && lines[i].trimStart().startsWith('|')) {
+        tableLines.push(lines[i])
+        i++
+      }
+      const rows = tableLines
+        .map((l) => l.trim().replace(/^\|/, '').replace(/\|$/, ''))
+        .map((l) => l.split('|').map((c) => c.trim()))
+        // Drop separator rows like ["---", "---", ":---:"]
+        .filter((cells) => !cells.every((c) => /^:?-{3,}:?$/.test(c)))
+      blocks.push({ kind: 'table', rows })
+    } else {
+      const textLines: string[] = []
+      while (i < lines.length && !lines[i].trimStart().startsWith('|')) {
+        textLines.push(lines[i])
+        i++
+      }
+      blocks.push({ kind: 'text', lines: textLines })
+    }
+  }
+
+  return (
+    <span className={className}>
+      {blocks.map((b, bi) =>
+        b.kind === 'table' ? (
+          <table
+            key={bi}
+            className="my-2 border-collapse text-sm"
+            style={{ borderCollapse: 'collapse' }}
+          >
+            <tbody>
+              {b.rows.map((row, ri) => (
+                <tr key={ri}>
+                  {row.map((cell, ci) => {
+                    const isHeader = ri === 0
+                    const Tag = isHeader ? 'th' : 'td'
+                    return (
+                      <Tag
+                        key={ci}
+                        className={
+                          'border border-gray-300 px-2 py-1 ' +
+                          (isHeader ? 'bg-gray-100 font-semibold' : '')
+                        }
+                      >
+                        <InlineMath text={cell} />
+                      </Tag>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <span key={bi} className="whitespace-pre-wrap">
+            <InlineMath text={b.lines.join('\n')} />
+          </span>
+        )
+      )}
+    </span>
+  )
+}

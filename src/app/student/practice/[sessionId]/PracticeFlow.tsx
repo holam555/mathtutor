@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Question } from '@/types/database'
-import FractionDisplay, { InlineMath } from '@/components/FractionDisplay'
+import FractionDisplay, { InlineMath, QuestionContent } from '@/components/FractionDisplay'
 
 type FeedbackState = 'idle' | 'correct' | 'wrong'
 
@@ -188,9 +188,9 @@ export default function PracticeFlow({
       {/* Question area */}
       <div className="flex-1 px-5 pt-6 pb-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm min-h-[140px] flex flex-col items-start gap-4">
-          <p className="text-[18px] text-gray-800 whitespace-pre-wrap" style={{ lineHeight: '1.6' }}>
-            <InlineMath text={currentQuestion.question_text} />
-          </p>
+          <div className="text-[18px] text-gray-800" style={{ lineHeight: '1.6' }}>
+            <QuestionContent text={currentQuestion.question_text} />
+          </div>
           {currentQuestion.question_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
