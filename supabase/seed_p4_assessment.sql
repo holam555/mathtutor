@@ -717,32 +717,90 @@ VALUES
    '81',
    'p4_ax_2026', 'U16Q12', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=17 AND t.lesson_number=17 LIMIT 1), 'basic', 'multiple_choice',
-   '四年級一班同學最喜歡水果統計：蘋果 12 人、香蕉 8 人、橙 10 人、西瓜 15 人、提子 5 人。最喜歡哪種水果的人數最多？有多少人？',
+   '四年級一班同學最喜歡水果統計：
+| 水果 | 人數 |
+| --- | --- |
+| 蘋果 | 12 |
+| 香蕉 | 8 |
+| 橙 | 10 |
+| 西瓜 | 15 |
+| 提子 | 5 |
+
+最喜歡哪種水果的人數最多？有多少人？',
    '["A. 西瓜，15 人", "B. 蘋果，12 人", "C. 橙，10 人", "D. 香蕉，8 人"]'::jsonb,
    'A. 西瓜，15 人',
    'p4_ax_2026', 'U17Q2_1', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=17 AND t.lesson_number=17 LIMIT 1), 'basic', 'fill_in_number',
-   '四年級一班同學最喜歡水果統計：蘋果 12 人、香蕉 8 人。最喜歡蘋果的人數比最喜歡香蕉的多多少人？',
+   '四年級一班同學最喜歡水果統計：
+| 水果 | 人數 |
+| --- | --- |
+| 蘋果 | 12 |
+| 香蕉 | 8 |
+| 橙 | 10 |
+| 西瓜 | 15 |
+| 提子 | 5 |
+
+最喜歡蘋果的人數比最喜歡香蕉的多多少人？',
    NULL,
    '4',
    'p4_ax_2026', 'U17Q2_3', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=17 AND t.lesson_number=17 LIMIT 1), 'basic', 'fill_in_number',
-   '四年級一班最喜歡水果統計：蘋果 12 人、香蕉 8 人、橙 10 人、西瓜 15 人、提子 5 人。四年級一班一共有多少人？',
+   '四年級一班同學最喜歡水果統計：
+| 水果 | 人數 |
+| --- | --- |
+| 蘋果 | 12 |
+| 香蕉 | 8 |
+| 橙 | 10 |
+| 西瓜 | 15 |
+| 提子 | 5 |
+
+四年級一班一共有多少人？',
    NULL,
    '50',
    'p4_ax_2026', 'U17Q2_4', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=17 AND t.lesson_number=17 LIMIT 1), 'enhancement', 'fill_in_number',
-   '最喜歡水果統計：蘋果 12 人、香蕉 8 人、橙 10 人、西瓜 15 人、提子 5 人。最喜歡西瓜的人數是最喜歡提子的多少倍？',
+   '四年級一班同學最喜歡水果統計：
+| 水果 | 人數 |
+| --- | --- |
+| 蘋果 | 12 |
+| 香蕉 | 8 |
+| 橙 | 10 |
+| 西瓜 | 15 |
+| 提子 | 5 |
+
+最喜歡西瓜的人數是最喜歡提子的多少倍？',
    NULL,
    '3',
    'p4_ax_2026', 'U17Q3_2', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=17 AND t.lesson_number=17 LIMIT 1), 'enhancement', 'fill_in_number',
-   '某超市一周飲料銷量：周一20、周二15、周三17、周四22、周五30、周六45、周日40 箱。周末兩天一共銷售了多少箱飲料？',
+   '某超市一周飲料銷量：
+| 星期 | 銷量（箱） |
+| --- | --- |
+| 周一 | 20 |
+| 周二 | 15 |
+| 周三 | 17 |
+| 周四 | 22 |
+| 周五 | 30 |
+| 周六 | 45 |
+| 周日 | 40 |
+
+周末兩天一共銷售了多少箱飲料？',
    NULL,
    '85',
    'p4_ax_2026', 'U17Q4_2', true),
   ((SELECT t.id FROM curriculum_topics t JOIN curriculum_units u ON u.id=t.unit_id WHERE u.grade=4 AND u.unit_number=17 AND t.lesson_number=17 LIMIT 1), 'enhancement', 'fill_in_number',
-   '某超市一周飲料銷量：周一20、周二15、周三17、周四22、周五30、周六45、周日40 箱。平均每天銷售多少箱飲料？',
+   '某超市一周飲料銷量：
+| 星期 | 銷量（箱） |
+| --- | --- |
+| 周一 | 20 |
+| 周二 | 15 |
+| 周三 | 17 |
+| 周四 | 22 |
+| 周五 | 30 |
+| 周六 | 45 |
+| 周日 | 40 |
+
+平均每天銷售多少箱飲料？',
    NULL,
    '27',
    'p4_ax_2026', 'U17Q4_3', true),
