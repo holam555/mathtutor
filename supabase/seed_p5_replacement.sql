@@ -12,6 +12,7 @@ UPDATE curriculum_units SET name = '長方體和正方體的表面積與體積'
 UPDATE assessment_questions SET is_active = false
 WHERE source_paper IN (
   'p5_hardcoded_sept', 'p5_hardcoded_nov', 'p5_hardcoded_jan',
+  'p5_hardcoded_mar', 'p5_hardcoded_may',
   '五年級期末複習手冊', 'p5_image_questions'
 ) AND is_active = true;
 
