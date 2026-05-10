@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { InlineMath, QuestionContent } from '@/components/FractionDisplay'
+import { QuestionContent } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Question } from '@/types/database'
-import FractionDisplay, { InlineMath, QuestionContent } from '@/components/FractionDisplay'
+import FractionDisplay, { QuestionContent } from '@/components/FractionDisplay'
 
 type FeedbackState = 'idle' | 'correct' | 'wrong'
 
