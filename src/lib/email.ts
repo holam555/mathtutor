@@ -134,7 +134,7 @@ export async function sendAssessmentNotification(payload: AssessmentNotification
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'LF Academy <noreply@resend.dev>',
+        from: 'LF Academy <onboarding@resend.dev>',
         to: [toEmail],
         subject,
         html,
