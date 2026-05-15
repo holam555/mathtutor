@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { sendAssessmentNotification } from '@/lib/email'
 import {
   buildModuleResultsByName,
   buildModuleResultsFromP3Answers,
@@ -197,6 +198,21 @@ export async function POST(request: NextRequest) {
     console.error('Failed to save assessment session:', error)
     return NextResponse.json({ error: '儲存失敗，請重試' }, { status: 500 })
   }
+
+  // Fire-and-forget: email never blocks the response
+  const totalCorrect = answers.filter((a) => a.is_correct).length
+  sendAssessmentNotification({
+    sessionId: session.id,
+    studentName: student_name,
+    gradeLevel: grade_level,
+    schoolName: school_name ?? null,
+    parentPhone: parent_phone ?? null,
+    parentEmail: parent_email ?? null,
+    score: reportData.score ?? score,
+    totalCorrect,
+    totalQuestions: answers.length,
+    reportData,
+  }).catch((err) => console.error('[email] notification error:', err))
 
   return NextResponse.json({ session_id: session.id, report_data: reportData })
 }
