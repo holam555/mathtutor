@@ -36,8 +36,10 @@ export default async function ExamScopeUploadPage() {
         <h1 className="text-xl font-bold">上載考試範圍</h1>
       </div>
 
-      <p className="text-sm text-gray-500 mb-6 bg-white rounded-2xl p-4 shadow-sm">
-        影低學校發嘅考試範圍紙，AI 會自動識別涵蓋嘅單元，小朋友主頁就會出現
+      <p className="text-sm text-gray-500 mb-6 bg-white rounded-2xl p-4 shadow-sm leading-6">
+        影低學校發嘅考試通告、或者課本目錄（喺要考嘅課題旁邊
+        <span className="font-semibold text-[#1D9E75]">用筆剔起 ✓</span>
+        ），AI 會自動識別涵蓋嘅單元，小朋友主頁就會出現
         <span className="font-semibold text-[#1D9E75]">「考試衝刺練習」</span>
         ，集中操練嗰啲範圍。
       </p>
