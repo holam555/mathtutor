@@ -37,11 +37,17 @@ export default async function ExamScopeUploadPage() {
       </div>
 
       <p className="text-sm text-gray-500 mb-6 bg-white rounded-2xl p-4 shadow-sm leading-6">
-        影低學校發嘅考試通告、或者課本目錄（喺要考嘅課題旁邊
-        <span className="font-semibold text-[#1D9E75]">用筆剔起 ✓</span>
-        ），AI 會自動識別涵蓋嘅單元，小朋友主頁就會出現
+        影
+        <span className="font-semibold text-[#1D9E75]">兩樣嘢</span>
+        畀我哋：
+        <br />
+        <span className="font-semibold">1) 學校通告</span>（寫住數學考試範圍嘅課題編號）
+        <br />
+        <span className="font-semibold">2) 課本目錄</span>（有課題編號 + 標題嗰一頁）
+        <br />
+        AI 會對返兩者，自動識別考試範圍。小朋友主頁就會出現
         <span className="font-semibold text-[#1D9E75]">「考試衝刺練習」</span>
-        ，集中操練嗰啲範圍。
+        ，集中操練嗰啲單元。
       </p>
 
       {!children?.length ? (

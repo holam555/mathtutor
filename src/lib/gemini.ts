@@ -160,7 +160,10 @@ export type ScopeMatchResult = {
 }
 
 export async function matchScopeToUnits(
-  images: { data: string; mimeType: string }[],
+  input: {
+    notice_images: { data: string; mimeType: string }[]
+    textbook_images: { data: string; mimeType: string }[]
+  },
   grade: number,
   units: ScopeUnitCandidate[],
   topics: ScopeTopicCandidate[] = []
@@ -179,7 +182,7 @@ export async function matchScopeToUnits(
   )
 
   const topicsBlock = topics.length
-    ? `\n以下係${gradeLabel}嘅小單元清單（如試卷標示去到小單元層級就揀小單元 id）：\n${JSON.stringify(
+    ? `\n以下係${gradeLabel}嘅小單元清單（如配對得到小單元層級就揀小單元 id）：\n${JSON.stringify(
         topics.map((t) => ({
           topic_id: t.topic_id,
           lesson_number: t.lesson_number,
@@ -194,30 +197,45 @@ export async function matchScopeToUnits(
 以下係${gradeLabel}嘅完整課程大單元清單（由系統提供，係唯一可選範圍）：
 ${unitsJson}
 ${topicsBlock}
-家長可能上載以下其中一種、或多種混合嘅相片：
-  (A) 學校發嘅「家長通告 / 考試範圍紙」— 例如：「數學 5下A冊第3-6課，5下B冊第8-13課，及複合棒形圖」
-  (B) 課本目錄頁 (目錄 / 課題列表) — 課題旁邊會有手寫剔號 ✓ 或螢光筆標示，表示嗰個課題係考試範圍
-  (C) 老師派發嘅範圍清單
+家長會上載兩組相片：
 
-請逐張相片睇清楚：
-  1. 對 (A)：解讀文字描述嘅「課」、「單元」、「冊」，將佢轉返做課程內容（例如「5下A冊第3-6課」=「5下A 入面 第3至6 個課題」），再對應上面清單入面嘅 unit name。
-  2. 對 (B)：搵出每個有剔號 ✓ / 螢光標示 / 圈住嘅課題標題（紅綠色大字嗰啲），按課題標題嘅文字（例如「立體圖形」、「小數乘法」、「分數除法」、「體積的認識」）去對應上面清單入面 unit name 最接近嗰個。
-  3. 同一個內容在不同相重複出現，唔需要重複返；merge 入同一個 unit_id。
-  4. 完全唔肯定嘅唔好強行配，保留 notes 解釋。
+【第一組 — 學校通告】（標籤 NOTICE）
+學校派發嘅家長通告 / 考試時間表 / 範圍紙，會用文字寫低數學科考試範圍。例如：
+  「數學 5下A冊第3-6課，5下B冊第8-13課，及複合棒形圖」
+請從相片入面搵出**數學科**嗰一欄嘅考試範圍文字，記低提到嘅「冊」+「課題編號」+其他關鍵字。
+（如果通告只係寫單元名，或者乜都冇，就用第二組相片做主）
 
-唔好自己創造或引用清單以外嘅課程名。唔好用自己對課程嘅理解去推斷未出現嘅單元。
+【第二組 — 課本目錄】（標籤 TEXTBOOK）
+課本嘅目錄頁，會列出「課題編號 + 課題標題」嘅對應，例如「3 立體的截面、4 立體圖形、5 小數乘法（一）」。
+請從目錄頁搵出第一組通告提到嘅課題編號對應嘅標題。
+（家長唔需要喺課本上面剔起任何嘢；你需要靠自己對照通告嘅「冊+課題編號」嚟揾課題名。）
+
+工作流程：
+  1. 由 NOTICE 萃取出考試範圍嘅「冊 + 課題編號 list」 + 額外關鍵字 (e.g. 「複合棒形圖」)。
+  2. 由 TEXTBOOK 目錄查返每個課題編號嘅實際標題。
+  3. 將每個標題對應上面清單入面 unit name 最接近嗰個 (例如「立體圖形」→ U8 體積的認識？睇清楚 unit name 揾最相近)。
+  4. NOTICE 入面提到但 TEXTBOOK 入面冇對應頁嘅關鍵字，直接用關鍵字配 unit name。
+  5. 同一個 unit 由多個來源指向，merge 入同一個 unit_id，唔好重複。
+  6. 完全唔肯定嘅唔好強行配；喺 notes 簡短解釋。
+
+唔好自己創造或引用清單以外嘅課程名。唔好用自己對課程嘅理解去推斷通告/目錄冇提及嘅單元。
 
 只輸出JSON，唔好任何解釋或markdown:
 {
   "matched_unit_ids": ["<uuid>", ...],
   "matched_topic_ids": ["<uuid>", ...],
-  "notes": "簡短備註（中文，可選，例如「相片入面有「立體的截面」但年級清單冇對應單元，已略過」）"
+  "notes": "簡短備註（中文，可選；例如「通告提到「立體的截面」但年級清單冇對應單元，已略過」）"
 }
 
 如果完全認唔到任何單元，返回空陣列。matched_unit_ids 入面嘅 uuid 必須完全等於上面清單入面其中一個 unit_id；matched_topic_ids 必須等於上面清單入面其中一個 topic_id。`
 
   const parts = [
-    ...images.map((img) => ({
+    { text: '【NOTICE — 學校通告】' },
+    ...input.notice_images.map((img) => ({
+      inlineData: { mimeType: img.mimeType, data: img.data },
+    })),
+    { text: '【TEXTBOOK — 課本目錄】' },
+    ...input.textbook_images.map((img) => ({
       inlineData: { mimeType: img.mimeType, data: img.data },
     })),
     { text: prompt },

@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
   if (!user || user.user_metadata?.role !== 'parent') {
     return NextResponse.json({ error: '未登入或無權上載' }, { status: 401 })
   }
+  const parentId = user.id
 
   let formData: FormData
   try {
@@ -32,7 +33,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '請求格式錯誤' }, { status: 400 })
   }
 
-  const files = formData.getAll('images') as File[]
+  const noticeFiles = (formData.getAll('notice_images') as File[]).filter((f) => f && f.size > 0)
+  const textbookFiles = (formData.getAll('textbook_images') as File[]).filter((f) => f && f.size > 0)
   const studentId = (formData.get('student_id') as string | null) ?? ''
   const examName = (formData.get('exam_name') as string | null) ?? ''
   const examDateRaw = (formData.get('exam_date') as string | null) ?? ''
@@ -40,11 +42,17 @@ export async function POST(request: NextRequest) {
   if (!studentId) {
     return NextResponse.json({ error: '請選擇子女' }, { status: 400 })
   }
-  if (!files.length || (files.length === 1 && files[0].size === 0)) {
-    return NextResponse.json({ error: '請上載至少一張相片' }, { status: 400 })
+  if (noticeFiles.length === 0) {
+    return NextResponse.json({ error: '請上載最少 1 張學校通告相片' }, { status: 400 })
   }
-  if (files.length > MAX_FILES) {
-    return NextResponse.json({ error: `最多上載 ${MAX_FILES} 張相` }, { status: 400 })
+  if (textbookFiles.length === 0) {
+    return NextResponse.json({ error: '請上載最少 1 張課本目錄相片' }, { status: 400 })
+  }
+  if (noticeFiles.length + textbookFiles.length > MAX_FILES) {
+    return NextResponse.json(
+      { error: `兩組合計最多 ${MAX_FILES} 張相` },
+      { status: 400 }
+    )
   }
 
   const service = createServiceClient()
@@ -111,9 +119,12 @@ export async function POST(request: NextRequest) {
     semester: u.semester as 'A' | 'B',
   }))
 
-  // Validate + upload images
-  const imagePaths: string[] = []
-  const imageBuffers: { data: string; mimeType: string }[] = []
+  // Validate + upload images. Track which uploaded path belongs to which
+  // group so we can pass the buffers to Gemini with their labels preserved.
+  const noticePaths: string[] = []
+  const textbookPaths: string[] = []
+  const noticeBuffers: { data: string; mimeType: string }[] = []
+  const textbookBuffers: { data: string; mimeType: string }[] = []
 
   const extFromMime: Record<string, string> = {
     'image/jpeg': 'jpg',
@@ -124,7 +135,10 @@ export async function POST(request: NextRequest) {
     'image/heif': 'heif',
   }
 
-  for (const file of files) {
+  async function uploadOne(
+    file: File,
+    bucketSubdir: 'notice' | 'textbook'
+  ): Promise<{ path: string; data: string; mimeType: string } | NextResponse> {
     if (!ALLOWED_MIME_TYPES.includes(file.type)) {
       return NextResponse.json(
         { error: `不支援的圖片格式：${file.type}` },
@@ -137,31 +151,41 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-
     const buffer = Buffer.from(await file.arrayBuffer())
     const ext = extFromMime[file.type] ?? 'jpg'
-    const storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
+    const storagePath = `${parentId}/${bucketSubdir}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2)}.${ext}`
     const { error: uploadError } = await service.storage
       .from('exam-scopes')
       .upload(storagePath, buffer, { contentType: file.type })
-
     if (uploadError) {
       return NextResponse.json(
         { error: `相片上載失敗：${uploadError.message}` },
         { status: 500 }
       )
     }
-
-    imagePaths.push(storagePath)
-    imageBuffers.push({ data: buffer.toString('base64'), mimeType: file.type })
+    return { path: storagePath, data: buffer.toString('base64'), mimeType: file.type }
   }
 
-  // Call Gemini Vision
+  for (const f of noticeFiles) {
+    const res = await uploadOne(f, 'notice')
+    if (res instanceof NextResponse) return res
+    noticePaths.push(res.path)
+    noticeBuffers.push({ data: res.data, mimeType: res.mimeType })
+  }
+  for (const f of textbookFiles) {
+    const res = await uploadOne(f, 'textbook')
+    if (res instanceof NextResponse) return res
+    textbookPaths.push(res.path)
+    textbookBuffers.push({ data: res.data, mimeType: res.mimeType })
+  }
+
+  // Call Gemini Vision with both groups labelled
   let match
   try {
     match = await matchScopeToUnits(
-      imageBuffers,
+      { notice_images: noticeBuffers, textbook_images: textbookBuffers },
       child.grade,
       unitCandidates,
       topicCandidates
@@ -222,7 +246,7 @@ export async function POST(request: NextRequest) {
       grade: child.grade,
       exam_name: examName || null,
       exam_date: examDate,
-      image_paths: imagePaths,
+      image_paths: [...noticePaths, ...textbookPaths],
       unit_ids: finalUnitIds,
       ai_raw: match as unknown as Record<string, unknown>,
       is_active: true,
