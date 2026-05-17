@@ -17,7 +17,7 @@ export default function UploadExamScopeForm({ linkedChildren }: { linkedChildren
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const list = Array.from(e.target.files ?? [])
-    setFiles(list.slice(0, 5))
+    setFiles(list.slice(0, 10))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -145,7 +145,7 @@ export default function UploadExamScopeForm({ linkedChildren }: { linkedChildren
       {/* Image upload */}
       <div className="bg-white rounded-2xl p-4 shadow-sm">
         <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">
-          考試範圍相片（最多 5 張）
+          考試範圍相片（最多 10 張）
         </p>
         <p className="text-xs text-gray-500 mb-2 leading-5">
           可以混合上載：
