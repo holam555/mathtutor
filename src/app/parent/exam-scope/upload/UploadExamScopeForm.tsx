@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 
 type Child = { id: string; name: string; grade: number | null }
 
-const MAX_TOTAL = 10
+const MAX_TOTAL = 5
 
 export default function UploadExamScopeForm({ linkedChildren }: { linkedChildren: Child[] }) {
   const router = useRouter()

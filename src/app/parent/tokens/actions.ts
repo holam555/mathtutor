@@ -3,21 +3,34 @@
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 
-async function assertStudent() {
+// Redeem on behalf of a specific student. Callers must be either the
+// student themselves OR a parent linked to that student via
+// parent_student_relationships.
+export async function redeemOption(optionId: string, studentId: string) {
   const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   const role = user?.user_metadata?.role
   if (!user || (role !== 'student' && role !== 'parent')) {
-    throw new Error('權限不足')
+    return { error: '權限不足' }
   }
-  return user
-}
 
-export async function redeemOption(optionId: string) {
-  const user = await assertStudent()
   const service = createServiceClient()
+
+  // Authorisation: student redeeming own balance, or parent of linked child.
+  if (role === 'student') {
+    if (user.id !== studentId) return { error: '權限不足' }
+  } else {
+    const { data: link } = await service
+      .from('parent_student_relationships')
+      .select('id')
+      .eq('parent_id', user.id)
+      .eq('student_id', studentId)
+      .eq('is_active', true)
+      .maybeSingle()
+    if (!link) return { error: '此學生並未連結你的帳戶' }
+  }
 
   // Load option
   const { data: option } = await service
@@ -28,23 +41,24 @@ export async function redeemOption(optionId: string) {
 
   if (!option || !option.is_active) return { error: '此兌換選項不可用' }
 
-  // Check balance
+  // Check balance on the child's profile
   const { data: profile } = await service
     .from('student_profiles')
     .select('token_balance')
-    .eq('id', user.id)
+    .eq('id', studentId)
     .single()
 
   if (!profile) return { error: '找不到學生檔案' }
   if ((profile.token_balance ?? 0) < option.tokens_required) {
-    return { error: `Token 不足（需要 ${option.tokens_required}，目前 ${profile.token_balance ?? 0}）` }
+    return {
+      error: `代幣不足（需要 ${option.tokens_required}，目前 ${profile.token_balance ?? 0}）`,
+    }
   }
 
-  // Create redemption record
   const { data: redemption, error: rdError } = await service
     .from('token_redemptions')
     .insert({
-      student_id: user.id,
+      student_id: studentId,
       option_id: optionId,
       tokens_used: option.tokens_required,
       reward_description: option.reward_description,
@@ -55,19 +69,18 @@ export async function redeemOption(optionId: string) {
 
   if (rdError) return { error: rdError.message }
 
-  // Deduct tokens
   await service.from('token_transactions').insert({
-    student_id: user.id,
+    student_id: studentId,
     amount: -option.tokens_required,
     reason: 'redemption',
     reference_id: redemption.id,
     created_by: user.id,
   })
   await service.rpc('increment_token_balance', {
-    p_student_id: user.id,
+    p_student_id: studentId,
     p_amount: -option.tokens_required,
   })
 
-  revalidatePath('/parent/tokens')
+  revalidatePath('/parent')
   return { success: true }
 }

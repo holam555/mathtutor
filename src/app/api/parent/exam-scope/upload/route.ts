@@ -12,7 +12,7 @@ const ALLOWED_MIME_TYPES = [
   'image/heic',
   'image/heif',
 ]
-const MAX_FILES = 10
+const MAX_FILES = 5
 const MAX_FILE_SIZE_MB = 10
 
 export async function POST(request: NextRequest) {

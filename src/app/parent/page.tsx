@@ -3,6 +3,14 @@ import { redirect } from 'next/navigation'
 import { signOut } from '@/app/login/actions'
 import Link from 'next/link'
 import { getInitial } from '@/lib/studentReport'
+import RedeemButton from './tokens/RedeemButton'
+
+const GRADE_LABEL: Record<number, string> = {
+  3: '小三',
+  4: '小四',
+  5: '小五',
+  6: '小六',
+}
 
 export default async function ParentHome() {
   const supabase = createClient()
@@ -14,7 +22,7 @@ export default async function ParentHome() {
 
   const service = createServiceClient()
 
-  // Load linked children via parent_student_relationships
+  // Linked children
   const { data: links } = await service
     .from('parent_student_relationships')
     .select('student_id, is_active')
@@ -31,13 +39,47 @@ export default async function ParentHome() {
         .order('name')
     : { data: [] }
 
-  // Pending past paper uploads by this parent
-  const { data: uploads } = await service
-    .from('past_paper_uploads')
-    .select('id, school_name, grade, exam_type, review_status, created_at, ai_extracted_questions')
-    .eq('uploaded_by', user.id)
-    .order('created_at', { ascending: false })
-    .limit(5)
+  const childList = (children ?? []).map((c) => ({
+    id: c.id,
+    name: c.name,
+    balance: c.token_balance ?? 0,
+  }))
+  const totalBalance = childList.reduce((s, c) => s + c.balance, 0)
+
+  // Active redemption options
+  const { data: options } = await service
+    .from('redemption_options')
+    .select('id, reward_description, tokens_required, is_active')
+    .eq('is_active', true)
+    .order('tokens_required', { ascending: true })
+
+  // Recent past paper uploads + redemption history (parent's own)
+  const [uploadsRes, redemptionsRes] = await Promise.all([
+    service
+      .from('past_paper_uploads')
+      .select('id, school_name, grade, exam_type, review_status, created_at, ai_extracted_questions')
+      .eq('uploaded_by', user.id)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    studentIds.length
+      ? service
+          .from('token_redemptions')
+          .select('id, student_id, tokens_used, reward_description, status, created_at')
+          .in('student_id', studentIds)
+          .order('created_at', { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [] as Array<{
+          id: string
+          student_id: string
+          tokens_used: number
+          reward_description: string
+          status: string
+          created_at: string
+        }> }),
+  ])
+  const uploads = uploadsRes.data
+  const redemptions = redemptionsRes.data ?? []
+  const childById = new Map(childList.map((c) => [c.id, c.name]))
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
@@ -52,16 +94,16 @@ export default async function ParentHome() {
       </div>
 
       {/* Children list */}
-      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">我的子女</h2>
-      {!children?.length ? (
+      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+        我的子女
+      </h2>
+      {!childList.length ? (
         <div className="bg-white rounded-2xl p-6 text-center shadow-sm mb-6">
-          <p className="text-sm text-gray-400">
-            尚未關聯任何學生，請聯絡老師設定
-          </p>
+          <p className="text-sm text-gray-400">尚未關聯任何學生，請聯絡老師設定</p>
         </div>
       ) : (
         <div className="space-y-3 mb-6">
-          {children.map((c) => (
+          {(children ?? []).map((c) => (
             <Link
               key={c.id}
               href={`/parent/child/${c.id}`}
@@ -73,16 +115,8 @@ export default async function ParentHome() {
               <div className="flex-1">
                 <p className="font-semibold text-gray-800">{c.name}</p>
                 <p className="text-xs text-gray-400">
-                  {c.grade === 3
-                    ? '小三'
-                    : c.grade === 4
-                      ? '小四'
-                      : c.grade === 5
-                        ? '小五'
-                        : c.grade === 6
-                          ? '小六'
-                          : '—'}{' '}
-                  · 🎁 {c.token_balance ?? 0} Tokens
+                  {(c.grade && GRADE_LABEL[c.grade]) ?? '—'} ·{' '}
+                  🪙 {c.token_balance ?? 0} 代幣
                 </p>
               </div>
               <span className="text-gray-400">→</span>
@@ -118,12 +152,108 @@ export default async function ParentHome() {
       >
         <div>
           <h3 className="font-semibold text-white">📄 上載試卷</h3>
-          <p className="text-sm text-white/80 mt-0.5">每頁獲 10 Tokens</p>
+          <p className="text-sm text-white/80 mt-0.5">每頁可獲 10 代幣</p>
         </div>
         <span className="text-white/80 text-xl">+</span>
       </Link>
 
-      {/* Recent upload status */}
+      {/* Redemption section */}
+      {childList.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              用代幣換獎賞
+            </h2>
+            <p className="text-xs text-gray-500">
+              合共 <span className="font-semibold text-[#EF9F27]">🪙 {totalBalance}</span> 代幣
+            </p>
+          </div>
+
+          {/* What can tokens do (intro card) */}
+          <div className="bg-gradient-to-br from-[#FFF8EC] to-white border border-[#EF9F27]/20 rounded-2xl p-4 mb-3">
+            <p className="text-sm font-semibold text-gray-800 mb-1">代幣可以做啲咩？</p>
+            <ul className="text-xs text-gray-600 space-y-1 leading-5">
+              <li>· 上載一頁 Past Paper → 獲 10 代幣</li>
+              <li>· 儲夠代幣可換取課程折扣、免費試堂等獎賞</li>
+              <li>· 兌換後等老師審批，批准後我哋會聯絡你安排</li>
+            </ul>
+          </div>
+
+          {!options?.length ? (
+            <div className="bg-white rounded-2xl p-6 text-center shadow-sm">
+              <p className="text-sm text-gray-400">暫時冇可兌換嘅獎賞</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {options.map((opt) => (
+                <div
+                  key={opt.id}
+                  className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 relative"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-[#EF9F27]/10 text-[#EF9F27] flex items-center justify-center shrink-0">
+                    🎁
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">
+                      {opt.reward_description}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      🪙 {opt.tokens_required} 代幣
+                    </p>
+                  </div>
+                  <RedeemButton
+                    optionId={opt.id}
+                    tokensRequired={opt.tokens_required}
+                    rewardDescription={opt.reward_description}
+                    childCandidates={childList}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {redemptions.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                兌換紀錄
+              </p>
+              <div className="space-y-2">
+                {redemptions.map((r) => {
+                  const statusMeta =
+                    r.status === 'approved'
+                      ? { text: '已批准', color: 'text-green-600 bg-green-50' }
+                      : r.status === 'rejected'
+                        ? { text: '已拒絕', color: 'text-gray-400 bg-gray-50' }
+                        : { text: '審批中', color: 'text-amber-600 bg-amber-50' }
+                  return (
+                    <div
+                      key={r.id}
+                      className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between"
+                    >
+                      <div>
+                        <p className="text-sm text-gray-700 truncate">
+                          {r.reward_description}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {childById.get(r.student_id) ?? '—'} · 🪙 {r.tokens_used} ·{' '}
+                          {new Date(r.created_at).toLocaleDateString('zh-HK')}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusMeta.color}`}
+                      >
+                        {statusMeta.text}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recent past paper upload status */}
       {uploads && uploads.length > 0 && (
         <>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
@@ -155,7 +285,9 @@ export default async function ParentHome() {
                       {new Date(u.created_at).toLocaleDateString('zh-HK')}
                     </p>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusMeta.color}`}>
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusMeta.color}`}
+                  >
                     {statusMeta.text}
                   </span>
                 </div>
