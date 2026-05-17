@@ -4,31 +4,37 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function WrongBankClient({
+  unitId,
   categoryId,
   studentId,
 }: {
-  categoryId: string
+  unitId?: string
+  categoryId?: string
   studentId: string
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
-  async function startCategoryRetry() {
+  async function startRetry() {
     setLoading(true)
     try {
+      const body: Record<string, unknown> = { student_id: studentId }
+      if (unitId) {
+        body.mode = 'unit'
+        body.unit_id = unitId
+      } else if (categoryId) {
+        body.mode = 'category'
+        body.category_id = categoryId
+      } else {
+        return
+      }
       const res = await fetch('/api/practice/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_id: studentId,
-          mode: 'category',
-          category_id: categoryId,
-        }),
+        body: JSON.stringify(body),
       })
       const data = await res.json()
-      if (res.ok) {
-        router.push(`/student/practice/${data.session_id}`)
-      }
+      if (res.ok) router.push(`/student/practice/${data.session_id}`)
     } finally {
       setLoading(false)
     }
@@ -36,9 +42,9 @@ export default function WrongBankClient({
 
   return (
     <button
-      onClick={startCategoryRetry}
+      onClick={startRetry}
       disabled={loading}
-      className="text-sm text-[#4A90E2] font-medium disabled:opacity-50"
+      className="text-sm text-[#1D9E75] font-medium disabled:opacity-50"
     >
       {loading ? '…' : '練習 →'}
     </button>

@@ -3,14 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function CategoryPracticeClient({
-  categoryId,
+export default function UnitPracticeClient({
+  unitId,
   studentId,
-  disabled,
 }: {
-  categoryId: string
+  unitId: string
   studentId: string
-  disabled?: boolean
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
@@ -23,8 +21,8 @@ export default function CategoryPracticeClient({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           student_id: studentId,
-          mode: 'category',
-          category_id: categoryId,
+          mode: 'unit',
+          unit_id: unitId,
         }),
       })
       const data = await res.json()
@@ -39,8 +37,8 @@ export default function CategoryPracticeClient({
   return (
     <button
       onClick={handleStart}
-      disabled={loading || disabled}
-      className="shrink-0 px-4 py-2 rounded-xl bg-[#4A90E2] text-white text-sm font-medium disabled:opacity-40 active:scale-[0.97] transition"
+      disabled={loading}
+      className="shrink-0 px-4 py-2 rounded-xl bg-[#1D9E75] text-white text-sm font-medium disabled:opacity-40 active:scale-[0.97] transition"
     >
       {loading ? '…' : '練習'}
     </button>

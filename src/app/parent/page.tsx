@@ -73,8 +73,16 @@ export default async function ParentHome() {
               <div className="flex-1">
                 <p className="font-semibold text-gray-800">{c.name}</p>
                 <p className="text-xs text-gray-400">
-                  小{c.grade === 5 ? '五' : c.grade === 6 ? '六' : '—'} ·{' '}
-                  🎁 {c.token_balance ?? 0} Tokens
+                  {c.grade === 3
+                    ? '小三'
+                    : c.grade === 4
+                      ? '小四'
+                      : c.grade === 5
+                        ? '小五'
+                        : c.grade === 6
+                          ? '小六'
+                          : '—'}{' '}
+                  · 🎁 {c.token_balance ?? 0} Tokens
                 </p>
               </div>
               <span className="text-gray-400">→</span>
@@ -83,7 +91,24 @@ export default async function ParentHome() {
         </div>
       )}
 
-      {/* Upload action */}
+      {/* Exam scope upload */}
+      <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+        考試衝刺
+      </h2>
+      <Link
+        href="/parent/exam-scope/upload"
+        className="flex items-center justify-between bg-[#1D9E75] rounded-2xl p-5 shadow-sm hover:opacity-90 transition mb-4"
+      >
+        <div>
+          <h3 className="font-semibold text-white">🔥 上載考試範圍</h3>
+          <p className="text-sm text-white/80 mt-0.5">
+            AI 自動識別，小朋友主頁立即見到
+          </p>
+        </div>
+        <span className="text-white/80 text-xl">+</span>
+      </Link>
+
+      {/* Past paper upload */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
         上載 Past Paper
       </h2>

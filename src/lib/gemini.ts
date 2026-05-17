@@ -132,6 +132,118 @@ export async function extractQuestionsFromImages(
   )
 }
 
+// ── Exam-scope → curriculum_units matching ────────────────────────────────
+//
+// Parent uploads photo(s) of the school's 考試範圍 sheet. Gemini Vision is
+// told which unit/topic ids are valid (pulled live from the DB for the
+// child's grade) and must only return ids from that authoritative list —
+// never invent new units or use its own curriculum knowledge.
+
+export type ScopeUnitCandidate = {
+  unit_id: string
+  unit_number: number
+  name: string
+  semester?: 'A' | 'B'
+}
+
+export type ScopeTopicCandidate = {
+  topic_id: string
+  lesson_number: number
+  name: string
+  unit_id: string
+}
+
+export type ScopeMatchResult = {
+  matched_unit_ids: string[]
+  matched_topic_ids: string[]
+  notes?: string
+}
+
+export async function matchScopeToUnits(
+  images: { data: string; mimeType: string }[],
+  grade: number,
+  units: ScopeUnitCandidate[],
+  topics: ScopeTopicCandidate[] = []
+): Promise<ScopeMatchResult> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+  const gradeLabel = ['', '', '', '小三', '小四', '小五', '小六'][grade] ?? `小${grade}`
+
+  const unitsJson = JSON.stringify(
+    units.map((u) => ({
+      unit_id: u.unit_id,
+      unit_number: u.unit_number,
+      name: u.name,
+      semester: u.semester,
+    }))
+  )
+
+  const topicsBlock = topics.length
+    ? `\n以下係${gradeLabel}嘅小單元清單（如試卷標示去到小單元層級就揀小單元 id）：\n${JSON.stringify(
+        topics.map((t) => ({
+          topic_id: t.topic_id,
+          lesson_number: t.lesson_number,
+          name: t.name,
+          unit_id: t.unit_id,
+        }))
+      )}\n`
+    : ''
+
+  const prompt = `你係香港小學數學考試範圍分析助手。
+
+以下係${gradeLabel}嘅完整課程大單元清單（由系統提供，係唯一可選範圍）：
+${unitsJson}
+${topicsBlock}
+家長上載咗考試範圍嘅相片。請只從上面清單揀真正出現喺相片入面嘅單元/小單元，唔好自己創造或引用清單以外嘅課程名，唔好用自己對課程嘅理解去推斷。
+
+只輸出JSON，唔好任何解釋或markdown:
+{
+  "matched_unit_ids": ["<uuid>", ...],
+  "matched_topic_ids": ["<uuid>", ...],
+  "notes": "簡短備註（中文，可選）"
+}
+
+如果完全認唔到任何單元，返回空陣列。matched_unit_ids 入面嘅 uuid 必須完全等於上面清單入面其中一個 unit_id；matched_topic_ids 必須等於上面清單入面其中一個 topic_id。`
+
+  const parts = [
+    ...images.map((img) => ({
+      inlineData: { mimeType: img.mimeType, data: img.data },
+    })),
+    { text: prompt },
+  ]
+
+  const response = await generateContentWithFallback(ai, {
+    contents: [{ role: 'user', parts }],
+    config: {
+      responseMimeType: 'application/json',
+      temperature: 0.1,
+    },
+  })
+
+  const text = response.text ?? ''
+  const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+  let parsed: ScopeMatchResult
+  try {
+    parsed = JSON.parse(clean) as ScopeMatchResult
+  } catch {
+    throw new Error(`Gemini 返回了無效的 JSON：${clean.slice(0, 200)}`)
+  }
+
+  const validUnitIds = new Set(units.map((u) => u.unit_id))
+  const validTopicIds = new Set(topics.map((t) => t.topic_id))
+
+  return {
+    matched_unit_ids: Array.from(
+      new Set((parsed.matched_unit_ids ?? []).filter((id) => validUnitIds.has(id)))
+    ),
+    matched_topic_ids: Array.from(
+      new Set((parsed.matched_topic_ids ?? []).filter((id) => validTopicIds.has(id)))
+    ),
+    notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+  }
+}
+
 // ── Variation generation ───────────────────────────────────────────────────
 
 export type GeneratedQuestion = {

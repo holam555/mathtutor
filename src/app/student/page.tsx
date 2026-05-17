@@ -1,8 +1,15 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
 import StudentHomeClient from './StudentHomeClient'
+
+const GRADE_LABEL: Record<number, string> = {
+  3: '小三',
+  4: '小四',
+  5: '小五',
+  6: '小六',
+}
 import {
   DAILY_GOAL,
   TROPHIES,
@@ -85,6 +92,30 @@ export default async function StudentHome() {
   const greeting = getGreeting()
   const todayIdx = (new Date().getDay() + 6) % 7 // Monday=0
 
+  // Active exam scope (latest) — drives the 考試衝刺練習 card.
+  const service = createServiceClient()
+  const { data: examScope } = await service
+    .from('exam_scopes')
+    .select('id, exam_name, exam_date, unit_ids')
+    .eq('student_id', user.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  let scopeUnits: { unit_number: number; name: string }[] = []
+  if (examScope?.unit_ids?.length) {
+    const { data: u } = await service
+      .from('curriculum_units')
+      .select('unit_number, name, display_order')
+      .in('id', examScope.unit_ids)
+      .order('display_order')
+    scopeUnits = (u ?? []).map((row) => ({
+      unit_number: row.unit_number,
+      name: row.name,
+    }))
+  }
+
   // SVG circle maths
   const size = 180
   const strokeWidth = 14
@@ -102,7 +133,7 @@ export default async function StudentHome() {
           </h1>
           {profile?.grade && (
             <p className="text-sm text-gray-400 mt-0.5">
-              小{profile.grade === 5 ? '五' : '六'}
+              {GRADE_LABEL[profile.grade] ?? `小${profile.grade}`}
             </p>
           )}
         </div>
@@ -232,6 +263,26 @@ export default async function StudentHome() {
         </div>
       )}
 
+      {/* Exam sprint CTA (only if active exam_scope exists) */}
+      {examScope && scopeUnits.length > 0 && (
+        <Link
+          href="/student/practice/exam-sprint"
+          className="block bg-gradient-to-br from-[#EF9F27] to-[#F8B84E] rounded-2xl p-5 shadow-md mb-4 active:scale-[0.98] transition"
+        >
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-base font-bold text-white">🔥 考試衝刺練習</p>
+            <span className="text-white/80 text-sm">→</span>
+          </div>
+          <p className="text-xs text-white/90">
+            {scopeUnits.length} 個單元 · 集中操練考試範圍
+          </p>
+          <p className="text-[11px] text-white/70 mt-1 truncate">
+            {scopeUnits.slice(0, 3).map((u) => `${u.unit_number}.${u.name}`).join('、')}
+            {scopeUnits.length > 3 ? '…' : ''}
+          </p>
+        </Link>
+      )}
+
       {/* Start practice CTA */}
       <StudentHomeClient wrongCount={wrongCount ?? 0} studentId={user.id} />
 
@@ -241,7 +292,7 @@ export default async function StudentHome() {
           所有獎杯
         </Link>
         <Link href="/student/practice/select-category" className="text-gray-400 underline">
-          按題型練習
+          按單元練習
         </Link>
       </div>
     </main>
