@@ -43,6 +43,19 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
 
   const extractedQuestions = (upload.ai_extracted_questions ?? []) as ExtractedQuestion[]
 
+  // Sign any crop image paths stored in extracted questions (private bucket, paths not public URLs)
+  const signedExtractedQuestions = await Promise.all(
+    extractedQuestions.map(async (q) => {
+      if (q.image_url && !q.image_url.startsWith('https://')) {
+        const { data } = await service.storage
+          .from('past-papers')
+          .createSignedUrl(q.image_url, 3600)
+        return { ...q, image_url: data?.signedUrl ?? null }
+      }
+      return q
+    })
+  )
+
   return (
     <main className="min-h-screen px-4 py-8 max-w-5xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -50,7 +63,7 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
         <div>
           <h1 className="text-xl font-bold">
             {upload.school_name ?? '未知學校'}
-            {upload.grade ? ` · 小${upload.grade === 5 ? '五' : '六'}` : ''}
+            {upload.grade ? ` · 小${{ 3: '三', 4: '四', 5: '五', 6: '六' }[upload.grade as 3|4|5|6] ?? upload.grade}` : ''}
             {upload.exam_type ? ` · ${upload.exam_type}` : ''}
           </h1>
           <p className="text-sm text-gray-400">
@@ -74,7 +87,7 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
         uploadId={params.id}
         uploadStatus={upload.review_status}
         signedUrls={signedUrls}
-        extractedQuestions={extractedQuestions}
+        extractedQuestions={signedExtractedQuestions}
         categories={(categories ?? []).map((c) => ({
           id: c.id,
           name: c.name,

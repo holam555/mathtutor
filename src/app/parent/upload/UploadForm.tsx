@@ -153,6 +153,8 @@ export default function UploadForm() {
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-[#4A90E2] outline-none"
           >
             <option value="">選擇年級</option>
+            <option value="3">小三</option>
+            <option value="4">小四</option>
             <option value="5">小五</option>
             <option value="6">小六</option>
           </select>

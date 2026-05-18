@@ -48,6 +48,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `上傳失敗：${uploadError.message}` }, { status: 500 })
   }
 
-  const { data: urlData } = service.storage.from('past-papers').getPublicUrl(storagePath)
-  return NextResponse.json({ url: urlData.publicUrl })
+  const { data: signedData } = await service.storage.from('past-papers').createSignedUrl(storagePath, 7200)
+  return NextResponse.json({ url: signedData?.signedUrl ?? '' })
 }

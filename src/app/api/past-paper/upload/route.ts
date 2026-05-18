@@ -126,8 +126,8 @@ export async function POST(request: NextRequest) {
           .upload(cropPath, cropped, { contentType: 'image/jpeg' })
 
         if (!cropUploadErr) {
-          const { data: urlData } = service.storage.from('past-papers').getPublicUrl(cropPath)
-          q.image_url = urlData?.publicUrl ?? null
+          // Store path (not public URL) — private bucket requires signed URLs at review time
+          q.image_url = cropPath
         }
       } catch {
         // Non-fatal: crop failure just means image_url stays null
