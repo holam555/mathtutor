@@ -74,8 +74,6 @@ export default async function QuestionsPage({
   const { data: questions } = await qQuery
 
   // Build lookup maps for display
-  const topicMap = new Map((topics ?? []).map((t) => [t.id, t]))
-  const unitMap = new Map((units ?? []).map((u) => [u.id, u]))
   const topicToUnit = new Map((topics ?? []).map((t) => [t.id, t.unit_id]))
 
   // Group: unit_id → topic_id → questions[]
