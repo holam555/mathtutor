@@ -125,7 +125,7 @@ export default async function ParentHome() {
         </div>
       )}
 
-      {/* Exam scope upload */}
+      {/* Exam scope */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
         考試衝刺
       </h2>
@@ -134,9 +134,9 @@ export default async function ParentHome() {
         className="flex items-center justify-between bg-[#1D9E75] rounded-2xl p-5 shadow-sm hover:opacity-90 transition mb-4"
       >
         <div>
-          <h3 className="font-semibold text-white">🔥 上載考試範圍</h3>
+          <h3 className="font-semibold text-white">🔥 設定考試範圍</h3>
           <p className="text-sm text-white/80 mt-0.5">
-            AI 自動識別，小朋友主頁立即見到
+            揀選考試單元，學生主頁立即見到衝刺練習
           </p>
         </div>
         <span className="text-white/80 text-xl">+</span>
@@ -160,96 +160,111 @@ export default async function ParentHome() {
       {/* Redemption section */}
       {childList.length > 0 && (
         <div className="mb-6">
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-              用代幣換獎賞
-            </h2>
-            <p className="text-xs text-gray-500">
-              合共 <span className="font-semibold text-[#EF9F27]">🪙 {totalBalance}</span> 代幣
-            </p>
-          </div>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+            代幣獎賞
+          </h2>
+          <details className="group shadow-sm rounded-2xl overflow-hidden mb-0">
+            {/* Collapsed card — styled like 考試衝刺 / 上載 Past Paper */}
+            <summary className="flex items-center justify-between bg-[#EF9F27] p-5 cursor-pointer list-none select-none">
+              <div>
+                <h3 className="font-semibold text-white">🪙 用代幣換獎賞</h3>
+                <p className="text-sm text-white/80 mt-0.5">
+                  合共 {totalBalance} 代幣 · 點擊查看獎賞
+                </p>
+              </div>
+              <span className="text-white/80 text-xl transition-transform duration-200 group-open:rotate-45">+</span>
+            </summary>
 
-          {/* What can tokens do (intro card) */}
-          <div className="bg-gradient-to-br from-[#FFF8EC] to-white border border-[#EF9F27]/20 rounded-2xl p-4 mb-3">
-            <p className="text-sm font-semibold text-gray-800 mb-1">代幣可以做啲咩？</p>
-            <ul className="text-xs text-gray-600 space-y-1 leading-5">
-              <li>· 上載一頁 Past Paper → 獲 10 代幣</li>
-              <li>· 儲夠代幣可換取課程折扣、免費試堂等獎賞</li>
-              <li>· 兌換後等老師審批，批准後我哋會聯絡你安排</li>
-            </ul>
-          </div>
+            {/* Expanded content */}
+            <div className="bg-gray-50 px-4 pt-4 pb-5 space-y-3">
+              {/* What can tokens do */}
+              <details className="bg-white border border-[#EF9F27]/20 rounded-2xl group/info">
+                <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none">
+                  <p className="text-sm font-semibold text-gray-800">代幣有什麼用？</p>
+                  <span className="text-[#EF9F27] text-xs transition-transform group-open/info:rotate-180">▼</span>
+                </summary>
+                <ul className="text-xs text-gray-600 space-y-1 leading-5 px-4 pb-3">
+                  <li>· 每上載一頁 Past Paper，可賺取 10 個代幣</li>
+                  <li>· 代幣累積後，可用來換取課程折扣或免費試堂</li>
+                  <li>· 兌換後老師會聯絡你領取獎賞</li>
+                </ul>
+              </details>
 
-          {!options?.length ? (
-            <div className="bg-white rounded-2xl p-6 text-center shadow-sm">
-              <p className="text-sm text-gray-400">暫時冇可兌換嘅獎賞</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {options.map((opt) => (
-                <div
-                  key={opt.id}
-                  className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 relative"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-[#EF9F27]/10 text-[#EF9F27] flex items-center justify-center shrink-0">
-                    🎁
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800">
-                      {opt.reward_description}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      🪙 {opt.tokens_required} 代幣
-                    </p>
-                  </div>
-                  <RedeemButton
-                    optionId={opt.id}
-                    tokensRequired={opt.tokens_required}
-                    rewardDescription={opt.reward_description}
-                    childCandidates={childList}
-                  />
+              {/* Redemption options */}
+              {!options?.length ? (
+                <div className="bg-white rounded-2xl p-6 text-center">
+                  <p className="text-sm text-gray-400">暫時冇可兌換嘅獎賞</p>
                 </div>
-              ))}
-            </div>
-          )}
-
-          {redemptions.length > 0 && (
-            <div className="mt-4">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                兌換紀錄
-              </p>
-              <div className="space-y-2">
-                {redemptions.map((r) => {
-                  const statusMeta =
-                    r.status === 'approved'
-                      ? { text: '已批准', color: 'text-green-600 bg-green-50' }
-                      : r.status === 'rejected'
-                        ? { text: '已拒絕', color: 'text-gray-400 bg-gray-50' }
-                        : { text: '審批中', color: 'text-amber-600 bg-amber-50' }
-                  return (
+              ) : (
+                <div className="space-y-2">
+                  {options.map((opt) => (
                     <div
-                      key={r.id}
-                      className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between"
+                      key={opt.id}
+                      className="bg-white rounded-2xl p-4 flex items-center gap-3 relative"
                     >
-                      <div>
-                        <p className="text-sm text-gray-700 truncate">
-                          {r.reward_description}
+                      <div className="w-10 h-10 rounded-xl bg-[#EF9F27]/10 text-[#EF9F27] flex items-center justify-center shrink-0">
+                        🎁
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-800">
+                          {opt.reward_description}
                         </p>
-                        <p className="text-xs text-gray-400">
-                          {childById.get(r.student_id) ?? '—'} · 🪙 {r.tokens_used} ·{' '}
-                          {new Date(r.created_at).toLocaleDateString('zh-HK')}
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          🪙 {opt.tokens_required} 代幣
                         </p>
                       </div>
-                      <span
-                        className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusMeta.color}`}
-                      >
-                        {statusMeta.text}
-                      </span>
+                      <RedeemButton
+                        optionId={opt.id}
+                        tokensRequired={opt.tokens_required}
+                        rewardDescription={opt.reward_description}
+                        childCandidates={childList}
+                      />
                     </div>
-                  )
-                })}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Redemption history */}
+              {redemptions.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    兌換紀錄
+                  </p>
+                  <div className="space-y-2">
+                    {redemptions.map((r) => {
+                      const statusMeta =
+                        r.status === 'approved'
+                          ? { text: '已批准', color: 'text-green-600 bg-green-50' }
+                          : r.status === 'rejected'
+                            ? { text: '已拒絕', color: 'text-gray-400 bg-gray-50' }
+                            : { text: '審批中', color: 'text-amber-600 bg-amber-50' }
+                      return (
+                        <div
+                          key={r.id}
+                          className="bg-white rounded-xl p-3 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="text-sm text-gray-700 truncate">
+                              {r.reward_description}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {childById.get(r.student_id) ?? '—'} · 🪙 {r.tokens_used} ·{' '}
+                              {new Date(r.created_at).toLocaleDateString('zh-HK')}
+                            </p>
+                          </div>
+                          <span
+                            className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusMeta.color}`}
+                          >
+                            {statusMeta.text}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </details>
         </div>
       )}
 

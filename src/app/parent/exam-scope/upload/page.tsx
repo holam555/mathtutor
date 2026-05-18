@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import UploadExamScopeForm from './UploadExamScopeForm'
+import ExamScopePickerForm from './UploadExamScopeForm'
 
 export default async function ExamScopeUploadPage() {
   const supabase = createClient()
@@ -27,41 +27,44 @@ export default async function ExamScopeUploadPage() {
         .order('name')
     : { data: [] }
 
+  const grades = Array.from(new Set((children ?? []).map((c) => c.grade).filter(Boolean))) as number[]
+
+  const { data: units } = grades.length
+    ? await service
+        .from('curriculum_units')
+        .select('id, grade, unit_number, name, semester')
+        .in('grade', grades)
+        .neq('unit_number', 999)
+        .order('grade')
+        .order('display_order')
+    : { data: [] }
+
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-[#F7FBF9] to-white">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/parent" className="text-gray-400 hover:text-gray-600 text-lg">
-          ←
-        </Link>
-        <h1 className="text-xl font-bold">上載考試範圍</h1>
+        <Link href="/parent" className="text-gray-400 hover:text-gray-600 text-lg">←</Link>
+        <h1 className="text-xl font-bold">設定考試範圍</h1>
       </div>
 
       <p className="text-sm text-gray-500 mb-6 bg-white rounded-2xl p-4 shadow-sm leading-6">
-        影
-        <span className="font-semibold text-[#1D9E75]">兩樣嘢</span>
-        畀我哋：
-        <br />
-        <span className="font-semibold">1) 學校通告</span>（寫住數學考試範圍嘅課題編號）
-        <br />
-        <span className="font-semibold">2) 課本目錄</span>（有課題編號 + 標題嗰一頁）
-        <br />
-        AI 會對返兩者，自動識別考試範圍。小朋友主頁就會出現
-        <span className="font-semibold text-[#1D9E75]">「考試衝刺練習」</span>
-        ，集中操練嗰啲單元。
+        請選擇子女本次考試涵蓋的數學單元。設定後，學生主頁將出現
+        <span className="font-semibold text-[#1D9E75]">「考試衝刺練習」</span>，
+        集中針對所選單元出題。
       </p>
 
       {!children?.length ? (
         <div className="bg-white rounded-2xl p-6 text-center shadow-sm">
-          <p className="text-sm text-gray-400">
-            尚未關聯任何學生，請聯絡老師設定
-          </p>
+          <p className="text-sm text-gray-400">尚未關聯任何學生，請聯絡老師設定</p>
         </div>
       ) : (
-        <UploadExamScopeForm
-          linkedChildren={children.map((c) => ({
-            id: c.id,
-            name: c.name,
-            grade: c.grade,
+        <ExamScopePickerForm
+          linkedChildren={(children ?? []).map((c) => ({ id: c.id, name: c.name, grade: c.grade }))}
+          allUnits={(units ?? []).map((u) => ({
+            id: u.id,
+            grade: u.grade,
+            unit_number: u.unit_number,
+            name: u.name,
+            semester: u.semester as 'A' | 'B',
           }))}
         />
       )}
