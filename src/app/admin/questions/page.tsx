@@ -223,11 +223,19 @@ export default async function QuestionsPage({
                                   <p className="text-sm text-gray-800 line-clamp-2">{q.question_text}</p>
                                   <p className="text-xs text-gray-500 mt-0.5">答案：{q.correct_answer}</p>
                                 </div>
-                                <ToggleActiveButton
-                                  questionId={q.id}
-                                  isActive={q.is_active}
-                                  table="assessment_questions"
-                                />
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <Link
+                                    href={`/admin/questions/${q.id}?grade=${validGrade}`}
+                                    className="text-xs text-[#4A90E2] underline"
+                                  >
+                                    編輯
+                                  </Link>
+                                  <ToggleActiveButton
+                                    questionId={q.id}
+                                    isActive={q.is_active}
+                                    table="assessment_questions"
+                                  />
+                                </div>
                               </div>
                             </div>
                           ))}
