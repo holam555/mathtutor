@@ -59,7 +59,7 @@ export async function POST() {
       .eq('is_active', true),
     service
       .from('long_questions')
-      .select('id, topic_id, question_text, model_answer, total_marks, difficulty_tier, image_url')
+      .select('id, topic_id, question_text, model_answer, difficulty_tier, image_url')
       .in('topic_id', topicIds)
       .eq('is_active', true),
   ])

@@ -57,12 +57,12 @@ export default async function LqPaperPage({
     paper.lq_question_ids?.length
       ? service
           .from('long_questions')
-          .select('id, question_text, model_answer, total_marks, image_url')
+          .select('id, question_text, model_answer, image_url')
           .in('id', paper.lq_question_ids)
-      : Promise.resolve({ data: [] as Array<{ id: string; question_text: string; model_answer: string; total_marks: number; image_url: string | null }> }),
+      : Promise.resolve({ data: [] as Array<{ id: string; question_text: string; model_answer: string; image_url: string | null }> }),
   ])
 
-  type Lq = { id: string; question_text: string; model_answer: string; total_marks: number; image_url: string | null }
+  type Lq = { id: string; question_text: string; model_answer: string; image_url: string | null }
 
   // Sign any private-storage image URLs
   const signedLqs: Lq[] = await Promise.all(
@@ -89,7 +89,6 @@ export default async function LqPaperPage({
     .map((id: string) => lqById.get(id))
     .filter((q: Lq | undefined): q is Lq => q != null)
 
-  const totalMarks = orderedLqs.reduce((s, q) => s + (q.total_marks ?? 0), 0)
   const paperDate = new Date(paper.created_at).toLocaleDateString('zh-Hant-HK')
 
   return (
@@ -148,7 +147,6 @@ export default async function LqPaperPage({
           </div>
           <div className="lq-meta">
             <span>共 {orderedLqs.length} 題</span>
-            <span>滿分 {totalMarks} 分</span>
           </div>
         </div>
 
@@ -162,7 +160,6 @@ export default async function LqPaperPage({
           <div key={q.id} className="lq-q">
             <div className="lq-q-head">
               <span className="lq-num">{idx + 1}.</span>
-              <span className="lq-marks">（{q.total_marks} 分）</span>
             </div>
             <div className="lq-text">{q.question_text}</div>
             {q.image_url && (

@@ -38,16 +38,16 @@ export default async function ParentLqUploadPage({
     paper.lq_question_ids?.length
       ? service
           .from('long_questions')
-          .select('id, question_text, total_marks')
+          .select('id, question_text')
           .in('id', paper.lq_question_ids)
-      : Promise.resolve({ data: [] as Array<{ id: string; question_text: string; total_marks: number }> }),
+      : Promise.resolve({ data: [] as Array<{ id: string; question_text: string }> }),
     service
       .from('mock_exam_lq_submissions')
       .select('long_question_id, image_urls, ai_extracted_answer')
       .eq('paper_id', paper.id),
   ])
 
-  type Lq = { id: string; question_text: string; total_marks: number }
+  type Lq = { id: string; question_text: string }
   type Sub = { long_question_id: string; image_urls: string[] | null; ai_extracted_answer: string | null }
 
   const lqById = new Map<string, Lq>(((lqs ?? []) as Lq[]).map((q: Lq): [string, Lq] => [q.id, q]))
@@ -85,7 +85,6 @@ export default async function ParentLqUploadPage({
             longQuestionId={q.id}
             index={idx + 1}
             questionText={q.question_text}
-            totalMarks={q.total_marks}
             existingImageCount={existingByQ.get(q.id)?.image_urls?.length ?? 0}
             existingTranscript={existingByQ.get(q.id)?.ai_extracted_answer ?? null}
           />

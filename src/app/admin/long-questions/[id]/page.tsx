@@ -20,7 +20,7 @@ export default async function EditLongQuestionPage({
 
   const { data: question } = await service
     .from('long_questions')
-    .select('id, topic_id, question_text, model_answer, total_marks, difficulty_tier, notes, image_url, is_active')
+    .select('id, topic_id, question_text, model_answer, difficulty_tier, notes, image_url, is_active')
     .eq('id', params.id)
     .single()
 
@@ -90,7 +90,6 @@ export default async function EditLongQuestionPage({
             topic_id: question.topic_id,
             question_text: question.question_text,
             model_answer: question.model_answer,
-            total_marks: question.total_marks,
             difficulty_tier: question.difficulty_tier,
             notes: question.notes ?? null,
             image_url: signedImageUrl,

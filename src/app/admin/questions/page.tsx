@@ -38,8 +38,6 @@ type UnifiedRow = {
   options?: unknown
   group_id?: string | null
   sub_order?: number | null
-  // long_questions only
-  total_marks?: number | null
 }
 
 function inferCat(question_type: string): Cat {
@@ -103,7 +101,7 @@ export default async function QuestionsPage({
 
   let lqQuery = service
     .from('long_questions')
-    .select('id, topic_id, question_text, total_marks, difficulty_tier, is_active, image_url')
+    .select('id, topic_id, question_text, difficulty_tier, is_active, image_url')
     .in('topic_id', safeTopicIds)
     .order('topic_id')
     .order('difficulty_tier')
@@ -133,7 +131,6 @@ export default async function QuestionsPage({
     id: string
     topic_id: string
     question_text: string
-    total_marks: number
     difficulty_tier: string
     is_active: boolean
     image_url: string | null
@@ -166,7 +163,6 @@ export default async function QuestionsPage({
       difficulty_tier: q.difficulty_tier,
       is_active: q.is_active,
       image_url: q.image_url,
-      total_marks: q.total_marks,
     })
   }
 
@@ -402,11 +398,6 @@ export default async function QuestionsPage({
                                               {isGroupMember && (
                                                 <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded font-medium">
                                                   ({q.sub_order})
-                                                </span>
-                                              )}
-                                              {q.kind === 'lq' && q.total_marks != null && (
-                                                <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
-                                                  {q.total_marks} 分
                                                 </span>
                                               )}
                                               {q.difficulty_tier && (

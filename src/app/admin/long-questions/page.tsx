@@ -50,7 +50,7 @@ export default async function LongQuestionsPage({
 
   let qQuery = service
     .from('long_questions')
-    .select('id, topic_id, question_text, total_marks, difficulty_tier, is_active, image_url, source_paper, notes')
+    .select('id, topic_id, question_text, difficulty_tier, is_active, image_url, source_paper, notes')
     .in('topic_id', topicIds.length ? topicIds : ['00000000-0000-0000-0000-000000000000'])
     .order('topic_id')
     .order('difficulty_tier')
@@ -199,9 +199,6 @@ export default async function LongQuestionsPage({
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
                                     <span className="text-xs text-gray-400">長答題</span>
-                                    <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-medium">
-                                      {q.total_marks} 分
-                                    </span>
                                     {q.difficulty_tier && (
                                       <span
                                         className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${

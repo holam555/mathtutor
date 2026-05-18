@@ -29,9 +29,9 @@ export default async function MockExamReviewPage({
     paper.lq_question_ids?.length
       ? service
           .from('long_questions')
-          .select('id, question_text, model_answer, total_marks, image_url')
+          .select('id, question_text, model_answer, image_url')
           .in('id', paper.lq_question_ids)
-      : Promise.resolve({ data: [] as Array<{ id: string; question_text: string; model_answer: string; total_marks: number; image_url: string | null }> }),
+      : Promise.resolve({ data: [] as Array<{ id: string; question_text: string; model_answer: string; image_url: string | null }> }),
     service
       .from('mock_exam_lq_submissions')
       .select(
@@ -40,7 +40,7 @@ export default async function MockExamReviewPage({
       .eq('paper_id', paper.id),
   ])
 
-  type Lq = { id: string; question_text: string; model_answer: string; total_marks: number; image_url: string | null }
+  type Lq = { id: string; question_text: string; model_answer: string; image_url: string | null }
   type Sub = {
     id: string
     long_question_id: string
@@ -123,7 +123,6 @@ export default async function MockExamReviewPage({
               index={idx + 1}
               questionText={q.question_text}
               modelAnswer={q.model_answer}
-              totalMarks={q.total_marks}
               questionImageUrl={q.image_url}
               submissionImageUrls={sub?.signed_image_urls ?? []}
               aiExtractedAnswer={sub?.ai_extracted_answer ?? null}

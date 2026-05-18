@@ -29,7 +29,6 @@ export type LongQuestionRow = {
   topic_id: string
   question_text: string
   model_answer: string
-  total_marks: number
   difficulty_tier: DifficultyTier
   image_url: string | null
 }

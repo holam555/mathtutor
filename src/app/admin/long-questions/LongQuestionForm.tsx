@@ -24,7 +24,6 @@ export type LongQuestionData = {
   topic_id?: string
   question_text?: string
   model_answer?: string
-  total_marks?: number
   difficulty_tier?: string
   notes?: string | null
   image_url?: string | null
@@ -209,37 +208,21 @@ export default function LongQuestionForm({
         <p className="text-xs text-gray-400 mt-1">家長會用呢個對住學生嘅長答題答卷批改</p>
       </div>
 
-      {/* Total marks + difficulty */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            總分 <span className="text-red-500">*</span>
-          </label>
-          <input
-            name="total_marks"
-            type="number"
-            min={1}
-            max={50}
-            required
-            defaultValue={question?.total_marks ?? 5}
-            className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            難度 <span className="text-red-500">*</span>
-          </label>
-          <select
-            name="difficulty_tier"
-            required
-            defaultValue={question?.difficulty_tier ?? 'enhancement'}
-            className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white"
-          >
-            <option value="basic">易（1 步）</option>
-            <option value="enhancement">中（2–3 步）</option>
-            <option value="advanced">難（4+ 步）</option>
-          </select>
-        </div>
+      {/* Difficulty */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          難度 <span className="text-red-500">*</span>
+        </label>
+        <select
+          name="difficulty_tier"
+          required
+          defaultValue={question?.difficulty_tier ?? 'enhancement'}
+          className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white"
+        >
+          <option value="basic">易（1 步）</option>
+          <option value="enhancement">中（2–3 步）</option>
+          <option value="advanced">難（4+ 步）</option>
+        </select>
       </div>
 
       {/* Notes */}

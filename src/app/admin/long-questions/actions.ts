@@ -50,20 +50,14 @@ function parseFields(formData: FormData) {
   const topic_id = formData.get('topic_id') as string | null
   const question_text = (formData.get('question_text') as string | null)?.trim()
   const model_answer = (formData.get('model_answer') as string | null)?.trim()
-  const total_marks_raw = formData.get('total_marks') as string | null
   const difficulty_tier = formData.get('difficulty_tier') as string | null
   const notes = ((formData.get('notes') as string | null) ?? '').trim() || null
 
-  if (!topic_id || !question_text || !model_answer || !total_marks_raw || !difficulty_tier) {
+  if (!topic_id || !question_text || !model_answer || !difficulty_tier) {
     return { error: '請填寫所有必填欄位' } as const
   }
 
-  const total_marks = parseInt(total_marks_raw, 10)
-  if (!Number.isFinite(total_marks) || total_marks <= 0) {
-    return { error: '分數必須是大於 0 的整數' } as const
-  }
-
-  return { topic_id, question_text, model_answer, total_marks, difficulty_tier, notes }
+  return { topic_id, question_text, model_answer, difficulty_tier, notes }
 }
 
 export async function createLongQuestion(
@@ -87,7 +81,6 @@ export async function createLongQuestion(
       topic_id: parsed.topic_id,
       question_text: parsed.question_text,
       model_answer: parsed.model_answer,
-      total_marks: parsed.total_marks,
       difficulty_tier: parsed.difficulty_tier,
       notes: parsed.notes,
       is_active: true,
@@ -141,7 +134,6 @@ export async function updateLongQuestion(
       topic_id: parsed.topic_id,
       question_text: parsed.question_text,
       model_answer: parsed.model_answer,
-      total_marks: parsed.total_marks,
       difficulty_tier: parsed.difficulty_tier,
       notes: parsed.notes,
       ...(imagePatch ?? {}),
