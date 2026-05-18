@@ -60,13 +60,15 @@ export async function approveUpload(uploadId: string, questions: ApprovedQuestio
     .eq('id', uploadId)
 
   // Award tokens: 10 per page.
-  // If uploader is a parent, route tokens to the first linked active student.
-  // If uploader is themselves a student (legacy), award directly.
+  let tokensAwarded = 0
+  let tokenWarning: string | null = null
+
   if (upload?.uploaded_by) {
     const pageCount = Array.isArray(upload.image_paths) ? upload.image_paths.length : 0
     const tokenAmount = pageCount * 10
+
     if (tokenAmount > 0) {
-      // Try: is uploader a student directly?
+      // 1. Try: uploader is a student directly
       const { data: studentProfile } = await service
         .from('student_profiles')
         .select('id')
@@ -76,7 +78,7 @@ export async function approveUpload(uploadId: string, questions: ApprovedQuestio
       let targetStudentId: string | null = studentProfile?.id ?? null
 
       if (!targetStudentId) {
-        // Parent uploader: find first linked active student
+        // 2. Parent uploader → first linked active student via parent_student_relationships
         const { data: link } = await service
           .from('parent_student_relationships')
           .select('student_id')
@@ -88,24 +90,42 @@ export async function approveUpload(uploadId: string, questions: ApprovedQuestio
         targetStudentId = link?.student_id ?? null
       }
 
+      if (!targetStudentId) {
+        // 3. Legacy fallback: student_profiles.parent_id field
+        const { data: childByParent } = await service
+          .from('student_profiles')
+          .select('id')
+          .eq('parent_id', upload.uploaded_by)
+          .order('created_at')
+          .limit(1)
+          .maybeSingle()
+        targetStudentId = childByParent?.id ?? null
+      }
+
       if (targetStudentId) {
-        await service.from('token_transactions').insert({
+        const { error: txErr } = await service.from('token_transactions').insert({
           student_id: targetStudentId,
           amount: tokenAmount,
           reason: 'past_paper_upload',
           reference_id: uploadId,
           created_by: user.id,
         })
-        await service.rpc('increment_token_balance', {
-          p_student_id: targetStudentId,
-          p_amount: tokenAmount,
-        })
+        if (!txErr) {
+          await service.rpc('increment_token_balance', {
+            p_student_id: targetStudentId,
+            p_amount: tokenAmount,
+          })
+          tokensAwarded = tokenAmount
+        }
+      } else {
+        tokenWarning = `未能找到關聯學生帳戶，${tokenAmount} 個代幣未能發放`
       }
     }
   }
 
   revalidatePath('/admin/past-papers')
-  return { success: true, saved: questions.length }
+  revalidatePath('/parent')
+  return { success: true, saved: questions.length, tokensAwarded, tokenWarning }
 }
 
 export async function rejectUpload(uploadId: string) {

@@ -103,19 +103,6 @@ export default async function StudentHome() {
     .limit(1)
     .maybeSingle()
 
-  let scopeUnits: { unit_number: number; name: string }[] = []
-  if (examScope?.unit_ids?.length) {
-    const { data: u } = await service
-      .from('curriculum_units')
-      .select('unit_number, name, display_order')
-      .in('id', examScope.unit_ids)
-      .order('display_order')
-    scopeUnits = (u ?? []).map((row) => ({
-      unit_number: row.unit_number,
-      name: row.name,
-    }))
-  }
-
   // SVG circle maths
   const size = 180
   const strokeWidth = 14
@@ -264,22 +251,16 @@ export default async function StudentHome() {
       )}
 
       {/* Exam sprint CTA (only if active exam_scope exists) */}
-      {examScope && scopeUnits.length > 0 && (
+      {examScope && (
         <Link
           href="/student/practice/exam-sprint"
           className="block bg-gradient-to-br from-[#EF9F27] to-[#F8B84E] rounded-2xl p-5 shadow-md mb-4 active:scale-[0.98] transition"
         >
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between">
             <p className="text-base font-bold text-white">🔥 考試衝刺練習</p>
             <span className="text-white/80 text-sm">→</span>
           </div>
-          <p className="text-xs text-white/90">
-            {scopeUnits.length} 個單元 · 集中操練考試範圍
-          </p>
-          <p className="text-[11px] text-white/70 mt-1 truncate">
-            {scopeUnits.slice(0, 3).map((u) => `${u.unit_number}.${u.name}`).join('、')}
-            {scopeUnits.length > 3 ? '…' : ''}
-          </p>
+          <p className="text-sm text-white/80 mt-0.5">集中針對考試範圍練習</p>
         </Link>
       )}
 

@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Question } from '@/types/database'
-import FractionDisplay, { QuestionContent } from '@/components/FractionDisplay'
+import { QuestionContent } from '@/components/FractionDisplay'
+import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 
 type FeedbackState = 'idle' | 'correct' | 'wrong'
 
@@ -11,15 +12,6 @@ type FeedbackState = 'idle' | 'correct' | 'wrong'
 // fill_in question expects a number/fraction (custom keyboard) without
 // leaking the answer itself.
 type SessionQuestion = Question & { numeric_answer?: boolean }
-
-// 4-column numeric keyboard rows: [label, value] pairs
-// value === 'backspace' | 'confirm' are special actions
-const NUMBER_KEYBOARD: [string, string][][] = [
-  [['7', '7'], ['8', '8'], ['9', '9'], ['⌫', 'backspace']],
-  [['4', '4'], ['5', '5'], ['6', '6'], ['又', '又']],
-  [['1', '1'], ['2', '2'], ['3', '3'], ['/', '/']],
-  [['0', '0'], ['.', '.'], ['、', '、'], ['確認', 'confirm']],
-]
 
 export default function PracticeFlow({
   sessionId,
@@ -127,17 +119,6 @@ export default function PracticeFlow({
     submitAnswer(option)
   }
 
-  function handleNumKey(value: string) {
-    if (feedback !== 'idle') return
-    if (value === 'backspace') {
-      setFillInput((prev) => prev.slice(0, -1))
-    } else if (value === 'confirm') {
-      submitAnswer(fillInput)
-    } else {
-      setFillInput((prev) => prev + value)
-    }
-  }
-
   function getOptionStyle(option: string) {
     const base =
       'w-full h-14 rounded-xl text-left px-4 text-base font-medium transition-all active:scale-[0.98] border-2'
@@ -154,14 +135,6 @@ export default function PracticeFlow({
     }
     return `${base} bg-white border-gray-200 text-gray-400`
   }
-
-  const fillDisplayClass = `mt-4 h-14 rounded-xl flex items-center justify-center text-2xl font-semibold border-2 transition-colors ${
-    feedback === 'correct'
-      ? 'bg-[#1D9E75] border-[#1D9E75] text-white'
-      : feedback === 'wrong'
-        ? 'bg-[#EF9F27] border-[#EF9F27] text-white'
-        : 'bg-white border-[#1D9E75] text-gray-800'
-  }`
 
   return (
     <div className="flex flex-col min-h-screen max-w-md mx-auto">
@@ -221,14 +194,6 @@ export default function PracticeFlow({
           />
         )}
 
-        {/* Custom keyboard display box (numbers, fractions, mixed numbers) */}
-        {useCustomKeyboard && (
-          <div className={fillDisplayClass}>
-            {fillInput
-              ? <FractionDisplay value={fillInput} />
-              : <span className="text-gray-300 text-base">輸入答案</span>}
-          </div>
-        )}
 
         {/* Hint for calculation */}
         {qType === 'calculation' && (
@@ -267,30 +232,14 @@ export default function PracticeFlow({
           </button>
         )}
 
-        {/* Custom fraction keyboard */}
+        {/* Unified keyboard (numbers, fractions, mixed numbers) */}
         {useCustomKeyboard && (
-          <div className="grid grid-cols-4 gap-2">
-            {NUMBER_KEYBOARD.flat().map(([label, value]) => {
-              const isConfirm = value === 'confirm'
-              const isBackspace = value === 'backspace'
-              return (
-                <button
-                  key={value}
-                  onClick={() => handleNumKey(value)}
-                  disabled={feedback !== 'idle' || (isConfirm && !fillInput.trim())}
-                  className={`h-14 rounded-lg text-lg font-medium transition active:scale-[0.95] disabled:opacity-40 ${
-                    isConfirm
-                      ? 'bg-[#1D9E75] text-white text-base font-semibold'
-                      : isBackspace
-                        ? 'bg-[#F1EFE8] text-gray-500'
-                        : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+          <UnifiedKeyboard
+            value={fillInput}
+            onChange={(v) => { if (feedback === 'idle') setFillInput(v) }}
+            onSubmit={() => submitAnswer(fillInput)}
+            disabled={feedback !== 'idle'}
+          />
         )}
       </div>
 

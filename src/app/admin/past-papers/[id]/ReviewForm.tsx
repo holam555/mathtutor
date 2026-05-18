@@ -51,6 +51,7 @@ export default function ReviewForm({
   const [done, setDone] = useState<'approved' | 'rejected' | null>(
     uploadStatus !== 'pending' ? (uploadStatus as 'approved' | 'rejected') : null
   )
+  const [tokenResult, setTokenResult] = useState<{ awarded: number; warning: string | null } | null>(null)
   const [currentPage, setCurrentPage] = useState(0)
   const [questions, setQuestions] = useState<QuestionState[]>(() =>
     extractedQuestions.map((q) => ({
@@ -88,6 +89,7 @@ export default function ReviewForm({
         alert(`批准失敗：${res.error}`)
         return
       }
+      setTokenResult({ awarded: res.tokensAwarded ?? 0, warning: res.tokenWarning ?? null })
       setDone('approved')
     })
   }
@@ -106,6 +108,12 @@ export default function ReviewForm({
       <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
         <p className="text-2xl mb-2">✓</p>
         <p className="font-semibold text-green-700">已批准並加入題庫</p>
+        {tokenResult && tokenResult.awarded > 0 && (
+          <p className="text-sm text-green-600 mt-1">已發放 🪙 {tokenResult.awarded} 代幣</p>
+        )}
+        {tokenResult?.warning && (
+          <p className="text-sm text-amber-600 mt-1">⚠️ {tokenResult.warning}</p>
+        )}
         <a href="/admin/past-papers" className="mt-4 inline-block text-sm text-[#4A90E2] underline">
           返回列表
         </a>
