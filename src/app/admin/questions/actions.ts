@@ -104,9 +104,31 @@ export async function updateQuestion(
   }
 
   const service = createServiceClient()
+
+  // Handle image: upload new file, clear, or leave unchanged
+  let imageUrlUpdate: { image_url: string | null } | undefined
+  const clearImage = formData.get('clear_image') === '1'
+  const imageFile = formData.get('image_file') as File | null
+
+  if (clearImage) {
+    imageUrlUpdate = { image_url: null }
+  } else if (imageFile && imageFile.size > 0) {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowed.includes(imageFile.type)) return { error: '不支援的圖片格式（只接受 JPG、PNG、WEBP）' }
+    if (imageFile.size > 5 * 1024 * 1024) return { error: '圖片太大（最大 5MB）' }
+    const ext = imageFile.type === 'image/png' ? 'png' : imageFile.type === 'image/webp' ? 'webp' : 'jpg'
+    const path = `question-images/${questionId}-${Date.now()}.${ext}`
+    const buffer = Buffer.from(await imageFile.arrayBuffer())
+    const { error: uploadErr } = await service.storage
+      .from('past-papers')
+      .upload(path, buffer, { contentType: imageFile.type, upsert: true })
+    if (uploadErr) return { error: `圖片上傳失敗：${uploadErr.message}` }
+    imageUrlUpdate = { image_url: path }
+  }
+
   const { error } = await service
     .from('assessment_questions')
-    .update({ topic_id, question_text, question_type, options, correct_answer, difficulty_tier })
+    .update({ topic_id, question_text, question_type, options, correct_answer, difficulty_tier, ...imageUrlUpdate })
     .eq('id', questionId)
 
   if (error) return { error: `儲存失敗：${error.message}` }

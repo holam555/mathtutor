@@ -1,7 +1,7 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { updateQuestion, type QuestionFormState } from '../actions'
 
 type Unit = { id: string; grade: number; unit_number: number; name: string; semester: string; display_order: number }
@@ -15,6 +15,7 @@ type QuestionData = {
   options: string[] | null
   correct_answer: string
   difficulty_tier: string
+  image_url: string | null
 }
 
 const GRADE_LABEL: Record<number, string> = { 3: 'P3 小三', 4: 'P4 小四', 5: 'P5 小五', 6: 'P6 小六' }
@@ -52,6 +53,9 @@ export default function EditQuestionForm({
   const [unitId, setUnitId] = useState(currentUnitId)
   const [topicId, setTopicId] = useState(question.topic_id)
   const [questionType, setQuestionType] = useState(question.question_type)
+  const [imagePreview, setImagePreview] = useState<string | null>(question.image_url)
+  const [clearImage, setClearImage] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Derive options text from the stored "A. text" format for the inputs
   const initialOptions = useMemo(() => {
@@ -232,6 +236,52 @@ export default function EditQuestionForm({
             </label>
           ))}
         </div>
+      </div>
+
+      {/* 9. Image */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">題目圖片（選填）</label>
+
+        {imagePreview && !clearImage && (
+          <div className="mb-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imagePreview}
+              alt="現有圖片"
+              className="max-h-52 w-auto rounded-xl border border-gray-200 object-contain mb-2"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setClearImage(true)
+                setImagePreview(null)
+                if (fileInputRef.current) fileInputRef.current.value = ''
+              }}
+              className="text-xs text-red-500 underline"
+            >
+              移除圖片
+            </button>
+          </div>
+        )}
+
+        {clearImage && <input type="hidden" name="clear_image" value="1" />}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          name="image_file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            setClearImage(false)
+            const reader = new FileReader()
+            reader.onload = (ev) => setImagePreview(ev.target?.result as string)
+            reader.readAsDataURL(file)
+          }}
+          className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#4A90E2]/10 file:text-[#4A90E2] hover:file:bg-[#4A90E2]/20 transition"
+        />
+        <p className="text-xs text-gray-400 mt-1">上載新圖片將取代現有圖片。支援 JPG、PNG、WEBP，最大 5MB。</p>
       </div>
 
       {/* Feedback */}

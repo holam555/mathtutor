@@ -1,6 +1,7 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { toggleQuestionActive } from './actions'
 
 export default function ToggleActiveButton({
@@ -13,12 +14,14 @@ export default function ToggleActiveButton({
   table?: 'questions' | 'assessment_questions'
 }) {
   const [isPending, startTransition] = useTransition()
+  const router = useRouter()
 
   return (
     <button
       onClick={() =>
         startTransition(async () => {
           await toggleQuestionActive(questionId, !isActive, table)
+          router.refresh()
         })
       }
       disabled={isPending}

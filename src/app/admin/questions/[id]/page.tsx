@@ -21,7 +21,7 @@ export default async function EditQuestionPage({
 
   const { data: question } = await service
     .from('assessment_questions')
-    .select('id, topic_id, question_text, question_type, options, correct_answer, difficulty_tier, is_active')
+    .select('id, topic_id, question_text, question_type, options, correct_answer, difficulty_tier, is_active, image_url')
     .eq('id', params.id)
     .single()
 
@@ -59,6 +59,20 @@ export default async function EditQuestionPage({
 
   const backGrade = unit?.grade ?? grade
 
+  // Sign image URL if stored as a private storage path
+  let signedImageUrl: string | null = question.image_url ?? null
+  if (signedImageUrl) {
+    if (!signedImageUrl.startsWith('https://')) {
+      const { data } = await service.storage.from('past-papers').createSignedUrl(signedImageUrl, 3600)
+      signedImageUrl = data?.signedUrl ?? null
+    } else if (signedImageUrl.includes('/object/public/past-papers/') && !signedImageUrl.includes('token=')) {
+      const marker = '/object/public/past-papers/'
+      const path = decodeURIComponent(signedImageUrl.slice(signedImageUrl.indexOf(marker) + marker.length))
+      const { data } = await service.storage.from('past-papers').createSignedUrl(path, 3600)
+      signedImageUrl = data?.signedUrl ?? null
+    }
+  }
+
   return (
     <main className="min-h-screen px-5 py-8 max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -82,6 +96,7 @@ export default async function EditQuestionPage({
             options: (question.options as string[] | null) ?? null,
             correct_answer: question.correct_answer,
             difficulty_tier: question.difficulty_tier ?? 'basic',
+            image_url: signedImageUrl,
           }}
           currentGrade={unit?.grade ?? grade}
           currentUnitId={unit?.id ?? ''}
