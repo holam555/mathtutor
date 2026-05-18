@@ -282,6 +282,52 @@ export async function POST(request: NextRequest) {
     return await createSessionAndRespond(service, user.id, 'exam_sprint', null, final)
   }
 
+  // ── new: teacher-assigned topics (if any) override auto selection ──
+  const { data: assignments } = await service
+    .from('student_topic_assignments')
+    .select('topic_id')
+    .eq('student_id', user.id)
+    .eq('is_active', true)
+
+  if (assignments && assignments.length > 0) {
+    const assignedTopicIds = assignments.map((a) => a.topic_id)
+
+    const { data: pool } = await service
+      .from('assessment_questions')
+      .select(
+        'id, topic_id, question_text, question_type, options, correct_answer, image_url, image_alt_text, difficulty_tier, group_id, sub_order',
+      )
+      .in('topic_id', assignedTopicIds)
+      .eq('is_active', true)
+
+    if (pool && pool.length > 0) {
+      const scopes: SelectionScope[] = assignedTopicIds.map((tid, i) => ({
+        id: tid,
+        display_order: i,
+        topic_ids: [tid],
+      }))
+      const candidateRows: CandidateRow[] = (pool as AssessmentRow[]).map((p) => ({
+        id: p.id,
+        topic_id: p.topic_id,
+        difficulty_tier: p.difficulty_tier as DifficultyTier,
+        group_id: p.group_id,
+        sub_order: p.sub_order ?? 1,
+      }))
+      const result = selectQuestions(candidateRows, scopes, TIER_QUOTA_PRACTICE_10)
+      const orderedIds = flattenItemsToRowOrder(result.selectedItems).map((r) => r.id)
+      const byId = new Map((pool as AssessmentRow[]).map((q) => [q.id, q]))
+      const rows = orderedIds
+        .map((id) => byId.get(id))
+        .filter((q): q is AssessmentRow => q != null)
+
+      if (rows.length > 0) {
+        const final = shuffle(rows.slice(0, SESSION_SIZE)).map(toSessionQuestion)
+        return await createSessionAndRespond(service, user.id, 'new', null, final)
+      }
+    }
+    // Fall through to auto selection if assigned topics have no questions
+  }
+
   // ── new: weakest units + fallback random of student's grade ──
   const { data: profile } = await service
     .from('student_profiles')
