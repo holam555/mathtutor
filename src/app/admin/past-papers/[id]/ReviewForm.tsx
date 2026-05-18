@@ -20,6 +20,7 @@ type QuestionState = {
   correct_answer: string
   category_id: string
   difficulty: number
+  image_url: string | null
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -55,18 +56,35 @@ export default function ReviewForm({
   const [currentPage, setCurrentPage] = useState(0)
   const [questions, setQuestions] = useState<QuestionState[]>(() =>
     extractedQuestions.map((q) => ({
-      included: !q.has_image, // default-exclude questions that need images
+      included: !q.has_image || !!q.image_url, // include if no image needed, or if we have a crop
       question_text: q.question_text,
       question_type: q.question_type,
       options: q.options ?? [],
       correct_answer: q.suggested_answer,
       category_id: findCategoryId(q.suggested_category_code, categories),
       difficulty: 1,
+      image_url: q.image_url ?? null,
     }))
   )
 
   function updateQuestion(idx: number, patch: Partial<QuestionState>) {
     setQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, ...patch } : q)))
+  }
+
+  async function handleImageFile(idx: number, file: File) {
+    // Show preview immediately, then upload to storage
+    const objectUrl = URL.createObjectURL(file)
+    updateQuestion(idx, { image_url: objectUrl })
+
+    const fd = new FormData()
+    fd.append('image', file)
+    try {
+      const res = await fetch('/api/past-paper/upload-image', { method: 'POST', body: fd })
+      const data: { url?: string; error?: string } = await res.json().catch(() => ({}))
+      if (data.url) updateQuestion(idx, { image_url: data.url })
+    } catch {
+      // Keep the object URL on failure; approval will submit it as-is (non-persistent)
+    }
   }
 
   function handleApprove() {
@@ -81,11 +99,12 @@ export default function ReviewForm({
         difficulty: q.difficulty,
         school_name: uploadMeta.school_name,
         exam_year: uploadMeta.exam_year,
+        image_url: q.image_url ?? null,
       }))
 
     startTransition(async () => {
       const res = await approveUpload(uploadId, selected)
-      if (res.error) {
+      if ('error' in res && res.error) {
         alert(`批准失敗：${res.error}`)
         return
       }
@@ -284,7 +303,7 @@ export default function ReviewForm({
               )}
 
               {/* Correct answer */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs text-gray-500 shrink-0">答案：</span>
                 <input
                   value={q.correct_answer}
@@ -292,6 +311,32 @@ export default function ReviewForm({
                   className="flex-1 text-sm px-2 py-1 border border-gray-200 rounded-lg focus:border-[#4A90E2] outline-none"
                 />
               </div>
+
+              {/* Cropped image (auto-extracted or teacher-replaced) */}
+              {q.image_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={q.image_url}
+                  alt="題目圖片"
+                  className="w-full rounded-lg border border-gray-200 mb-2 object-contain max-h-48"
+                />
+              )}
+
+              {/* Image upload / replacement */}
+              {extractedQuestions[idx]?.has_image && (
+                <label className="flex items-center gap-2 cursor-pointer text-xs text-[#4A90E2] underline">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) handleImageFile(idx, file)
+                    }}
+                  />
+                  {q.image_url ? '更換圖片' : '上載題目圖片'}
+                </label>
+              )}
             </div>
           ))}
         </div>

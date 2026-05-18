@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import sharp from 'sharp'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { extractQuestionsFromImages } from '@/lib/gemini'
 
@@ -95,6 +96,44 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : '未知錯誤'
     return NextResponse.json({ error: `AI 分析失敗：${message}` }, { status: 502 })
   }
+
+  // Crop image regions for has_image questions and upload to storage
+  const rawBuffers = imageBuffers.map((img) => Buffer.from(img.data, 'base64'))
+  await Promise.all(
+    extractedQuestions.map(async (q, qi) => {
+      if (!q.has_image || !q.image_region) return
+      const { x, y, w, h } = q.image_region
+      const pageIdx = (q.page_number ?? 1) - 1
+      const srcBuffer = rawBuffers[pageIdx]
+      if (!srcBuffer) return
+
+      try {
+        const img = sharp(srcBuffer)
+        const meta = await img.metadata()
+        const pw = meta.width ?? 1000
+        const ph = meta.height ?? 1400
+
+        const left = Math.max(0, Math.round((x / 100) * pw))
+        const top = Math.max(0, Math.round((y / 100) * ph))
+        const width = Math.min(pw - left, Math.max(10, Math.round((w / 100) * pw)))
+        const height = Math.min(ph - top, Math.max(10, Math.round((h / 100) * ph)))
+
+        const cropped = await img.extract({ left, top, width, height }).jpeg({ quality: 90 }).toBuffer()
+        const cropPath = `${user.id}/crops/${Date.now()}-q${qi}.jpg`
+
+        const { error: cropUploadErr } = await service.storage
+          .from('past-papers')
+          .upload(cropPath, cropped, { contentType: 'image/jpeg' })
+
+        if (!cropUploadErr) {
+          const { data: urlData } = service.storage.from('past-papers').getPublicUrl(cropPath)
+          q.image_url = urlData?.publicUrl ?? null
+        }
+      } catch {
+        // Non-fatal: crop failure just means image_url stays null
+      }
+    })
+  )
 
   // Save record to DB
   const { data: record, error: insertError } = await service

@@ -23,6 +23,7 @@ export type ApprovedQuestion = {
   difficulty: number
   school_name: string | null
   exam_year: number | null
+  image_url: string | null
 }
 
 export async function approveUpload(uploadId: string, questions: ApprovedQuestion[]) {
@@ -40,6 +41,7 @@ export async function approveUpload(uploadId: string, questions: ApprovedQuestio
       source: 'past_paper' as const,
       school_name: q.school_name,
       exam_year: q.exam_year,
+      question_image_url: q.image_url ?? null,
       is_active: true,
     }))
 

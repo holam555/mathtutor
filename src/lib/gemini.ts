@@ -53,6 +53,13 @@ G1代數式表示 G2方程識別 G3解方程基礎 G4方程應用題
 H1立體圖形識別 H2立體圖形屬性 H3立體體積長方體 H4柱體體積
 I1假分數與帶分數互化 I2旋轉對稱識別 I3容量換算進階 I4時間計算行程`
 
+export type ImageRegion = {
+  x: number  // left edge as percentage of page width  (0-100)
+  y: number  // top  edge as percentage of page height (0-100)
+  w: number  // width  as percentage of page width     (0-100)
+  h: number  // height as percentage of page height    (0-100)
+}
+
 export type ExtractedQuestion = {
   question_text: string
   question_type: 'multiple_choice' | 'fill_in' | 'calculation'
@@ -60,6 +67,8 @@ export type ExtractedQuestion = {
   suggested_answer: string
   suggested_category_code: string
   has_image: boolean
+  image_region?: ImageRegion | null  // bounding box of the image region, if has_image
+  image_url?: string | null          // filled in after crop + storage upload
   page_number: number
 }
 
@@ -92,12 +101,21 @@ export async function extractQuestionsFromImages(
       "suggested_answer": "正確答案",
       "suggested_category_code": "A1",
       "has_image": false,
+      "image_region": null,
       "page_number": 1
     }
   ]
 }
 
-注意：options 只在 multiple_choice 時填寫，其他設為 null。has_image 設為 true 如果題目需要看圖才能作答。page_number 對應圖片順序（第一張為1）。答案必須正確。`
+注意：
+- options 只在 multiple_choice 時填寫，其他設為 null。
+- has_image 設為 true 如果題目需要看圖才能作答（包含圖形、表格、座標圖等）。
+- 如果 has_image 為 true，必須填寫 image_region：圖片在頁面上的位置，以百分比表示（0-100）：
+  {"x": 左邊距%, "y": 頂部距%, "w": 寬度%, "h": 高度%}
+  例如圖片在頁面右下角佔 40% 寬 20% 高：{"x": 60, "y": 75, "w": 40, "h": 20}
+  如果 has_image 為 false，image_region 設為 null。
+- page_number 對應圖片順序（第一張為1）。
+- 答案必須正確。`
 
   const parts = [
     ...images.map((img) => ({
