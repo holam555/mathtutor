@@ -205,7 +205,7 @@ export default async function ParentHome() {
             代幣獎賞
           </h2>
           <details className="group shadow-sm rounded-2xl overflow-hidden mb-0">
-            {/* Collapsed card — styled like 考試衝刺 / 上載 Past Paper */}
+            {/* Collapsed card — styled like 模擬考試 / 上載 Past Paper */}
             <summary className="flex items-center justify-between bg-[#EF9F27] p-5 cursor-pointer list-none select-none">
               <div>
                 <h3 className="font-semibold text-white">🪙 用代幣換獎賞</h3>

@@ -91,7 +91,7 @@ export default async function SessionDetailPage({
     session.completed_at
       ? Math.round((new Date(session.completed_at).getTime() - new Date(session.started_at).getTime()) / 60000)
       : 0
-  const isSprint = session.session_type === 'exam_sprint'
+  const isSprint = session.session_type === 'exam_sprint' || session.session_type === 'mock_exam'
   const correctCount = session.correct_count ?? 0
   const totalQ = session.total_questions ?? records.length
 
@@ -111,7 +111,7 @@ export default async function SessionDetailPage({
           </h1>
           <p className="text-xs text-gray-400">
             {date} {time}
-            {isSprint && ' · 考試衝刺'}
+            {isSprint && ' · 模擬考試'}
             {duration > 0 && ` · ${duration} 分鐘`}
           </p>
         </div>

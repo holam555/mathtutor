@@ -89,8 +89,10 @@ export default function ExamScopePickerForm({
       <div className="space-y-4">
         <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
           <p className="text-5xl mb-3">✅</p>
-          <h2 className="font-bold text-gray-800 text-lg mb-1">考試衝刺練習已設定</h2>
-          <p className="text-sm text-gray-500 mb-4">{selectedChild?.name ?? '學生'} · {confirmedUnits.length} 個單元</p>
+          <h2 className="font-bold text-gray-800 text-lg mb-1">模擬考試範圍已設定</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            {selectedChild?.name ?? '學生'} · {confirmedUnits.length} 個單元
+          </p>
           <ul className="text-sm text-gray-600 space-y-1 text-left inline-block">
             {confirmedUnits.map((u) => (
               <li key={u.id} className="flex items-center gap-2">
@@ -101,22 +103,42 @@ export default function ExamScopePickerForm({
           </ul>
         </div>
 
-        {/* Two action options */}
-        <button
-          onClick={() => router.push(`/parent/child/${studentId}/print-exam`)}
-          className="w-full h-14 rounded-2xl bg-[#1D9E75] text-white text-base font-bold active:scale-[0.98] transition shadow-md flex items-center justify-center gap-2"
-        >
-          🖨 列印練習卷
-        </button>
+        {/* What happens next */}
+        <div className="bg-[#F7FBF9] border border-[#1D9E75]/20 rounded-2xl p-5">
+          <p className="text-sm font-semibold text-[#1D9E75] mb-3">📝 接下來會點？</p>
+          <ol className="text-xs text-gray-700 space-y-2 leading-relaxed list-none">
+            <li>
+              <strong className="text-gray-800">1.</strong> {selectedChild?.name ?? '學生'} 嘅主頁
+              會出現「模擬考試試卷」卡片。
+            </li>
+            <li>
+              <strong className="text-gray-800">2.</strong> 點入去後可以先下載
+              <strong> 長答題 PDF</strong>，列印或喺 iPad 上書寫。
+            </li>
+            <li>
+              <strong className="text-gray-800">3.</strong> 按「開始作答」即開始 <strong>50 分鐘</strong>
+              計時，喺 App 內做 <strong>多項選擇題</strong> 同 <strong>短答題</strong>。
+            </li>
+            <li>
+              <strong className="text-gray-800">4.</strong> 做完 App 部分會見到 AI 評語，
+              然後按「繼續計時」開始做長答題。
+            </li>
+            <li>
+              <strong className="text-gray-800">5.</strong> 完成後請喺家長中心拍照上載
+              <strong> 長答題答卷</strong>，AI 會自動辨識手寫內容交畀老師批改。
+            </li>
+          </ol>
+        </div>
+
         <button
           onClick={() => router.push(`/parent/child/${studentId}?tab=sprint`)}
-          className="w-full h-14 rounded-2xl border-2 border-[#1D9E75] text-[#1D9E75] text-base font-semibold active:scale-[0.98] transition"
+          className="w-full h-14 rounded-2xl bg-[#1D9E75] text-white text-base font-bold active:scale-[0.98] transition shadow-md"
         >
-          查看考試衝刺練習
+          查看模擬考試詳情
         </button>
         <button
           onClick={() => router.push('/parent')}
-          className="w-full text-sm text-gray-400 py-2 text-center"
+          className="w-full h-12 rounded-2xl border-2 border-gray-200 text-gray-600 text-sm font-semibold active:scale-[0.98] transition"
         >
           返回家長中心
         </button>

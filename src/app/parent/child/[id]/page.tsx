@@ -11,7 +11,7 @@ const TABS = [
   { key: 'overview', label: '整體表現' },
   { key: 'wrong',    label: '需要加強' },
   { key: 'history',  label: '練習記錄' },
-  { key: 'sprint',   label: '考試衝刺練習' },
+  { key: 'sprint',   label: '模擬考試' },
 ] as const
 
 export default async function ParentChildReport({
@@ -93,12 +93,21 @@ export default async function ParentChildReport({
     for (const u of pastUnits ?? []) pastUnitMap.set(u.id, { unit_number: u.unit_number, name: u.name })
   }
 
-  // Count exam sprint sessions
-  const { count: sprintCount } = await service
-    .from('practice_sessions')
-    .select('id', { count: 'exact', head: true })
-    .eq('student_id', params.id)
-    .eq('session_type', 'exam_sprint')
+  // Count mock-exam attempts (preferring new mock_exam_papers; falls back
+  // to the legacy exam_sprint session count if 0 — handles students who
+  // attempted before the rename).
+  const [{ count: mockExamCount }, { count: legacySprintCount }] = await Promise.all([
+    service
+      .from('mock_exam_papers')
+      .select('id', { count: 'exact', head: true })
+      .eq('student_id', params.id),
+    service
+      .from('practice_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('student_id', params.id)
+      .eq('session_type', 'exam_sprint'),
+  ])
+  const sprintCount = (mockExamCount ?? 0) + (legacySprintCount ?? 0)
 
   const basePath = `/parent/child/${params.id}`
   const sprintTabHref = `${basePath}?tab=sprint&range=${range}`
@@ -135,12 +144,14 @@ export default async function ParentChildReport({
           ))}
         </div>
 
-        {/* Sprint content */}
+        {/* Mock-exam content */}
         {!activeScope ? (
           <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
-            <p className="text-3xl mb-3">📋</p>
-            <p className="font-semibold text-gray-700 mb-1">尚未設定考試衝刺練習</p>
-            <p className="text-sm text-gray-400 mb-4">設定後，{profile.name}可以在主頁開始練習</p>
+            <p className="text-3xl mb-3">📝</p>
+            <p className="font-semibold text-gray-700 mb-1">尚未設定模擬考試範圍</p>
+            <p className="text-sm text-gray-400 mb-4">
+              設定範圍後，{profile.name} 可以在主頁開始 40 題模擬考試
+            </p>
             <Link
               href="/parent/exam-scope/upload"
               className="inline-block bg-[#1D9E75] text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
@@ -150,11 +161,22 @@ export default async function ParentChildReport({
           </div>
         ) : (
           <div className="space-y-4">
+            {/* What the student will see */}
+            <div className="bg-[#F7FBF9] border border-[#1D9E75]/20 rounded-2xl p-4">
+              <p className="text-sm font-semibold text-[#1D9E75] mb-2">🎯 模擬考試將會包含</p>
+              <ul className="text-xs text-gray-700 space-y-1.5 leading-relaxed">
+                <li>• <strong>多項選擇題</strong> + <strong>短答題</strong>：學生在 App 內直接作答，系統自動評分</li>
+                <li>• <strong>長答題</strong>：以 PDF 形式提供，可列印或在 iPad 上書寫</li>
+                <li>• 全卷限時 <strong>50 分鐘</strong>，做完選擇題 + 短答題後計時自動暫停</li>
+                <li>• 完成後家長拍照上載長答題答卷，AI 自動辨識手寫答案交給老師批改</li>
+              </ul>
+            </div>
+
             {/* Active scope card */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="font-semibold text-gray-800">{activeScope.exam_name ?? '考試衝刺練習'}</p>
+                  <p className="font-semibold text-gray-800">{activeScope.exam_name ?? '模擬考試'}</p>
                   {activeScope.exam_date && (
                     <p className="text-xs text-gray-400 mt-0.5">
                       考試日期：{new Date(activeScope.exam_date).toLocaleDateString('zh-HK')}
@@ -184,29 +206,17 @@ export default async function ParentChildReport({
               </ul>
             </div>
 
-            {/* Sprint count */}
+            {/* Mock-exam attempt count */}
             <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-800">衝刺練習完成次數</p>
-                <p className="text-xs text-gray-400 mt-0.5">針對以上單元的專項練習</p>
+                <p className="text-sm font-semibold text-gray-800">模擬考試完成次數</p>
+                <p className="text-xs text-gray-400 mt-0.5">針對以上單元範圍</p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-[#EF9F27]">{sprintCount ?? 0}</p>
                 <p className="text-xs text-gray-400">次</p>
               </div>
             </div>
-
-            {/* Print */}
-            <Link
-              href={`/parent/child/${params.id}/print-exam`}
-              className="flex items-center justify-between bg-[#EFF9F5] border border-[#1D9E75]/20 rounded-2xl p-4"
-            >
-              <div>
-                <p className="text-sm font-medium text-[#1D9E75]">🖨 列印練習卷</p>
-                <p className="text-xs text-gray-500 mt-0.5">生成包含答案卷的 PDF 練習紙</p>
-              </div>
-              <span className="text-[#1D9E75] text-sm">→</span>
-            </Link>
 
             {/* Update */}
             <Link

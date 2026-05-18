@@ -128,7 +128,7 @@ export default function StudentReport({
             href={sprintTabHref}
             className="px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition border-transparent text-gray-500 hover:text-gray-700"
           >
-            考試衝刺練習
+            模擬考試
           </Link>
         )}
       </div>
@@ -283,7 +283,7 @@ export default function StudentReport({
                         60000
                     )
                   : 0
-              const isSprint = s.session_type === 'exam_sprint'
+              const isSprint = s.session_type === 'exam_sprint' || s.session_type === 'mock_exam'
               return (
                 <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
@@ -295,7 +295,7 @@ export default function StudentReport({
                         </span>
                       </p>
                       {isSprint && (
-                        <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">衝刺</span>
+                        <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">模擬考試</span>
                       )}
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">
