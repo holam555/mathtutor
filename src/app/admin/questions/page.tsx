@@ -64,9 +64,11 @@ export default async function QuestionsPage({
   // Fetch questions
   let qQuery = service
     .from('assessment_questions')
-    .select('id, topic_id, question_text, question_type, correct_answer, difficulty_tier, is_active, options')
+    .select('id, topic_id, question_text, question_type, correct_answer, difficulty_tier, is_active, options, image_url, group_id, sub_order')
     .in('topic_id', topicIds)
     .order('topic_id')
+    .order('group_id', { nullsFirst: false })
+    .order('sub_order')
     .order('difficulty_tier')
 
   if (!showInactive) qQuery = qQuery.eq('is_active', true)
@@ -200,45 +202,80 @@ export default async function QuestionsPage({
                           <span className="ml-2 font-normal normal-case">（{qs.length} 題）</span>
                         </p>
                         <div className="space-y-2">
-                          {qs.map((q) => (
-                            <div
-                              key={q.id}
-                              className={`bg-white rounded-xl p-3.5 shadow-sm border ${
-                                q.is_active ? 'border-transparent' : 'border-gray-200 opacity-60'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                    <span className="text-xs text-gray-400">{TYPE_LABEL[q.question_type]}</span>
-                                    {q.difficulty_tier && (
-                                      <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${TIER_COLOR[q.difficulty_tier] ?? 'bg-gray-100 text-gray-500'}`}>
-                                        {TIER_LABEL[q.difficulty_tier]}
-                                      </span>
-                                    )}
-                                    {!q.is_active && (
-                                      <span className="text-xs text-gray-400 italic">已停用</span>
-                                    )}
+                          {qs.map((q, qIdx) => {
+                            const isGroupStart = q.group_id && (qIdx === 0 || qs[qIdx - 1].group_id !== q.group_id)
+                            const isGroupMember = !!q.group_id
+                            return (
+                              <div
+                                key={q.id}
+                                className={`bg-white rounded-xl shadow-sm border ${
+                                  q.is_active ? 'border-transparent' : 'border-gray-200 opacity-60'
+                                } ${isGroupMember && !isGroupStart ? 'border-l-2 border-l-blue-200 rounded-tl-none' : ''}`}
+                              >
+                                {/* Shared image shown once at group start */}
+                                {isGroupStart && q.image_url && (
+                                  <div className="px-3.5 pt-3 pb-1">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={q.image_url}
+                                      alt="題目圖片"
+                                      className="max-h-40 rounded-lg border border-gray-100 object-contain"
+                                    />
                                   </div>
-                                  <p className="text-sm text-gray-800 line-clamp-2">{q.question_text}</p>
-                                  <p className="text-xs text-gray-500 mt-0.5">答案：{q.correct_answer}</p>
+                                )}
+                                <div className="flex items-start justify-between gap-3 p-3.5">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                      {isGroupMember && (
+                                        <span className="text-xs bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded font-medium">
+                                          ({q.sub_order})
+                                        </span>
+                                      )}
+                                      <span className="text-xs text-gray-400">{TYPE_LABEL[q.question_type]}</span>
+                                      {q.difficulty_tier && (
+                                        <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${TIER_COLOR[q.difficulty_tier] ?? 'bg-gray-100 text-gray-500'}`}>
+                                          {TIER_LABEL[q.difficulty_tier]}
+                                        </span>
+                                      )}
+                                      {!q.is_active && (
+                                        <span className="text-xs text-gray-400 italic">已停用</span>
+                                      )}
+                                      {/* Image indicator for non-group questions */}
+                                      {!isGroupMember && q.image_url && (
+                                        <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">🖼 圖</span>
+                                      )}
+                                    </div>
+                                    <p className="text-sm text-gray-800 line-clamp-2">{q.question_text}</p>
+                                    <p className="text-xs text-gray-500 mt-0.5">答案：{q.correct_answer}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <Link
+                                      href={`/admin/questions/${q.id}?grade=${validGrade}`}
+                                      className="text-xs text-[#4A90E2] underline"
+                                    >
+                                      編輯
+                                    </Link>
+                                    <ToggleActiveButton
+                                      questionId={q.id}
+                                      isActive={q.is_active}
+                                      table="assessment_questions"
+                                    />
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <Link
-                                    href={`/admin/questions/${q.id}?grade=${validGrade}`}
-                                    className="text-xs text-[#4A90E2] underline"
-                                  >
-                                    編輯
-                                  </Link>
-                                  <ToggleActiveButton
-                                    questionId={q.id}
-                                    isActive={q.is_active}
-                                    table="assessment_questions"
-                                  />
-                                </div>
+                                {/* Image for standalone questions with image */}
+                                {!isGroupMember && q.image_url && (
+                                  <div className="px-3.5 pb-3">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img
+                                      src={q.image_url}
+                                      alt="題目圖片"
+                                      className="max-h-48 rounded-lg border border-gray-100 object-contain"
+                                    />
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     )
