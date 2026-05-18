@@ -43,16 +43,26 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
 
   const extractedQuestions = (upload.ai_extracted_questions ?? []) as ExtractedQuestion[]
 
-  // Sign any crop image paths stored in extracted questions (private bucket, paths not public URLs)
+  // Sign crop image URLs/paths — bucket is private so public URLs don't work.
+  // Handles: (a) storage paths, (b) old broken public URLs already in the DB.
+  const BUCKET_PUBLIC_PREFIX = '/object/public/past-papers/'
+  function toCropPath(url: string): string | null {
+    if (!url.startsWith('https://')) return url // already a plain path
+    if (url.includes('token=')) return null      // already a valid signed URL
+    const idx = url.indexOf(BUCKET_PUBLIC_PREFIX)
+    if (idx !== -1) return decodeURIComponent(url.slice(idx + BUCKET_PUBLIC_PREFIX.length))
+    return null
+  }
+
   const signedExtractedQuestions = await Promise.all(
     extractedQuestions.map(async (q) => {
-      if (q.image_url && !q.image_url.startsWith('https://')) {
-        const { data } = await service.storage
-          .from('past-papers')
-          .createSignedUrl(q.image_url, 3600)
-        return { ...q, image_url: data?.signedUrl ?? null }
-      }
-      return q
+      if (!q.image_url) return q
+      const path = toCropPath(q.image_url)
+      if (!path) return q
+      const { data } = await service.storage
+        .from('past-papers')
+        .createSignedUrl(path, 3600)
+      return { ...q, image_url: data?.signedUrl ?? null }
     })
   )
 
