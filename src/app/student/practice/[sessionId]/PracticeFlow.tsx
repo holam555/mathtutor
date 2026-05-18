@@ -260,7 +260,7 @@ export default function PracticeFlow({
             <div className="mt-1">
               {revealedAnswer && (
                 <p className="text-sm font-semibold text-white flex items-center gap-1 flex-wrap">
-                  正確答案：<FractionDisplay value={revealedAnswer} />
+                  正確答案：{revealedAnswer}
                 </p>
               )}
               <p className="text-xs text-white/70 mt-0.5">已加入挑戰題，下次再戰！</p>
