@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
 import StudentHomeClient from './StudentHomeClient'
+import MockExamLauncher from './MockExamLauncher'
 
 const GRADE_LABEL: Record<number, string> = {
   3: '小三',
@@ -250,17 +251,9 @@ export default async function StudentHome() {
         </div>
       )}
 
-      {/* Exam sprint CTA (only if active exam_scope exists) */}
+      {/* Mock exam paper CTA (only if active exam_scope exists) */}
       {examScope && (
-        <Link
-          href="/student/practice/exam-sprint"
-          className="block bg-gradient-to-br from-[#EF9F27] to-[#F8B84E] rounded-2xl p-5 shadow-md mb-4 active:scale-[0.98] transition"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-base font-bold text-white">🔥 考試衝刺練習</p>
-            <span className="text-white/80 text-sm">→</span>
-          </div>
-        </Link>
+        <MockExamLauncher />
       )}
 
       {/* Start practice CTA */}

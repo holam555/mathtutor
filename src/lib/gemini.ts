@@ -349,3 +349,78 @@ export async function generateVariations(
       ['multiple_choice', 'fill_in', 'calculation'].includes(q.question_type)
   )
 }
+
+
+// ── Mock-exam: extract handwriting from a student's LQ answer photo ────────
+//
+// Caller supplies one or more photos for ONE long question. Returns the
+// transcribed answer as plain Chinese text (preserving fractions, units, and
+// step structure). Returns an empty string if the photo is unreadable.
+export async function extractLqHandwriting(
+  images: { data: string; mimeType: string }[]
+): Promise<string> {
+  if (!images.length) return ''
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+  const prompt = `你係批改助手。下面嘅圖片係學生喺數學模擬考試嘅長答題答卷。請：
+1. 將學生手寫嘅內容逐字 transcribe 成繁體中文純文字
+2. 保留分數寫法（例 1/2、1 5/8）、計算步驟、單位
+3. 用換行符分開唔同步驟
+4. 唔好加任何評論、解釋或標題
+5. 如果圖片完全無法辨識，輸出空字串
+
+只輸出 transcribed 嘅文字，唔好包 markdown code block。`
+
+  const parts: Array<
+    | { text: string }
+    | { inlineData: { data: string; mimeType: string } }
+  > = [{ text: prompt }]
+  for (const img of images) parts.push({ inlineData: img })
+
+  const response = await generateContentWithFallback(ai, {
+    contents: [{ role: 'user', parts }],
+  })
+
+  return (response.text ?? '').trim()
+}
+
+
+// ── Mock-exam: generate strength/weakness comment for MC+SQ section ────────
+export async function generateMockExamComment(input: {
+  studentName: string
+  totalAnswered: number
+  totalCorrect: number
+  perTopic: { topic_name: string; correct: number; total: number }[]
+}): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+  const accuracy =
+    input.totalAnswered === 0
+      ? 0
+      : Math.round((input.totalCorrect / input.totalAnswered) * 100)
+
+  const topicLines = input.perTopic
+    .map((t) => `${t.topic_name}: ${t.correct}/${t.total}`)
+    .join('\n')
+
+  const prompt = `你係香港小學數學老師。以下係 ${input.studentName} 喺模擬考試多項選擇題 + 短答題部分嘅表現。
+
+整體正確率：${input.totalCorrect}/${input.totalAnswered}（${accuracy}%）
+
+各題目分類表現：
+${topicLines || '(無資料)'}
+
+請寫一段 80-120 字嘅中文評語，要求：
+1. 指出 1-2 個強項（正確率高嘅單元/題型）
+2. 指出 1-2 個弱項（正確率低嘅單元/題型）
+3. 唔好評論未做嘅長答題部分
+4. 語氣要鼓勵、正面，唔好負面標籤
+
+只輸出評語本身，唔好加標題或 markdown。`
+
+  const response = await generateContentWithFallback(ai, {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+  })
+
+  return (response.text ?? '').trim()
+}

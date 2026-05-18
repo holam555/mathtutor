@@ -17,12 +17,23 @@ export default async function ResultsPage({
 
   const { data: session } = await supabase
     .from('practice_sessions')
-    .select('id, correct_count, total_questions, student_id')
+    .select('id, correct_count, total_questions, student_id, session_type')
     .eq('id', params.sessionId)
     .eq('student_id', user.id)
     .single()
 
   if (!session) notFound()
+
+  // Mock-exam sessions have their own results page (MC+SQ score + AI
+  // comment + 繼續計時 button for the LQ portion).
+  if (session.session_type === 'mock_exam') {
+    const { data: paper } = await supabase
+      .from('mock_exam_papers')
+      .select('id')
+      .eq('mc_sq_session_id', session.id)
+      .maybeSingle()
+    if (paper) redirect(`/student/mock-exam/${paper.id}/results`)
+  }
 
   const starsEarned = session.correct_count ?? 0
   const sessionTotal = session.total_questions ?? 0

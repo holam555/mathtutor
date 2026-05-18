@@ -70,6 +70,28 @@ export default async function AdminHome() {
         </Link>
 
         <Link
+          href="/admin/long-questions"
+          className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+        >
+          <div>
+            <h2 className="font-semibold">長答題管理</h2>
+            <p className="text-sm text-gray-500 mt-0.5">模擬考試試卷用嘅 LQ 題庫</p>
+          </div>
+          <span className="text-gray-400">→</span>
+        </Link>
+
+        <Link
+          href="/admin/mock-exam"
+          className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
+        >
+          <div>
+            <h2 className="font-semibold">模擬考試 LQ 批改</h2>
+            <p className="text-sm text-gray-500 mt-0.5">審核學生長答題上載圖片及 AI 辨識答案</p>
+          </div>
+          <span className="text-gray-400">→</span>
+        </Link>
+
+        <Link
           href="/admin/variations"
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >

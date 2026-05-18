@@ -81,6 +81,23 @@ export default async function ParentHome() {
   const redemptions = redemptionsRes.data ?? []
   const childById = new Map(childList.map((c) => [c.id, c.name]))
 
+  // Mock exam papers whose LQ part needs upload (status in mc_sq_done or lq_uploaded but not reviewed)
+  const { data: lqPending } = studentIds.length
+    ? await service
+        .from('mock_exam_papers')
+        .select('id, student_id, lq_count, status')
+        .in('student_id', studentIds)
+        .in('status', ['mc_sq_done'])
+        .order('created_at', { ascending: false })
+        .limit(10)
+    : { data: [] as Array<{ id: string; student_id: string; lq_count: number; status: string }> }
+
+  const pendingLqPapers = (lqPending ?? []).map((p) => ({
+    id: p.id,
+    lq_count: p.lq_count,
+    studentName: childById.get(p.student_id) ?? '學生',
+  }))
+
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
       <div className="flex justify-between items-start mb-6">
@@ -127,7 +144,7 @@ export default async function ParentHome() {
 
       {/* Exam scope */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        考試衝刺
+        模擬考試
       </h2>
       <Link
         href="/parent/exam-scope/upload"
@@ -136,11 +153,35 @@ export default async function ParentHome() {
         <div>
           <h3 className="font-semibold text-white">🔥 設定考試範圍</h3>
           <p className="text-sm text-white/80 mt-0.5">
-            揀選考試單元，學生主頁立即見到衝刺練習
+            揀選考試單元，學生主頁立即見到模擬考試試卷
           </p>
         </div>
         <span className="text-white/80 text-xl">+</span>
       </Link>
+
+      {pendingLqPapers.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            待上載長答題答卷
+          </h3>
+          <div className="space-y-2">
+            {pendingLqPapers.map((p) => (
+              <Link
+                key={p.id}
+                href={`/parent/mock-exam/${p.id}/upload`}
+                className="block bg-amber-50 border border-amber-200 rounded-xl p-3 hover:bg-amber-100 transition"
+              >
+                <p className="text-sm font-semibold text-amber-900">
+                  📝 {p.studentName} 嘅模擬考試
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {p.lq_count} 題長答題 · 點擊上載手寫答卷
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Past paper upload */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
