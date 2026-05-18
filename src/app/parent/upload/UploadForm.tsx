@@ -10,39 +10,68 @@ type UploadState =
 
 export default function UploadForm() {
   const [state, setState] = useState<UploadState>({ status: 'idle' })
+  // Accumulated files and their data-URL previews
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  function readPreviews(files: File[]) {
+    Promise.all(
+      files.map(
+        (f) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onload = (ev) => resolve(ev.target?.result as string)
+            reader.readAsDataURL(f)
+          })
+      )
+    ).then(setPreviews)
+  }
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? [])
-    if (!files.length) return
+    const newFiles = Array.from(e.target.files ?? [])
+    if (!newFiles.length) return
+
+    setSelectedFiles((prev) => {
+      const combined = [...prev, ...newFiles].slice(0, 10)
+      readPreviews(combined)
+      return combined
+    })
+
+    // Reset input so the same file can be re-selected, and so the
+    // input value doesn't confuse FormData (we submit from state).
+    e.target.value = ''
+  }
+
+  function removeFile(idx: number) {
+    setSelectedFiles((prev) => {
+      const next = prev.filter((_, i) => i !== idx)
+      readPreviews(next)
+      return next
+    })
+  }
+
+  function reset() {
+    setState({ status: 'idle' })
+    setSelectedFiles([])
     setPreviews([])
-    const readers = files.slice(0, 10).map(
-      (f) =>
-        new Promise<string>((resolve) => {
-          const reader = new FileReader()
-          reader.onload = (ev) => resolve(ev.target?.result as string)
-          reader.readAsDataURL(f)
-        })
-    )
-    Promise.all(readers).then(setPreviews)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    const form = e.currentTarget
-    const files = fileInputRef.current?.files
-    if (!files?.length) {
+    if (!selectedFiles.length) {
       setState({ status: 'error', message: '請選擇至少一張圖片' })
       return
     }
 
     setState({ status: 'uploading', progress: '上傳圖片中…' })
 
+    const form = e.currentTarget
     const formData = new FormData(form)
-    // Replace the file input with individual entries named "images"
+    // Remove the (empty) file input entry; submit accumulated files instead
     formData.delete('images')
-    Array.from(files).forEach((f) => formData.append('images', f))
+    selectedFiles.forEach((f) => formData.append('images', f))
 
     try {
       setState({ status: 'uploading', progress: 'AI 分析試卷中（可能需要 30–60 秒）…' })
@@ -71,11 +100,7 @@ export default function UploadForm() {
         </p>
         <div className="flex gap-3 mt-5 justify-center">
           <button
-            onClick={() => {
-              setState({ status: 'idle' })
-              setPreviews([])
-              if (fileInputRef.current) fileInputRef.current.value = ''
-            }}
+            onClick={reset}
             className="px-5 py-2.5 bg-[#4A90E2] text-white rounded-xl text-sm font-medium"
           >
             再上載一份
@@ -92,14 +117,20 @@ export default function UploadForm() {
   }
 
   const isLoading = state.status === 'uploading'
+  const canAddMore = selectedFiles.length < 10
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Image picker */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          試卷圖片 <span className="text-gray-400 font-normal">（最多10頁）</span>
+          試卷圖片{' '}
+          <span className="text-gray-400 font-normal">
+            （{selectedFiles.length > 0 ? `已選 ${selectedFiles.length} / 10 頁` : '最多10頁'}）
+          </span>
         </label>
+
+        {/* Hidden file input — reset after each pick so files accumulate in state */}
         <input
           ref={fileInputRef}
           name="images"
@@ -110,25 +141,44 @@ export default function UploadForm() {
           className="hidden"
           id="image-input"
         />
-        <label
-          htmlFor="image-input"
-          className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-[#4A90E2] transition bg-gray-50"
-        >
-          <span className="text-2xl mb-1">📷</span>
-          <span className="text-sm text-gray-500">點擊選擇圖片</span>
-          <span className="text-xs text-gray-400 mt-0.5">支援 JPG、PNG、WEBP</span>
-        </label>
 
+        {/* Drop zone — only show if under the limit */}
+        {canAddMore && (
+          <label
+            htmlFor="image-input"
+            className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-[#4A90E2] transition bg-gray-50"
+          >
+            <span className="text-2xl mb-1">📷</span>
+            <span className="text-sm text-gray-500">
+              {selectedFiles.length === 0 ? '點擊選擇圖片' : '繼續添加圖片'}
+            </span>
+            <span className="text-xs text-gray-400 mt-0.5">支援 JPG、PNG、WEBP</span>
+          </label>
+        )}
+
+        {/* Previews with individual remove buttons */}
         {previews.length > 0 && (
           <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
             {previews.map((src, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                key={i}
-                src={src}
-                alt={`第${i + 1}頁`}
-                className="h-24 w-auto rounded-xl object-cover border border-gray-200 shrink-0"
-              />
+              <div key={i} className="relative shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt={`第${i + 1}頁`}
+                  className="h-24 w-auto rounded-xl object-cover border border-gray-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeFile(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-700 text-white text-xs flex items-center justify-center leading-none hover:bg-red-500 transition"
+                  aria-label={`移除第${i + 1}頁`}
+                >
+                  ✕
+                </button>
+                <span className="absolute bottom-1 left-1 text-[10px] bg-black/40 text-white rounded px-1">
+                  {i + 1}
+                </span>
+              </div>
             ))}
           </div>
         )}
@@ -188,7 +238,7 @@ export default function UploadForm() {
 
       <button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || selectedFiles.length === 0}
         className="w-full h-12 bg-[#4A90E2] text-white rounded-2xl font-medium text-sm disabled:opacity-60 active:scale-[0.98] transition"
       >
         {isLoading ? (
@@ -197,7 +247,7 @@ export default function UploadForm() {
             {state.progress}
           </span>
         ) : (
-          '上載並分析'
+          `上載並分析（${selectedFiles.length} 頁）`
         )}
       </button>
     </form>
