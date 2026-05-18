@@ -182,6 +182,18 @@ export default async function ParentChildReport({
               </div>
             </div>
 
+            {/* Print exam paper link */}
+            <Link
+              href={`/parent/child/${params.id}/print-exam`}
+              className="flex items-center justify-between bg-[#EFF9F5] border border-[#1D9E75]/20 rounded-2xl p-4"
+            >
+              <div>
+                <p className="text-sm font-medium text-[#1D9E75]">🖨 列印練習卷</p>
+                <p className="text-xs text-gray-500 mt-0.5">生成包含答案卷的 PDF 練習紙</p>
+              </div>
+              <span className="text-[#1D9E75] text-sm">→</span>
+            </Link>
+
             {/* Update link */}
             <Link
               href="/parent/exam-scope/upload"

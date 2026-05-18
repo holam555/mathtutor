@@ -110,6 +110,15 @@ export default async function ExamSprintPage() {
       <p className="text-center text-xs text-gray-400 mt-4">
         每次抽 15 題，涵蓋上面所有範圍
       </p>
+
+      <div className="mt-5 text-center">
+        <Link
+          href="/student/practice/exam-sprint/print"
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2"
+        >
+          🖨 列印練習卷
+        </Link>
+      </div>
     </main>
   )
 }
