@@ -260,7 +260,6 @@ export default async function StudentHome() {
             <p className="text-base font-bold text-white">🔥 考試衝刺練習</p>
             <span className="text-white/80 text-sm">→</span>
           </div>
-          <p className="text-sm text-white/80 mt-0.5">集中針對考試範圍練習</p>
         </Link>
       )}
 

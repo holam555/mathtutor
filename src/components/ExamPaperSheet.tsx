@@ -40,6 +40,12 @@ export default function ExamPaperSheet({
       >
         {/* ── Header ── */}
         <div className="text-center mb-6 print:mb-8">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.png"
+            alt="霖楓學苑"
+            className="mx-auto mb-3 h-14 object-contain"
+          />
           <h1 className="text-2xl font-bold tracking-wide">
             數學練習卷
           </h1>
@@ -160,7 +166,7 @@ export default function ExamPaperSheet({
           )}
 
           <p className="text-xs text-gray-400 mt-8 text-center print:mt-12">
-            — 本練習卷由補習社數學練習系統生成 —
+            — 本練習卷由霖楓學苑數學練習系統生成 —
           </p>
         </div>
       </div>

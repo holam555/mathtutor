@@ -7,6 +7,13 @@ import type { TimeRange } from '@/lib/studentReport'
 
 const GRADE_LABEL: Record<number, string> = { 3: '三', 4: '四', 5: '五', 6: '六' }
 
+const TABS = [
+  { key: 'overview', label: '整體表現' },
+  { key: 'wrong',    label: '需要加強' },
+  { key: 'history',  label: '練習記錄' },
+  { key: 'sprint',   label: '考試衝刺練習' },
+] as const
+
 export default async function ParentChildReport({
   params,
   searchParams,
@@ -35,7 +42,8 @@ export default async function ParentChildReport({
   if (!link) redirect('/parent')
 
   const rawTab = searchParams.tab
-  const isScope = rawTab === 'scope'
+  // Support old 'scope' key as alias
+  const isSprint = rawTab === 'sprint' || rawTab === 'scope'
   const tab: 'overview' | 'wrong' | 'history' =
     rawTab === 'wrong' || rawTab === 'history' ? rawTab : 'overview'
 
@@ -43,7 +51,7 @@ export default async function ParentChildReport({
   const range: TimeRange =
     rawRange === 'month' || rawRange === 'all' ? rawRange : 'week'
 
-  // Always fetch student profile (needed for scope tab too)
+  // Always fetch student profile
   const { data: profile } = await service
     .from('student_profiles')
     .select('id, name, grade')
@@ -52,27 +60,40 @@ export default async function ParentChildReport({
 
   if (!profile) notFound()
 
-  // Fetch active exam scope (used in scope tab)
-  const { data: examScope } = await service
+  // Fetch ALL scopes (active + past history)
+  const { data: allScopes } = await service
     .from('exam_scopes')
-    .select('id, exam_name, exam_date, unit_ids, created_at')
+    .select('id, exam_name, exam_date, unit_ids, is_active, created_at')
     .eq('student_id', params.id)
-    .eq('is_active', true)
     .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .limit(10)
 
+  const activeScope = (allScopes ?? []).find((s) => s.is_active) ?? null
+  const pastScopes  = (allScopes ?? []).filter((s) => !s.is_active)
+
+  // Resolve unit names for active scope
   let scopeUnits: { id: string; unit_number: number; name: string }[] = []
-  if (examScope?.unit_ids?.length) {
+  if (activeScope?.unit_ids?.length) {
     const { data: units } = await service
       .from('curriculum_units')
       .select('id, unit_number, name')
-      .in('id', examScope.unit_ids)
+      .in('id', activeScope.unit_ids)
       .order('display_order')
     scopeUnits = (units ?? []).map((u) => ({ id: u.id, unit_number: u.unit_number, name: u.name }))
   }
 
-  // Count exam sprint sessions for this student
+  // Resolve unit names for past scopes (batch fetch all unique ids)
+  const pastUnitIds = Array.from(new Set((pastScopes ?? []).flatMap((s) => s.unit_ids ?? [])))
+  const pastUnitMap = new Map<string, { unit_number: number; name: string }>()
+  if (pastUnitIds.length > 0) {
+    const { data: pastUnits } = await service
+      .from('curriculum_units')
+      .select('id, unit_number, name')
+      .in('id', pastUnitIds)
+    for (const u of pastUnits ?? []) pastUnitMap.set(u.id, { unit_number: u.unit_number, name: u.name })
+  }
+
+  // Count exam sprint sessions
   const { count: sprintCount } = await service
     .from('practice_sessions')
     .select('id', { count: 'exact', head: true })
@@ -80,9 +101,10 @@ export default async function ParentChildReport({
     .eq('session_type', 'exam_sprint')
 
   const basePath = `/parent/child/${params.id}`
+  const sprintTabHref = `${basePath}?tab=sprint&range=${range}`
 
-  // ── Scope tab ────────────────────────────────────────────────────────────
-  if (isScope) {
+  // ── Sprint / exam scope tab ───────────────────────────────────────────────
+  if (isSprint) {
     return (
       <main className="min-h-screen px-4 py-8 max-w-md mx-auto">
         {/* Header */}
@@ -98,18 +120,13 @@ export default async function ParentChildReport({
 
         {/* 4-tab nav */}
         <div className="flex gap-1 mb-5 border-b border-gray-200 overflow-x-auto">
-          {[
-            { key: 'overview', label: '整體表現' },
-            { key: 'wrong', label: '需要加強' },
-            { key: 'history', label: '練習記錄' },
-            { key: 'scope', label: '考試範圍' },
-          ].map((t) => (
+          {TABS.map((t) => (
             <Link
               key={t.key}
               href={`${basePath}?tab=${t.key}&range=${range}`}
               className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition ${
-                (t.key === 'scope' && isScope) || (t.key === tab && !isScope)
-                  ? 'border-[#1D9E75] text-[#1D9E75]'
+                t.key === 'sprint'
+                  ? 'border-[#EF9F27] text-[#EF9F27]'
                   : 'border-transparent text-gray-500'
               }`}
             >
@@ -118,39 +135,36 @@ export default async function ParentChildReport({
           ))}
         </div>
 
-        {/* Scope content */}
-        {!examScope ? (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
-              <p className="text-3xl mb-3">📋</p>
-              <p className="font-semibold text-gray-700 mb-1">尚未設定考試範圍</p>
-              <p className="text-sm text-gray-400 mb-4">
-                設定後，{profile.name}可以在主頁開始「考試衝刺練習」
-              </p>
-              <Link
-                href="/parent/exam-scope/upload"
-                className="inline-block bg-[#1D9E75] text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
-              >
-                立即設定考試範圍
-              </Link>
-            </div>
+        {/* Sprint content */}
+        {!activeScope ? (
+          <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
+            <p className="text-3xl mb-3">📋</p>
+            <p className="font-semibold text-gray-700 mb-1">尚未設定考試衝刺練習</p>
+            <p className="text-sm text-gray-400 mb-4">設定後，{profile.name}可以在主頁開始練習</p>
+            <Link
+              href="/parent/exam-scope/upload"
+              className="inline-block bg-[#1D9E75] text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
+            >
+              立即設定
+            </Link>
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Scope info card */}
+            {/* Active scope card */}
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <p className="font-semibold text-gray-800">
-                    {examScope.exam_name ?? '考試範圍'}
-                  </p>
-                  {examScope.exam_date && (
+                  <p className="font-semibold text-gray-800">{activeScope.exam_name ?? '考試衝刺練習'}</p>
+                  {activeScope.exam_date && (
                     <p className="text-xs text-gray-400 mt-0.5">
-                      考試日期：{new Date(examScope.exam_date).toLocaleDateString('zh-HK')}
+                      考試日期：{new Date(activeScope.exam_date).toLocaleDateString('zh-HK')}
                     </p>
                   )}
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    設定於 {new Date(activeScope.created_at).toLocaleDateString('zh-HK')}
+                  </p>
                 </div>
-                <span className="text-xs bg-[#1D9E75]/10 text-[#1D9E75] font-medium px-2 py-1 rounded-full">
+                <span className="text-xs bg-[#1D9E75]/10 text-[#1D9E75] font-medium px-2 py-1 rounded-full shrink-0">
                   已生效
                 </span>
               </div>
@@ -170,19 +184,19 @@ export default async function ParentChildReport({
               </ul>
             </div>
 
-            {/* Sprint progress */}
+            {/* Sprint count */}
             <div className="bg-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
               <div>
-                <p className="text-sm font-semibold text-gray-800">考試衝刺練習</p>
+                <p className="text-sm font-semibold text-gray-800">衝刺練習完成次數</p>
                 <p className="text-xs text-gray-400 mt-0.5">針對以上單元的專項練習</p>
               </div>
               <div className="text-right">
                 <p className="text-2xl font-bold text-[#EF9F27]">{sprintCount ?? 0}</p>
-                <p className="text-xs text-gray-400">次已完成</p>
+                <p className="text-xs text-gray-400">次</p>
               </div>
             </div>
 
-            {/* Print exam paper link */}
+            {/* Print */}
             <Link
               href={`/parent/child/${params.id}/print-exam`}
               className="flex items-center justify-between bg-[#EFF9F5] border border-[#1D9E75]/20 rounded-2xl p-4"
@@ -194,7 +208,7 @@ export default async function ParentChildReport({
               <span className="text-[#1D9E75] text-sm">→</span>
             </Link>
 
-            {/* Update link */}
+            {/* Update */}
             <Link
               href="/parent/exam-scope/upload"
               className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-2xl p-4"
@@ -202,6 +216,44 @@ export default async function ParentChildReport({
               <p className="text-sm text-gray-600">更新考試範圍</p>
               <span className="text-gray-400 text-sm">→</span>
             </Link>
+
+            {/* Past scopes history */}
+            {pastScopes.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                  過往考試範圍
+                </p>
+                <div className="space-y-3">
+                  {pastScopes.map((s) => (
+                    <div key={s.id} className="border-b last:border-b-0 border-gray-50 pb-3 last:pb-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm text-gray-700 font-medium">{s.exam_name ?? '考試範圍'}</p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            設定於 {new Date(s.created_at).toLocaleDateString('zh-HK')} ·{' '}
+                            {(s.unit_ids ?? []).length} 個單元
+                          </p>
+                        </div>
+                        <span className="text-xs text-gray-300 font-medium px-2 py-0.5 border border-gray-200 rounded-full shrink-0">
+                          已過期
+                        </span>
+                      </div>
+                      {(s.unit_ids ?? []).length > 0 && (
+                        <p className="text-xs text-gray-400 mt-1.5">
+                          {(s.unit_ids ?? [])
+                            .map((uid: string) => {
+                              const u = pastUnitMap.get(uid)
+                              return u ? `U${u.unit_number} ${u.name}` : null
+                            })
+                            .filter(Boolean)
+                            .join('、')}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
@@ -214,15 +266,6 @@ export default async function ParentChildReport({
 
   return (
     <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto">
-      {/* Extra "考試範圍" tab link injected above StudentReport's own tab bar */}
-      <div className="mb-[-16px]">
-        <Link
-          href={`${basePath}?tab=scope&range=${range}`}
-          className="inline-block float-right text-xs text-[#1D9E75] underline mb-1"
-        >
-          考試範圍 →
-        </Link>
-      </div>
       <StudentReport
         mode="parent"
         studentName={report.profile.name}
@@ -235,6 +278,7 @@ export default async function ParentChildReport({
         wrongGroups={report.wrongGroups}
         avgSecondsPerQuestion={report.avgSecondsPerQuestion}
         activeTab={tab}
+        sprintTabHref={sprintTabHref}
       />
     </main>
   )

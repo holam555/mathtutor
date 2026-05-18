@@ -88,31 +88,35 @@ export default function ExamScopePickerForm({
     return (
       <div className="space-y-4">
         <div className="bg-white rounded-2xl p-6 shadow-sm text-center">
-          <p className="text-5xl mb-4">✅</p>
-          <h2 className="font-bold text-gray-800 text-lg mb-2">考試範圍已成功標記</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            {selectedChild?.name ?? '學生'}現在可以在主頁開始「考試衝刺練習」，
-            系統將會按照以下單元出題。
-          </p>
-          <ul className="text-sm text-gray-600 space-y-1 text-left inline-block mb-2">
+          <p className="text-5xl mb-3">✅</p>
+          <h2 className="font-bold text-gray-800 text-lg mb-1">考試衝刺練習已設定</h2>
+          <p className="text-sm text-gray-500 mb-4">{selectedChild?.name ?? '學生'} · {confirmedUnits.length} 個單元</p>
+          <ul className="text-sm text-gray-600 space-y-1 text-left inline-block">
             {confirmedUnits.map((u) => (
               <li key={u.id} className="flex items-center gap-2">
-                <span className="text-[#1D9E75]">✓</span>
+                <span className="text-[#1D9E75] font-bold">✓</span>
                 單元 {u.unit_number}：{u.name}
               </li>
             ))}
           </ul>
         </div>
 
-        <div className="bg-[#EFF9F5] border border-[#1D9E75]/20 rounded-2xl p-4">
-          <p className="text-xs text-gray-600 leading-5">
-            如日後考試範圍有所更改，可再次進入此頁面重新選擇，系統會自動更新。
-          </p>
-        </div>
-
+        {/* Two action options */}
+        <button
+          onClick={() => router.push(`/parent/child/${studentId}/print-exam`)}
+          className="w-full h-14 rounded-2xl bg-[#1D9E75] text-white text-base font-bold active:scale-[0.98] transition shadow-md flex items-center justify-center gap-2"
+        >
+          🖨 列印練習卷
+        </button>
+        <button
+          onClick={() => router.push(`/parent/child/${studentId}?tab=sprint`)}
+          className="w-full h-14 rounded-2xl border-2 border-[#1D9E75] text-[#1D9E75] text-base font-semibold active:scale-[0.98] transition"
+        >
+          查看考試衝刺練習
+        </button>
         <button
           onClick={() => router.push('/parent')}
-          className="w-full h-14 rounded-2xl bg-[#1D9E75] text-white text-base font-bold active:scale-[0.98] transition shadow-md"
+          className="w-full text-sm text-gray-400 py-2 text-center"
         >
           返回家長中心
         </button>
