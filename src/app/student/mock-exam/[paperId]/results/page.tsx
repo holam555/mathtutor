@@ -2,6 +2,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { generateMockExamComment } from '@/lib/gemini'
+import { MARKS, formatMarks, marksForQuestionType, totalPossibleMarks } from '@/lib/mockExamMarks'
 import ResumeTimerButton from './ResumeTimerButton'
 
 export default async function MockExamResultsPage({
@@ -41,7 +42,49 @@ export default async function MockExamResultsPage({
   const totalCount = session?.total_questions ?? paper.mc_sq_count
   const accuracy = totalCount === 0 ? 0 : Math.round((correctCount / totalCount) * 100)
 
-  // Compute per-topic stats from this session's answer_records
+  // Pull question_type for every MC+SQ question on this paper so we can:
+  //   (a) compute earned marks (MC = 1.5, SQ = 2)
+  //   (b) compute the MC+SQ portion of the paper's 滿分
+  //   (c) reuse the topic_id map for AI comment generation below
+  const qIds = (paper.mc_sq_question_ids ?? []) as string[]
+  const { data: aqRows } = qIds.length
+    ? await service
+        .from('assessment_questions')
+        .select('id, topic_id, question_type')
+        .in('id', qIds)
+    : { data: [] as { id: string; topic_id: string; question_type: string }[] }
+
+  const qToType = new Map<string, string>(
+    (aqRows ?? []).map((q: { id: string; question_type: string }) => [q.id, q.question_type])
+  )
+  const mcSqPossibleMarks = (aqRows ?? []).reduce(
+    (s, q) => s + marksForQuestionType(q.question_type),
+    0
+  )
+
+  // Earned marks: fetched once, used for the score display and as input for
+  // the AI comment block below.
+  const { data: answerRows } = sessionDone && paper.mc_sq_session_id
+    ? await service
+        .from('answer_records')
+        .select('question_id, is_correct')
+        .eq('session_id', paper.mc_sq_session_id)
+    : { data: [] as { question_id: string; is_correct: boolean }[] }
+
+  let earnedMarks = 0
+  for (const a of answerRows ?? []) {
+    if (!a.is_correct) continue
+    const type = qToType.get(a.question_id) ?? 'fill_in_number'
+    earnedMarks += marksForQuestionType(type)
+  }
+
+  const lqMarksAvailable = paper.lq_count * MARKS.lq
+  const totalPaperMarks = totalPossibleMarks({
+    mc: (aqRows ?? []).filter((q) => q.question_type === 'multiple_choice').length,
+    sq: (aqRows ?? []).filter((q) => q.question_type !== 'multiple_choice').length,
+    lq: paper.lq_count,
+  })
+
   let aiComment = paper.ai_comment ?? ''
 
   // Pause timer + flip status if not yet done (idempotent)
@@ -61,19 +104,7 @@ export default async function MockExamResultsPage({
         .eq('id', user.id)
         .single()
 
-      const { data: answers } = await service
-        .from('answer_records')
-        .select('question_id, is_correct')
-        .eq('session_id', paper.mc_sq_session_id ?? '')
-
-      const qIds = (paper.mc_sq_question_ids ?? []) as string[]
-      const { data: aqRows } = qIds.length
-        ? await service
-            .from('assessment_questions')
-            .select('id, topic_id')
-            .in('id', qIds)
-        : { data: [] as { id: string; topic_id: string }[] }
-
+      const answers = answerRows
       const qToTopic = new Map<string, string>(
         (aqRows ?? []).map((q: { id: string; topic_id: string }) => [q.id, q.topic_id])
       )
@@ -124,11 +155,19 @@ export default async function MockExamResultsPage({
       <p className="text-sm text-gray-500 mb-5">多項選擇題 + 短答題</p>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-4 text-center">
-        <p className="text-5xl font-bold text-[#1D9E75]">
-          {correctCount}
-          <span className="text-2xl text-gray-400">/{totalCount}</span>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+          已得分數（多項選擇題 + 短答題）
         </p>
-        <p className="text-sm text-gray-500 mt-1">正確率 {accuracy}%</p>
+        <p className="text-5xl font-bold text-[#1D9E75]">
+          {formatMarks(earnedMarks)}
+          <span className="text-2xl text-gray-400">/{formatMarks(mcSqPossibleMarks)} 分</span>
+        </p>
+        <p className="text-xs text-gray-500 mt-2">
+          答對 {correctCount} / {totalCount} 題（{accuracy}%）
+        </p>
+        <p className="text-xs text-gray-400 mt-1">
+          長答題 {paper.lq_count} 題（{formatMarks(lqMarksAvailable)} 分）將由老師批改 · 全卷滿分 {formatMarks(totalPaperMarks)} 分
+        </p>
       </div>
 
       {aiComment && (

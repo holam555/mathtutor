@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { MARKS, formatMarks } from '@/lib/mockExamMarks'
 
 const GRADE_LABEL: Record<number, string> = { 3: '小三', 4: '小四', 5: '小五', 6: '小六' }
 
@@ -147,6 +148,7 @@ export default async function LqPaperPage({
           </div>
           <div className="lq-meta">
             <span>共 {orderedLqs.length} 題</span>
+            <span>滿分 {formatMarks(orderedLqs.length * MARKS.lq)} 分（每題 {formatMarks(MARKS.lq)} 分）</span>
           </div>
         </div>
 
@@ -160,6 +162,7 @@ export default async function LqPaperPage({
           <div key={q.id} className="lq-q">
             <div className="lq-q-head">
               <span className="lq-num">{idx + 1}.</span>
+              <span className="lq-marks">（{formatMarks(MARKS.lq)} 分）</span>
             </div>
             <div className="lq-text">{q.question_text}</div>
             {q.image_url && (

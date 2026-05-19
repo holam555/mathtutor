@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { MARKS, formatMarks } from '@/lib/mockExamMarks'
 import { saveLqReview } from './actions'
 
 export default function LqReviewCard({
@@ -58,6 +59,7 @@ export default function LqReviewCard({
     <div className="bg-white rounded-2xl p-5 shadow-sm">
       <div className="flex items-baseline gap-2 mb-2">
         <span className="font-bold">{index}.</span>
+        <span className="text-xs text-gray-400">（{formatMarks(MARKS.lq)} 分）</span>
         {isReviewed && (
           <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
             已批改

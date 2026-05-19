@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { MARKS, formatMarks, totalPossibleMarks } from '@/lib/mockExamMarks'
 import StartMockExamButton from './StartMockExamButton'
 
 export default async function MockExamStartPage({
@@ -40,6 +41,19 @@ export default async function MockExamStartPage({
 
   const totalCount = paper.mc_sq_count + paper.lq_count
 
+  // Split mc_sq into MC vs SQ for the marks breakdown
+  const mcSqIds = (paper.mc_sq_question_ids ?? []) as string[]
+  const { data: mcSqTypes } = mcSqIds.length
+    ? await service
+        .from('assessment_questions')
+        .select('id, question_type')
+        .in('id', mcSqIds)
+    : { data: [] as Array<{ id: string; question_type: string }> }
+
+  const mcCount = (mcSqTypes ?? []).filter((q) => q.question_type === 'multiple_choice').length
+  const sqCount = (mcSqTypes ?? []).length - mcCount
+  const totalMarks = totalPossibleMarks({ mc: mcCount, sq: sqCount, lq: paper.lq_count })
+
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-[#FFF8EC] to-white">
       <div className="flex items-center gap-3 mb-6">
@@ -50,13 +64,19 @@ export default async function MockExamStartPage({
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">試卷組成</p>
+        <div className="flex items-baseline justify-between mb-3">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">試卷組成</p>
+          <p className="text-xs text-gray-500">
+            滿分 <strong className="text-gray-700">{formatMarks(totalMarks)}</strong> 分
+          </p>
+        </div>
         <p className="text-sm text-gray-700">
           全卷共 <strong>{totalCount}</strong> 題：
         </p>
         <ul className="text-sm text-gray-700 mt-2 space-y-1">
-          <li>· 多項選擇題 + 短答題 {paper.mc_sq_count} 題（喺 App 內作答）</li>
-          <li>· 長答題 {paper.lq_count} 題（請列印或喺 iPad 上書寫）</li>
+          <li>· 多項選擇題 {mcCount} 題（每題 {formatMarks(MARKS.mc)} 分）</li>
+          <li>· 短答題 {sqCount} 題（每題 {formatMarks(MARKS.sq)} 分）</li>
+          <li>· 長答題 {paper.lq_count} 題（每題 {formatMarks(MARKS.lq)} 分）</li>
         </ul>
         <p className="text-xs text-gray-400 mt-3">
           限時 50 分鐘。完成 App 內題目後計時會暫停，等你開始長答題再繼續。
