@@ -105,9 +105,8 @@ export default async function LqPaperPage({
             }
             body { padding-bottom: 80px; }
             .lq-doc { max-width: 720px; margin: 0 auto; padding: 24px; line-height: 1.7; }
-            .lq-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
-            .lq-brand img { height: 32px; width: auto; }
-            .lq-brand-text { font-size: 12px; color: #666; }
+            .lq-brand { margin-bottom: 16px; }
+            .lq-brand img { height: 72px; width: auto; display: block; }
             .lq-header { border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 18px; }
             .lq-title { font-size: 22px; font-weight: 700; }
             .lq-meta { display: flex; justify-content: space-between; flex-wrap: wrap; font-size: 13px; color: #444; margin-top: 6px; }
@@ -156,7 +155,6 @@ export default async function LqPaperPage({
         <div className="lq-brand">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-small.png" alt="補習社" />
-          <span className="lq-brand-text">數學補習練習平台</span>
         </div>
         <div className="lq-header">
           <div className="lq-title">
