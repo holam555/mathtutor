@@ -1,8 +1,40 @@
 # Long Question (長答題) Seed Workflow
 
-Use this guide when extracting LQs from PDF mock papers into the
-`long_questions` table. Hand this doc to a fresh Claude Code session and
-say "follow this guide", then attach the PDF.
+Use this guide when extracting LQs into the `long_questions` table.
+Hand this doc to a fresh Claude Code session and say "follow this guide".
+
+## Where input files live
+
+Screenshots (or PDFs) of past-paper LQs live in **grade-specific local
+folders** that are gitignored — content never gets pushed to GitHub:
+
+```
+_lq_input/p3/
+_lq_input/p4/
+_lq_input/p5/
+_lq_input/p6/
+```
+
+Drop the screenshots / cropped PDF pages into the matching grade folder.
+**Each screenshot should contain ONE LQ — the question text AND the
+model answer side-by-side or stacked** — so the extractor has both
+pieces in one image.
+
+If a single image holds multiple LQs, that's fine too; the extractor
+will pull them all out. Just keep one "paper" per file (don't merge
+unrelated papers into one image).
+
+### Naming suggestion (optional but helpful)
+
+```
+_lq_input/p5/p5_s1_paper1_Q41.png
+_lq_input/p5/p5_s1_paper1_Q42.png
+_lq_input/p5/p5_s2_review_Q05.png
+```
+
+The filename becomes the default `source_question` if it looks like
+`…_Q<num>.<ext>`. The paper prefix (`p5_s1_paper1`) becomes the default
+`source_paper`. Otherwise the extractor will ask you to pick one.
 
 ---
 
@@ -186,16 +218,34 @@ For each row, mentally check:
 
 ## Workflow for a fresh Claude Code session
 
-1. User opens new chat, attaches PDF (drag in, or commits to `_pdf/`).
-2. User says: "follow `docs/lq_seed_workflow.md`. PDF is at `_pdf/<name>.pdf`. Extract all LQs into a seed file."
-3. Claude reads PDF (use `pages: "1-20"` param if >20 pages, multiple Read calls if needed).
-4. Claude identifies LQ candidates by scanning the answer-key section.
-5. Claude writes one SQL file at `supabase/seed_<grade>_lq_<paper>.sql`.
-6. Claude reports back:
-   - Count of LQs extracted
-   - Topic distribution
-   - Anything skipped + why (image-dependent, unclear classification)
-7. User reviews the SQL, applies in Supabase SQL Editor.
+1. User drops screenshots into the matching `_lq_input/p<N>/` folder.
+2. User opens a fresh chat in the project root.
+3. User says one of:
+   - "Follow `docs/lq_seed_workflow.md`. Extract all LQs from `_lq_input/p5/`."
+   - "Follow `docs/lq_seed_workflow.md`. Extract LQs from these specific files: [list]"
+4. Claude reads each image via the `Read` tool (it handles PNG/JPG/PDF).
+5. Claude identifies LQ candidates by checking each image for:
+   - Multi-step working in the model answer
+   - The criteria listed under "What counts as a 長答題" above
+6. Claude writes ONE SQL file per grade per paper (or one per batch),
+   at `supabase/seed_p<grade>_lq_<paper_or_batch>.sql`.
+7. Claude reports back:
+   - Count of LQs extracted, per topic
+   - Anything skipped + why (figure-dependent, classification unclear,
+     answer key missing from screenshot, etc.)
+8. User reviews the SQL, applies in Supabase SQL Editor.
+
+## What you need in each screenshot
+
+For Claude to extract reliably, each screenshot must include:
+
+- **The full question text** (with all sub-parts a/b/c if any)
+- **The matching model answer** with all working steps
+
+If your past paper has the question paper and answer key on separate
+pages, screenshot them together (or stack two screenshots into one
+image). Without the model answer, Claude can't write `model_answer` —
+it will skip the question with a note.
 
 ---
 
