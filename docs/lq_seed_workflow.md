@@ -5,7 +5,7 @@ Hand this doc to a fresh Claude Code session and say "follow this guide".
 
 ## Where input files live
 
-Screenshots (or PDFs) of past-paper LQs live in **grade-specific local
+LQ source files (PDFs **or** screenshots) live in **grade-specific local
 folders** that are gitignored — content never gets pushed to GitHub:
 
 ```
@@ -15,26 +15,53 @@ _lq_input/p5/
 _lq_input/p6/
 ```
 
-Drop the screenshots / cropped PDF pages into the matching grade folder.
-**Each screenshot should contain ONE LQ — the question text AND the
-model answer side-by-side or stacked** — so the extractor has both
-pieces in one image.
+Two input modes are supported. Pick whichever fits the source paper.
 
-If a single image holds multiple LQs, that's fine too; the extractor
-will pull them all out. Just keep one "paper" per file (don't merge
-unrelated papers into one image).
+### Mode A — Full PDF (let Claude find the LQs)
 
-### Naming suggestion (optional but helpful)
+Drop the entire mock paper PDF (question paper + answer key together, or
+combined if separate) into the matching grade folder:
+
+```
+_lq_input/p5/p5_s1_paper1.pdf
+```
+
+Claude reads the PDF page-by-page (using `Read` with the `pages`
+parameter for >20-page docs) and:
+
+1. Scans the answer-key section for entries with multi-step working
+2. For each candidate, looks up the matching question in the question paper
+3. Applies the "What counts as a 長答題" criteria below
+4. Writes the SQL seed, reports back with: count extracted, count
+   skipped + reason
+
+Use this mode when you don't already know which questions are LQs and
+want Claude to filter them.
+
+### Mode B — Pre-cropped screenshots (you've already filtered)
+
+Drop one screenshot per LQ. Each image must contain **both** the
+question text **and** the matching model answer (stack them if they're
+on different pages):
 
 ```
 _lq_input/p5/p5_s1_paper1_Q41.png
 _lq_input/p5/p5_s1_paper1_Q42.png
-_lq_input/p5/p5_s2_review_Q05.png
 ```
 
-The filename becomes the default `source_question` if it looks like
-`…_Q<num>.<ext>`. The paper prefix (`p5_s1_paper1`) becomes the default
-`source_paper`. Otherwise the extractor will ask you to pick one.
+Claude reads each image as one LQ — no filtering, just extracts the
+text. Use this mode when:
+
+- You want 100% control over which questions become LQs
+- The answer key is in a separate file and stitching screenshots is
+  easier than handing Claude two PDFs
+
+### Naming convention (optional, both modes)
+
+If a file's name looks like `<paper_id>_Q<num>.<ext>` or
+`<paper_id>.<ext>`, Claude will use `<paper_id>` as the default
+`source_paper` and `Q<num>` as the default `source_question`. Otherwise
+it will pick something reasonable from the file content.
 
 ---
 
@@ -218,34 +245,48 @@ For each row, mentally check:
 
 ## Workflow for a fresh Claude Code session
 
-1. User drops screenshots into the matching `_lq_input/p<N>/` folder.
-2. User opens a fresh chat in the project root.
-3. User says one of:
-   - "Follow `docs/lq_seed_workflow.md`. Extract all LQs from `_lq_input/p5/`."
-   - "Follow `docs/lq_seed_workflow.md`. Extract LQs from these specific files: [list]"
-4. Claude reads each image via the `Read` tool (it handles PNG/JPG/PDF).
-5. Claude identifies LQ candidates by checking each image for:
-   - Multi-step working in the model answer
-   - The criteria listed under "What counts as a 長答題" above
-6. Claude writes ONE SQL file per grade per paper (or one per batch),
-   at `supabase/seed_p<grade>_lq_<paper_or_batch>.sql`.
-7. Claude reports back:
-   - Count of LQs extracted, per topic
-   - Anything skipped + why (figure-dependent, classification unclear,
-     answer key missing from screenshot, etc.)
-8. User reviews the SQL, applies in Supabase SQL Editor.
+### Mode A — Full PDF
 
-## What you need in each screenshot
+1. Drop the PDF (or PDFs) into `_lq_input/p<N>/`.
+2. Open a fresh chat in the project root.
+3. Say:
+   > Follow `docs/lq_seed_workflow.md` **mode A**. Source PDF is at
+   > `_lq_input/p5/p5_s1_paper1.pdf`. Identify all LQs in this PDF
+   > and write a seed file.
+4. Claude calls `Read` on the PDF (pages 1-20 first; subsequent batches
+   if the PDF is longer; PDF reader is built into the Read tool).
+5. Claude scans every page, builds a map of question numbers, finds the
+   matching answer-key entries, and applies the criteria below.
+6. Claude writes ONE SQL file at
+   `supabase/seed_p<grade>_lq_<paper>.sql`.
+7. Claude reports back: count extracted per topic, list skipped + reason.
 
-For Claude to extract reliably, each screenshot must include:
+### Mode B — Pre-cropped screenshots
 
-- **The full question text** (with all sub-parts a/b/c if any)
-- **The matching model answer** with all working steps
+1. Drop screenshots into `_lq_input/p<N>/`.
+2. Open a fresh chat in the project root.
+3. Say:
+   > Follow `docs/lq_seed_workflow.md` **mode B**. Extract all LQs from
+   > `_lq_input/p5/`.
+4. Claude reads each image as one LQ (no filtering).
+5. Claude writes ONE SQL file batching all images from that folder.
+6. Claude reports back: same as mode A.
 
-If your past paper has the question paper and answer key on separate
-pages, screenshot them together (or stack two screenshots into one
-image). Without the model answer, Claude can't write `model_answer` —
-it will skip the question with a note.
+### After either mode
+
+User reviews the SQL file, then applies it in Supabase SQL Editor.
+
+## What each input must contain
+
+**Mode A (PDF)**: question paper **and** matching answer key, in the
+same file or in adjacent files in the same folder. If the question
+paper has no answer key, Claude can't determine `model_answer` and will
+stop with a note.
+
+**Mode B (screenshot)**: each image must show **the question text** AND
+**the matching model answer with all working steps**. If a screenshot
+only has the question without the answer (or vice versa), Claude will
+skip it and note the missing piece.
 
 ---
 
