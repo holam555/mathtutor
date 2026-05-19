@@ -57,7 +57,7 @@ export default async function ExamScopeUploadPage() {
             <li>• <strong>多項選擇題</strong> + <strong>短答題</strong>：在 App 內作答，系統自動評分</li>
             <li>• <strong>長答題</strong>：以 PDF 提供，可列印或在 iPad 書寫</li>
             <li>• 全卷限時 <strong>50 分鐘</strong>，做完 App 部分計時暫停</li>
-            <li>• 完成後家長拍照上載長答題答卷由老師批改</li>
+            <li>• 完成後自行對卷，上傳答案照片供老師跟進</li>
           </ul>
         </div>
       </div>

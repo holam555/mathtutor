@@ -168,7 +168,7 @@ export default async function ParentChildReport({
                 <li>• <strong>多項選擇題</strong> + <strong>短答題</strong>：學生在 App 內直接作答，系統自動評分</li>
                 <li>• <strong>長答題</strong>：以 PDF 形式提供，可列印或在 iPad 上書寫</li>
                 <li>• 全卷限時 <strong>50 分鐘</strong>，做完選擇題 + 短答題後計時自動暫停</li>
-                <li>• 完成後家長拍照上載長答題答卷，AI 自動辨識手寫答案交給老師批改</li>
+                <li>• 完成後自行對卷，上傳答案照片供老師跟進</li>
               </ul>
             </div>
 

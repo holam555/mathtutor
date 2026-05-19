@@ -103,31 +103,51 @@ export default function ExamScopePickerForm({
           </ul>
         </div>
 
-        {/* What happens next */}
+        {/* What happens next — visual + concise */}
         <div className="bg-[#F7FBF9] border border-[#1D9E75]/20 rounded-2xl p-5">
           <p className="text-sm font-semibold text-[#1D9E75] mb-3">📝 接下來會點？</p>
-          <ol className="text-xs text-gray-700 space-y-2 leading-relaxed list-none">
-            <li>
-              <strong className="text-gray-800">1.</strong> {selectedChild?.name ?? '學生'} 嘅主頁
-              會出現「模擬考試試卷」卡片。
-            </li>
-            <li>
-              <strong className="text-gray-800">2.</strong> 點入去後可以先下載
-              <strong> 長答題 PDF</strong>，列印或喺 iPad 上書寫。
-            </li>
-            <li>
-              <strong className="text-gray-800">3.</strong> 按「開始作答」即開始 <strong>50 分鐘</strong>
-              計時，喺 App 內做 <strong>多項選擇題</strong> 同 <strong>短答題</strong>。
-            </li>
-            <li>
-              <strong className="text-gray-800">4.</strong> 做完 App 部分會見到 AI 評語，
-              然後按「繼續計時」開始做長答題。
-            </li>
-            <li>
-              <strong className="text-gray-800">5.</strong> 完成後請喺家長中心拍照上載
-              <strong> 長答題答卷</strong>，AI 會自動辨識手寫內容交畀老師批改。
-            </li>
-          </ol>
+
+          {/* Mockup of the student card so parents recognize it */}
+          <div className="bg-gradient-to-br from-[#EF9F27] to-[#F8B84E] rounded-xl p-3 shadow-sm mb-1.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-white">📝 模擬考試試卷</p>
+                <p className="text-[10px] text-white/85 mt-0.5">40 題 · 50 分鐘</p>
+              </div>
+              <span className="text-white/80 text-xs">→</span>
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-500 text-center mb-4">
+            ↑ {selectedChild?.name ?? '學生'} 主頁會見到呢個卡片
+          </p>
+
+          {/* 4 concise steps */}
+          <div className="space-y-2.5">
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0 leading-none w-6 text-center">📱</span>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                學生點入卡片，下載 <strong>長答題 PDF</strong>
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0 leading-none w-6 text-center">⏱️</span>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                按「開始作答」計時 <strong>50 分鐘</strong>，App 內做完即可寫長答題
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0 leading-none w-6 text-center">✍️</span>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                完成全卷後自行對卷
+              </p>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-xl shrink-0 leading-none w-6 text-center">📷</span>
+              <p className="text-xs text-gray-700 leading-relaxed">
+                家長拍照上載長答題答卷，供老師跟進
+              </p>
+            </div>
+          </div>
         </div>
 
         <button
