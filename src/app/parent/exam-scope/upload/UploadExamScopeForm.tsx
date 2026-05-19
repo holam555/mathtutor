@@ -169,6 +169,23 @@ export default function ExamScopePickerForm({
   // ── Picker form ──────────────────────────────────────────────────────────
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Intro (only on picker stage; the success screen replaces this view) */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm">
+        <p className="text-sm text-gray-700 leading-6 mb-3">
+          請選擇子女本次考試涵蓋的數學單元。設定後，學生主頁將出現
+          <span className="font-semibold text-[#1D9E75]">「模擬考試試卷」</span>。
+        </p>
+        <div className="bg-[#F7FBF9] border border-[#1D9E75]/15 rounded-xl px-3 py-2.5">
+          <p className="text-xs font-semibold text-[#1D9E75] mb-1.5">📝 一份完整模擬考試包含</p>
+          <ul className="text-xs text-gray-600 space-y-1 leading-relaxed">
+            <li>• <strong>多項選擇題</strong> + <strong>短答題</strong>：在 App 內作答，系統自動評分</li>
+            <li>• <strong>長答題</strong>：以 PDF 提供，可列印或在 iPad 書寫</li>
+            <li>• 全卷限時 <strong>50 分鐘</strong>，做完 App 部分計時暫停</li>
+            <li>• 完成後自行對卷，上傳答案照片供老師跟進</li>
+          </ul>
+        </div>
+      </div>
+
       {/* Child selector */}
       <div className="bg-white rounded-2xl p-4 shadow-sm">
         <p className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-wide">選擇子女</p>
