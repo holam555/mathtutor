@@ -101,7 +101,7 @@ export default async function MockExamStartPage({
             target="_blank"
             className="flex-1 text-center py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition"
           >
-            答案紙
+            答案
           </Link>
         </div>
       </div>

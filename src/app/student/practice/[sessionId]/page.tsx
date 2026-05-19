@@ -1,6 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import PracticeFlow from './PracticeFlow'
+import MockExamTimer from '@/components/MockExamTimer'
 import type { Question } from '@/types/database'
 
 const isNumericAnswer = (s: string | null | undefined) =>
@@ -103,5 +104,33 @@ export default async function PracticePage({
 
   if (!questions.length) notFound()
 
-  return <PracticeFlow sessionId={params.sessionId} questions={questions} />
+  // If this session is the MC+SQ phase of a 模擬考試, render the floating
+  // countdown timer using the paper's authoritative timer state.
+  let timerEl: React.ReactNode = null
+  if (session.session_type === 'mock_exam') {
+    const { data: paper } = await service
+      .from('mock_exam_papers')
+      .select('timer_started_at, timer_paused_at, timer_elapsed_seconds, timer_status')
+      .eq('mc_sq_session_id', params.sessionId)
+      .maybeSingle()
+    if (paper) {
+      timerEl = (
+        <MockExamTimer
+          initial={{
+            timer_started_at: paper.timer_started_at,
+            timer_paused_at: paper.timer_paused_at,
+            timer_elapsed_seconds: paper.timer_elapsed_seconds ?? 0,
+            timer_status: paper.timer_status,
+          }}
+        />
+      )
+    }
+  }
+
+  return (
+    <>
+      {timerEl}
+      <PracticeFlow sessionId={params.sessionId} questions={questions} />
+    </>
+  )
 }

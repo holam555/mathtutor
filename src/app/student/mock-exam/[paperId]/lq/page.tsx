@@ -103,7 +103,11 @@ export default async function LqPaperPage({
               font-family: 'Noto Sans TC', '微軟正黑體', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
               color: #111;
             }
+            body { padding-bottom: 80px; }
             .lq-doc { max-width: 720px; margin: 0 auto; padding: 24px; line-height: 1.7; }
+            .lq-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+            .lq-brand img { height: 32px; width: auto; }
+            .lq-brand-text { font-size: 12px; color: #666; }
             .lq-header { border-bottom: 2px solid #111; padding-bottom: 10px; margin-bottom: 18px; }
             .lq-title { font-size: 22px; font-weight: 700; }
             .lq-meta { display: flex; justify-content: space-between; flex-wrap: wrap; font-size: 13px; color: #444; margin-top: 6px; }
@@ -116,10 +120,24 @@ export default async function LqPaperPage({
             .lq-img { max-width: 320px; margin: 6px 0; border: 1px solid #ddd; }
             .lq-ans-box { border: 1px dashed #aaa; min-height: 120px; margin-top: 8px; padding: 8px; font-size: 12px; color: #aaa; }
             .lq-model-ans { margin-top: 8px; padding: 10px 12px; background: #fff7e6; border-left: 3px solid #EF9F27; white-space: pre-wrap; font-size: 13px; }
-            .lq-print-btn { position: fixed; top: 12px; right: 12px; padding: 8px 14px; background: #4A90E2; color: white; border-radius: 8px; font-size: 13px; cursor: pointer; border: 0; }
+            /* Mobile-friendly bottom-fixed print bar */
+            .lq-print-bar {
+              position: fixed; left: 0; right: 0; bottom: 0;
+              background: white; border-top: 1px solid #e5e5e5;
+              padding: 10px 16px env(safe-area-inset-bottom);
+              box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+              z-index: 50;
+            }
+            .lq-print-btn {
+              display: block; width: 100%; max-width: 480px; margin: 0 auto;
+              padding: 14px 18px; background: #4A90E2; color: white;
+              border-radius: 14px; font-size: 16px; font-weight: 600;
+              cursor: pointer; border: 0; box-shadow: 0 2px 6px rgba(74,144,226,0.25);
+            }
+            .lq-print-btn:active { transform: scale(0.98); }
             @media print {
-              .lq-print-btn { display: none; }
-              body { background: white; }
+              .lq-print-bar { display: none; }
+              body { background: white; padding-bottom: 0; }
               .lq-doc { padding: 12px; }
               .lq-q { page-break-inside: avoid; }
               @page { size: A4; margin: 14mm; }
@@ -127,12 +145,19 @@ export default async function LqPaperPage({
           `,
         }}
       />
-      <button className="lq-print-btn" id="lq-print-btn" type="button">
-        🖨 列印
-      </button>
+      <div className="lq-print-bar">
+        <button className="lq-print-btn" id="lq-print-btn" type="button">
+          🖨 列印 / 儲存成 PDF
+        </button>
+      </div>
       <PrintButtonScript />
 
       <div className="lq-doc">
+        <div className="lq-brand">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-small.png" alt="補習社" />
+          <span className="lq-brand-text">數學補習練習平台</span>
+        </div>
         <div className="lq-header">
           <div className="lq-title">
             模擬考試試卷 · 長答題部分{view === 'answer' ? '（答案）' : ''}
