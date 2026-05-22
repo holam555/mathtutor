@@ -5,37 +5,69 @@ Hand this doc to a fresh Claude Code session and say "follow this guide".
 
 ## Where input files live
 
-Screenshots of past-paper pages live in **grade-specific local folders**
-that are gitignored — content never gets pushed to GitHub:
+Two parallel folders per grade — both gitignored, content stays local:
 
 ```
-_lq_input/p3/
+_lq_input/p3/          ← LQ screenshots (Q + answer text)
+_lq_input/p3/images/   ← Diagrams that belong to specific LQs
+
 _lq_input/p4/
+_lq_input/p4/images/
+
 _lq_input/p5/
+_lq_input/p5/images/
+
 _lq_input/p6/
+_lq_input/p6/images/
 ```
 
-## What each screenshot contains
+### Folder 1: `_lq_input/p<N>/` — LQ Q+A screenshots
 
-The user has **already filtered** to LQs only before screenshotting.
-A typical screenshot is a **photo of one page** that shows **several
-LQs at once** — multiple questions plus their matching answer-key
-working — taken because all the LQs on that page belong in the bank.
+What goes here: photos / screenshots of past-paper pages showing **the
+question text AND the matching model answer** (one screenshot may
+contain several LQs from the same page). The user has already filtered
+to LQs only before screenshotting.
 
-So:
+Behaviour:
 
 - ✅ Expect **multiple LQs per image** — extract every Q/A pair visible
-- ✅ Question text and model answer may appear in the same image, or
-  the user may stack two images (question on top, answers below)
-- ✅ Questions are usually numbered (Q41, Q42, etc.) — preserve that
-  numbering as `source_question`
-- ❌ Do **not** try to filter LQs — the user already did. If something
-  with a brief one-line answer slipped in, still capture it
-- ❌ Do **not** read full PDFs — only the screenshots in the folder
+- ✅ Match question to answer by question number if they're in separate
+  images
+- ✅ Preserve original question numbering (Q41, Q42…) as `source_question`
+- ❌ Do **not** filter — the user already filtered. Capture everything
+- ❌ Do **not** read PDFs or anything outside this folder
 
-## Filename convention (optional)
+### Folder 2: `_lq_input/p<N>/images/` — diagram images per LQ
 
-If filenames hint at the source paper, use them. Common shapes:
+What goes here: separate diagram / chart / figure images, **one per LQ
+that needs one**. Naming convention is required so Claude can match
+the image to the question row:
+
+```
+<source_paper>_Q<num>.<ext>
+```
+
+Examples:
+
+```
+_lq_input/p5/images/p5_s1_paper1_Q42.png
+_lq_input/p5/images/p5_s1_paper1_Q43.png
+_lq_input/p6/images/p6_s2_paper2_Q05.png
+```
+
+Rules for matching:
+
+- The image filename `<source_paper>_Q<num>` must match the `source_paper`
+  + `source_question` of the corresponding LQ row in folder 1
+- If a question has no image in `images/`, leave `image_url` NULL
+- If the user drops an image in `images/` but Claude can't find a matching
+  LQ in folder 1, log a warning and skip it
+
+Claude **does not invent** image references. If `_lq_input/p5/` has a
+Q42 but `_lq_input/p5/images/` has no `*_Q42.<ext>` file → `image_url`
+stays NULL. The user adds the image later if needed.
+
+## Filename convention for screenshots in Folder 1 (optional)
 
 ```
 _lq_input/p5/p5_s1_paper1_p3.png        ← page 3 of paper 1, S1
@@ -222,27 +254,51 @@ For each row, mentally check:
 
 ## Workflow for a fresh Claude Code session
 
-1. User drops screenshots into `_lq_input/p<N>/`.
-2. User opens a fresh chat in the project root.
-3. User says:
+1. User drops Q+A screenshots into `_lq_input/p<N>/`.
+2. (Optional) User drops matching diagram images into
+   `_lq_input/p<N>/images/`, named `<source_paper>_Q<num>.<ext>`.
+3. User opens a fresh chat in the project root.
+4. User says:
    > Follow `docs/lq_seed_workflow.md`. Extract all LQs from
    > `_lq_input/p5/`.
-4. **Claude reads ONLY the image files in that folder** via the `Read`
-   tool (handles PNG / JPG / HEIC). **Do NOT read any PDF**, even if
-   one happens to be in the folder.
-5. For each image, Claude identifies **every Q/A pair visible** (a
-   single image typically holds several LQs from the same page).
-6. Claude writes ONE SQL file batching everything from that folder, at
+5. Claude reads only the image files in the folder (top-level), not
+   PDFs and not the `images/` subfolder yet.
+6. For each top-level image, Claude identifies **every Q/A pair visible**
+   and notes the `source_paper` + `source_question` for each.
+7. Claude lists the files in `_lq_input/p<N>/images/` and matches each
+   `<source_paper>_Q<num>.<ext>` to the corresponding LQ. For each
+   matched LQ, the `image_url` will reference that local path until
+   the user uploads it to Supabase Storage (see below).
+8. Claude writes ONE SQL file at
    `supabase/seed_p<grade>_lq_<batch_name>.sql` where `batch_name` is
-   derived from the filenames (e.g. `s1_paper1` if all files start
-   with `p5_s1_paper1_*`).
-7. Claude reports back:
+   derived from the filenames.
+9. Claude reports back:
    - Count of LQs extracted, with `source_paper` + `source_question`
      per row
    - Topic distribution across the batch
-   - Any Q/A pair skipped + why (figure missing, answer not visible,
-     etc.)
-8. User reviews the SQL, applies in Supabase SQL Editor.
+   - Which LQs have a matching image in `images/` (✓) and which don't
+   - Any orphan images in `images/` that didn't match any LQ
+   - Any Q/A pair skipped + why
+10. User reviews the SQL, applies in Supabase SQL Editor.
+
+## How `image_url` gets populated
+
+The SQL leaves a placeholder `image_url` value: a string like
+`local:_lq_input/p5/images/p5_s1_paper1_Q42.png`. This is **not a
+valid Supabase Storage path** — it tells the user "this LQ needs an
+image, here's the local file to upload."
+
+After applying the seed, the user:
+
+1. Uploads each `images/*.<ext>` file to Supabase Storage bucket
+   `past-papers` under `long-question-images/`
+2. Runs an UPDATE to replace `local:…` paths with the storage path
+   (e.g. `long-question-images/p5_s1_paper1_Q42.png`)
+
+Or: the user uploads via the `/admin/long-questions/[id]` edit page,
+which already supports image upload — the form replaces `image_url`
+with the real storage path on save. Claude will note both options in
+the report.
 
 ## What each batch of screenshots must contain
 
