@@ -39,33 +39,50 @@ Behaviour:
 
 ### Folder 2: `_lq_input/p<N>/images/` — diagram images per LQ
 
-What goes here: separate diagram / chart / figure images, **one per LQ
-that needs one**. Naming convention is required so Claude can match
-the image to the question row:
+Drop any diagram / chart / figure images here, **one per LQ that needs
+one**. Filenames don't matter — Claude matches by content.
+
+#### Matching strategy (tried in order)
+
+**1. Filename hint** (fastest, used if filename contains `Q<num>`):
 
 ```
-<source_paper>_Q<num>.<ext>
+_lq_input/p5/images/anything_Q42.png      → matches LQ with source_question='Q42'
+_lq_input/p5/images/p5_paper1_Q07.jpg     → matches Q07 from paper p5_paper1
 ```
 
-Examples:
+If filename has `_Q<number>` anywhere in it, that wins. Source-paper
+prefix is optional — `_Q<num>` alone is enough if there's no ambiguity
+within the batch.
 
-```
-_lq_input/p5/images/p5_s1_paper1_Q42.png
-_lq_input/p5/images/p5_s1_paper1_Q43.png
-_lq_input/p6/images/p6_s2_paper2_Q05.png
-```
+**2. Semantic content match** (when no Q-number in filename):
 
-Rules for matching:
+Claude reads each image and finds the LQ whose question text it best
+matches:
 
-- The image filename `<source_paper>_Q<num>` must match the `source_paper`
-  + `source_question` of the corresponding LQ row in folder 1
-- If a question has no image in `images/`, leave `image_url` NULL
-- If the user drops an image in `images/` but Claude can't find a matching
-  LQ in folder 1, log a warning and skip it
+| Image content | Matched against question text |
+|---|---|
+| Chart titled "進昇大廈過去六天膠瓶的回收數量" | LQ that mentions "膠瓶" / "回收" |
+| Number cards "22, 33, 44, ?" | LQ that mentions "數卡" / "平均數" + those numbers |
+| Square + rectangle labeled 9.5 米, 15.3 米 | LQ with those dimensions in text |
+| Line chart "某藝術館過去五天兩個場館的入場人數" | LQ mentioning "藝術館" / "場館" |
 
-Claude **does not invent** image references. If `_lq_input/p5/` has a
-Q42 but `_lq_input/p5/images/` has no `*_Q42.<ext>` file → `image_url`
-stays NULL. The user adds the image later if needed.
+Claude reports each match with confidence:
+
+- **HIGH** — image text appears verbatim in the question
+- **MEDIUM** — shared keywords / numbers
+- **LOW** — only structural (it's a chart, but no clear text overlap)
+
+LOW-confidence matches are reported separately for the user to confirm.
+
+#### Rules
+
+- Each image is matched to **at most one** LQ
+- If two images could match the same LQ, the one with HIGHER confidence
+  wins; the other is reported as orphan
+- LQs without a matching image have `image_url` left NULL — Claude does
+  not invent
+- Orphan images (no matching LQ at all) are listed in the report
 
 ## Filename convention for screenshots in Folder 1 (optional)
 
@@ -254,9 +271,9 @@ For each row, mentally check:
 
 ## Workflow for a fresh Claude Code session
 
-1. User drops Q+A screenshots into `_lq_input/p<N>/`.
-2. (Optional) User drops matching diagram images into
-   `_lq_input/p<N>/images/`, named `<source_paper>_Q<num>.<ext>`.
+1. User drops Q+A screenshots into `_lq_input/p<N>/` (any names).
+2. (Optional) User drops diagram images into `_lq_input/p<N>/images/`
+   (any names — filename `Q<num>` hint helps but isn't required).
 3. User opens a fresh chat in the project root.
 4. User says:
    > Follow `docs/lq_seed_workflow.md`. Extract all LQs from
@@ -265,10 +282,12 @@ For each row, mentally check:
    PDFs and not the `images/` subfolder yet.
 6. For each top-level image, Claude identifies **every Q/A pair visible**
    and notes the `source_paper` + `source_question` for each.
-7. Claude lists the files in `_lq_input/p<N>/images/` and matches each
-   `<source_paper>_Q<num>.<ext>` to the corresponding LQ. For each
-   matched LQ, the `image_url` will reference that local path until
-   the user uploads it to Supabase Storage (see below).
+7. Claude then opens each file in `_lq_input/p<N>/images/`, reads its
+   content, and matches it to the extracted LQs:
+   - First by **filename Q-number hint** if present
+   - Otherwise by **semantic content** (chart title, dimensions,
+     keywords visible in the image vs. the LQ question text)
+   - Each match gets a confidence label (HIGH / MEDIUM / LOW)
 8. Claude writes ONE SQL file at
    `supabase/seed_p<grade>_lq_<batch_name>.sql` where `batch_name` is
    derived from the filenames.
@@ -276,10 +295,12 @@ For each row, mentally check:
    - Count of LQs extracted, with `source_paper` + `source_question`
      per row
    - Topic distribution across the batch
-   - Which LQs have a matching image in `images/` (✓) and which don't
-   - Any orphan images in `images/` that didn't match any LQ
+   - **Image matches** with confidence: ✓ HIGH / ⚠ MEDIUM / ❓ LOW
+   - Any orphan images that didn't match any LQ
+   - Any LQ without a matched image
    - Any Q/A pair skipped + why
-10. User reviews the SQL, applies in Supabase SQL Editor.
+10. User reviews — paying attention to MEDIUM/LOW matches and orphans.
+    Apply the SQL in Supabase SQL Editor.
 
 ## How `image_url` gets populated
 
