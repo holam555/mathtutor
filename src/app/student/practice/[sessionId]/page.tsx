@@ -127,10 +127,16 @@ export default async function PracticePage({
     }
   }
 
+  // Mock-paper sessions hide instant correct/wrong feedback — students see
+  // only "已記錄，繼續下一題", matching the 學前評估 (assessment) experience.
+  // Regular practice keeps the immediate green/orange Duolingo-style feedback.
+  const mode: 'practice' | 'mock_exam' =
+    session.session_type === 'mock_exam' ? 'mock_exam' : 'practice'
+
   return (
     <>
       {timerEl}
-      <PracticeFlow sessionId={params.sessionId} questions={questions} />
+      <PracticeFlow sessionId={params.sessionId} questions={questions} mode={mode} />
     </>
   )
 }

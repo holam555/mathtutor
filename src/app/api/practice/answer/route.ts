@@ -140,6 +140,13 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  // Mock-exam sessions must not leak correctness back to the client — the
+  // UI hides instant feedback and DevTools shouldn't reveal it either. The
+  // student still sees their final score on the dedicated results page
+  // after the paper completes.
+  if (sessionRow.session_type === 'mock_exam') {
+    return NextResponse.json({ recorded: true })
+  }
   return NextResponse.json({ correct, correct_answer: correctAnswer })
 }
 

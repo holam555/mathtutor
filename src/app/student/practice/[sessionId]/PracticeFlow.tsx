@@ -6,7 +6,12 @@ import type { Question } from '@/types/database'
 import { QuestionContent } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 
-type FeedbackState = 'idle' | 'correct' | 'wrong'
+// Practice mode shows immediate green/orange feedback after each answer
+// (the Duolingo-style loop). Mock-exam mode hides correct/wrong entirely
+// — students get a neutral "已記錄" beat and the question advances, just
+// like the 學前評估 (prelesson assessment) flow. Both modes still POST the
+// answer to the server, so analytics + the results page are identical.
+type FeedbackState = 'idle' | 'correct' | 'wrong' | 'recorded'
 
 // Server-augmented question: numeric_answer flag tells us whether the
 // fill_in question expects a number/fraction (custom keyboard) without
@@ -16,10 +21,13 @@ type SessionQuestion = Question & { numeric_answer?: boolean }
 export default function PracticeFlow({
   sessionId,
   questions,
+  mode = 'practice',
 }: {
   sessionId: string
   questions: SessionQuestion[]
+  mode?: 'practice' | 'mock_exam'
 }) {
+  const instantFeedback = mode === 'practice'
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
@@ -64,10 +72,13 @@ export default function PracticeFlow({
     [currentIndex, questions.length, sessionId, router]
   )
 
-  // Auto-advance after 1.5s feedback
+  // Auto-advance after feedback. In practice mode the student needs a beat
+  // to see green/orange; in mock-exam mode there's nothing to look at so we
+  // advance almost immediately (300ms keeps the UI from flickering).
   useEffect(() => {
     if (feedback === 'idle') return
-    const timer = setTimeout(() => advanceOrFinish(), 1500)
+    const delay = feedback === 'recorded' ? 300 : 1500
+    const timer = setTimeout(() => advanceOrFinish(), delay)
     return () => clearTimeout(timer)
   }, [feedback, advanceOrFinish])
 
@@ -100,14 +111,23 @@ export default function PracticeFlow({
         }),
       })
       const data: { correct?: boolean; correct_answer?: string } = await res.json().catch(() => ({}))
-      const correct = !!data.correct
-      setRevealedAnswer(data.correct_answer ?? '')
-      setFeedback(correct ? 'correct' : 'wrong')
+      if (instantFeedback) {
+        const correct = !!data.correct
+        setRevealedAnswer(data.correct_answer ?? '')
+        setFeedback(correct ? 'correct' : 'wrong')
+      } else {
+        // Mock-exam mode: never reveal correct/wrong. The answer is still
+        // recorded server-side; the student only sees a neutral "recorded"
+        // state before the next question loads.
+        setRevealedAnswer('')
+        setFeedback('recorded')
+      }
     } catch {
-      // Network failure: fall back to a neutral "wrong" feedback so the
-      // student can still progress; nothing is recorded if the request died.
+      // Network failure: in practice mode fall back to "wrong" so the
+      // student can still progress; in mock-exam mode use the same neutral
+      // "recorded" beat (we don't punish them for our network blip).
       setRevealedAnswer('')
-      setFeedback('wrong')
+      setFeedback(instantFeedback ? 'wrong' : 'recorded')
     } finally {
       setIsSubmitting(false)
     }
@@ -124,6 +144,14 @@ export default function PracticeFlow({
       'w-full h-14 rounded-xl text-left px-4 text-base font-medium transition-all active:scale-[0.98] border-2'
     if (feedback === 'idle') {
       return `${base} bg-white border-[#1D9E75] text-gray-800 hover:bg-[#1D9E75]/5`
+    }
+    if (feedback === 'recorded') {
+      // Mock-exam mode: highlight only the student's selection in a neutral
+      // colour. Don't reveal correctness.
+      if (option === selectedOption) {
+        return `${base} bg-gray-100 border-gray-400 text-gray-800`
+      }
+      return `${base} bg-white border-gray-200 text-gray-400`
     }
     // Use the server-revealed correct answer (post-submit) — the question
     // payload itself never carries it.
@@ -189,7 +217,9 @@ export default function PracticeFlow({
                 ? 'bg-[#1D9E75] border-[#1D9E75] text-white placeholder:text-white/60'
                 : feedback === 'wrong'
                   ? 'bg-[#EF9F27] border-[#EF9F27] text-white placeholder:text-white/60'
-                  : 'bg-white border-[#1D9E75] text-gray-800 placeholder:text-gray-300'
+                  : feedback === 'recorded'
+                    ? 'bg-gray-100 border-gray-400 text-gray-800 placeholder:text-gray-400'
+                    : 'bg-white border-[#1D9E75] text-gray-800 placeholder:text-gray-300'
             }`}
           />
         )}
@@ -243,8 +273,10 @@ export default function PracticeFlow({
         )}
       </div>
 
-      {/* Feedback bar */}
-      {feedback !== 'idle' && (
+      {/* Feedback bar — practice mode only. Mock-exam shows a minimal,
+          colour-neutral "已記錄" line instead so students don't learn the
+          answer before the paper is graded. */}
+      {(feedback === 'correct' || feedback === 'wrong') && (
         <div
           className={`fixed bottom-0 left-0 right-0 px-6 py-4 text-white ${
             feedback === 'correct' ? 'bg-[#1D9E75]' : 'bg-[#EF9F27]'
@@ -266,6 +298,11 @@ export default function PracticeFlow({
               <p className="text-xs text-white/70 mt-0.5">已加入挑戰題，下次再戰！</p>
             </div>
           )}
+        </div>
+      )}
+      {feedback === 'recorded' && (
+        <div className="fixed bottom-0 left-0 right-0 px-6 py-3 bg-gray-100 border-t border-gray-200 text-center">
+          <span className="text-sm font-medium text-gray-600">已記錄，繼續下一題…</span>
         </div>
       )}
     </div>
