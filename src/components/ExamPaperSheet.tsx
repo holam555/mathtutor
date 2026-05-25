@@ -1,5 +1,6 @@
 import PrintButton from '@/components/PrintButton'
 import type { ExamPaperData } from '@/lib/examPaper'
+import { MARKS, formatMarks, marksForQuestionType } from '@/lib/mockExamMarks'
 
 const TIER_LABEL: Record<string, string> = {
   basic: '易',
@@ -19,6 +20,14 @@ export default function ExamPaperSheet({
   const mcqStart = 1
   const fillStart = mcqs.length + 1
   const totalQ = paper.questions.length
+  // Sum per-question marks against the canonical schedule (MC=1.5, SQ=2)
+  // instead of the legacy `totalQ * 2` which double-counted MC questions.
+  const totalMarks = paper.questions.reduce(
+    (sum, q) => sum + marksForQuestionType(q.question_type),
+    0
+  )
+  const mcqMarks = mcqs.length * MARKS.mc
+  const fillMarks = fills.length * MARKS.sq
 
   return (
     <>
@@ -62,14 +71,14 @@ export default function ExamPaperSheet({
           <span>姓名：{studentName ? <span className="font-semibold">{studentName}</span> : <span className="inline-block w-28 border-b border-gray-500">&nbsp;</span>}</span>
           <span>班別：<span className="inline-block w-20 border-b border-gray-500">&nbsp;</span></span>
           <span>日期：<span className="inline-block w-24 border-b border-gray-500">&nbsp;</span></span>
-          <span className="ml-auto">滿分：{totalQ * 2} 分</span>
+          <span className="ml-auto">滿分：{formatMarks(totalMarks)} 分</span>
         </div>
 
         {/* ── Section A: Multiple Choice ── */}
         {mcqs.length > 0 && (
           <section className="mb-8">
             <h2 className="text-base font-bold mb-4 border-l-4 border-gray-800 pl-3">
-              甲部　選擇題（每題 2 分，共 {mcqs.length * 2} 分）
+              甲部　選擇題（每題 {formatMarks(MARKS.mc)} 分，共 {formatMarks(mcqMarks)} 分）
             </h2>
             <p className="text-xs text-gray-500 mb-4 italic">在每題右邊的方格內填入正確答案的英文字母。</p>
             <div className="space-y-5">
@@ -102,7 +111,7 @@ export default function ExamPaperSheet({
         {fills.length > 0 && (
           <section className="mb-8" style={{ breakBefore: mcqs.length > 8 ? 'page' : 'auto' }}>
             <h2 className="text-base font-bold mb-4 border-l-4 border-gray-800 pl-3">
-              乙部　填充題（每題 2 分，共 {fills.length * 2} 分）
+              乙部　填充題（每題 {formatMarks(MARKS.sq)} 分，共 {formatMarks(fillMarks)} 分）
             </h2>
             <div className="space-y-5">
               {fills.map((q, idx) => (

@@ -7,6 +7,12 @@
 // soft target. If a difficulty tier is exhausted, we fill from whatever
 // is available. If a section pool is too small, we fall back to filling
 // from other sections (only within MC/SQ — LQ is separate).
+//
+// Sub-question grouping: assessment_questions rows that share a non-null
+// `group_id` belong to the same parent prompt (e.g. Q5(a), Q5(b), Q5(c)).
+// We must pull a whole group atomically — otherwise students see "(b)"
+// without the shared setup/figure from "(a)". Group siblings are sorted
+// by `sub_order` so they render in the right order.
 
 import type { DifficultyTier } from '@/types/assessment'
 
@@ -54,6 +60,32 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+// Bundle rows into groups. Each row with NULL group_id becomes its own
+// singleton group; rows sharing a group_id are bundled and sorted by
+// sub_order. The bundle's tier is the tier of its first member.
+function bundleGroups(pool: AssessmentQuestionRow[]): AssessmentQuestionRow[][] {
+  const groups = new Map<string, AssessmentQuestionRow[]>()
+  const singletons: AssessmentQuestionRow[][] = []
+  for (const row of pool) {
+    if (!row.group_id) {
+      singletons.push([row])
+      continue
+    }
+    const list = groups.get(row.group_id) ?? []
+    list.push(row)
+    groups.set(row.group_id, list)
+  }
+  const bundled: AssessmentQuestionRow[][] = []
+  groups.forEach((list) => {
+    list.sort(
+      (a: AssessmentQuestionRow, b: AssessmentQuestionRow) =>
+        (a.sub_order ?? 0) - (b.sub_order ?? 0)
+    )
+    bundled.push(list)
+  })
+  return [...singletons, ...bundled]
+}
+
 function pickByTier<T extends { difficulty_tier: DifficultyTier }>(
   pool: T[],
   targetCount: number,
@@ -82,6 +114,57 @@ function pickByTier<T extends { difficulty_tier: DifficultyTier }>(
   return picked.slice(0, targetCount)
 }
 
+// Like pickByTier, but each element is a *group* (array of sibling rows
+// sharing a group_id, or a singleton). Groups are picked atomically; the
+// returned row count may overshoot `targetCount` by the size of the last
+// group, since splitting a group would orphan sub-parts. Caller can trim
+// if strict count is needed.
+function pickGroupsByTier(
+  groups: AssessmentQuestionRow[][],
+  targetCount: number,
+  perTier: Record<DifficultyTier, number>
+): AssessmentQuestionRow[] {
+  // Tier of a group = tier of its first member (groups should be tier-homogeneous).
+  const tierOf = (g: AssessmentQuestionRow[]): DifficultyTier =>
+    g[0]?.difficulty_tier ?? 'enhancement'
+
+  const byTier: Record<DifficultyTier, AssessmentQuestionRow[][]> = {
+    basic: shuffle(groups.filter((g) => tierOf(g) === 'basic')),
+    enhancement: shuffle(groups.filter((g) => tierOf(g) === 'enhancement')),
+    advanced: shuffle(groups.filter((g) => tierOf(g) === 'advanced')),
+  }
+
+  const picked: AssessmentQuestionRow[] = []
+  const pickedGroupIds = new Set<string | null>()
+  const tiers: DifficultyTier[] = ['basic', 'enhancement', 'advanced']
+
+  const takeGroup = (g: AssessmentQuestionRow[]) => {
+    picked.push(...g)
+    pickedGroupIds.add(g[0]?.group_id ?? `_solo:${g[0]?.id}`)
+  }
+
+  for (const t of tiers) {
+    // Take groups whole; stop when row-quota for the tier would be exceeded
+    // by adding the next group (but always allow at least one if quota empty).
+    while (byTier[t].length && picked.filter((r) => r.difficulty_tier === t).length < perTier[t]) {
+      const g = byTier[t].shift()
+      if (!g) break
+      takeGroup(g)
+    }
+  }
+
+  // Top up if still under targetCount, ignoring tier
+  if (picked.length < targetCount) {
+    const leftover = shuffle(tiers.flatMap((t) => byTier[t]))
+    for (const g of leftover) {
+      if (picked.length >= targetCount) break
+      takeGroup(g)
+    }
+  }
+
+  return picked
+}
+
 export function selectMockExamQuestions(
   mcSqPool: AssessmentQuestionRow[],
   lqPool: LongQuestionRow[]
@@ -91,38 +174,63 @@ export function selectMockExamQuestions(
   lqQuestions: LongQuestionRow[]
   difficultyActual: Record<DifficultyTier, number>
 } {
-  // LQ
+  // LQ — no group_id concept on long_questions
   const lqQuestions = pickByTier(lqPool, PAPER_TARGET.lq, TIER_TARGET_LQ)
 
-  // MC
+  // MC — group-aware (a question may have linked sub-parts even if rendered
+  // as MC; we still pull siblings together)
   const mcPool = mcSqPool.filter((q) => q.question_type === 'multiple_choice')
-  const mcQuestions = pickByTier(mcPool, PAPER_TARGET.mc, TIER_TARGET_MC)
+  const mcGroups = bundleGroups(mcPool)
+  const mcQuestions = pickGroupsByTier(mcGroups, PAPER_TARGET.mc, TIER_TARGET_MC)
 
-  // SQ — fill_in_number is the canonical SQ, but allow fill_in/calculation as fallback
+  // SQ — fill_in_number is canonical; fall back to fill_in / calculation
   const sqPoolStrict = mcSqPool.filter((q) => q.question_type === 'fill_in_number')
   const sqPoolFallback = mcSqPool.filter(
     (q) => q.question_type === 'fill_in' || q.question_type === 'calculation'
   )
-  let sqQuestions = pickByTier(sqPoolStrict, PAPER_TARGET.sq, TIER_TARGET_SQ)
+  const sqGroupsStrict = bundleGroups(sqPoolStrict)
+  let sqQuestions = pickGroupsByTier(sqGroupsStrict, PAPER_TARGET.sq, TIER_TARGET_SQ)
 
   if (sqQuestions.length < PAPER_TARGET.sq) {
     const need = PAPER_TARGET.sq - sqQuestions.length
     const usedIds = new Set(sqQuestions.map((q) => q.id))
-    const extras = shuffle(sqPoolFallback.filter((q) => !usedIds.has(q.id))).slice(0, need)
+    const fallbackGroups = bundleGroups(sqPoolFallback.filter((q) => !usedIds.has(q.id)))
+    const extras = pickGroupsByTier(fallbackGroups, need, TIER_TARGET_SQ)
     sqQuestions = [...sqQuestions, ...extras]
   }
 
-  // If still under 40 total, top up MC+SQ together from the wider pool
-  let total = mcQuestions.length + sqQuestions.length + lqQuestions.length
-  if (total < PAPER_TARGET.total) {
+  // If still under 40 total, top up the SHORT section first, then the other.
+  // Previously only SQ was padded — this corrupted the displayed
+  // "18 MC + 17 SQ" breakdown when MC was thin.
+  const totalSoFar = () => mcQuestions.length + sqQuestions.length + lqQuestions.length
+  if (totalSoFar() < PAPER_TARGET.total) {
     const usedIds = new Set([
       ...mcQuestions.map((q) => q.id),
       ...sqQuestions.map((q) => q.id),
     ])
-    const remainder = shuffle(mcSqPool.filter((q) => !usedIds.has(q.id)))
-    const need = PAPER_TARGET.total - total
-    sqQuestions = [...sqQuestions, ...remainder.slice(0, need)]
-    total = mcQuestions.length + sqQuestions.length + lqQuestions.length
+
+    const mcShort = Math.max(0, PAPER_TARGET.mc - mcQuestions.length)
+    const sqShort = Math.max(0, PAPER_TARGET.sq - sqQuestions.length)
+
+    // Pad MC first if it's short, taking groups whole from the wider pool.
+    if (mcShort > 0) {
+      const remainderMcGroups = bundleGroups(
+        mcSqPool.filter((q) => q.question_type === 'multiple_choice' && !usedIds.has(q.id))
+      )
+      const mcExtras = pickGroupsByTier(remainderMcGroups, mcShort, TIER_TARGET_MC)
+      mcQuestions.push(...mcExtras)
+      for (const q of mcExtras) usedIds.add(q.id)
+    }
+
+    // Then pad SQ.
+    if (sqShort > 0 || totalSoFar() < PAPER_TARGET.total) {
+      const remainderSqGroups = bundleGroups(
+        mcSqPool.filter((q) => q.question_type !== 'multiple_choice' && !usedIds.has(q.id))
+      )
+      const need = Math.max(sqShort, PAPER_TARGET.total - totalSoFar())
+      const sqExtras = pickGroupsByTier(remainderSqGroups, need, TIER_TARGET_SQ)
+      sqQuestions.push(...sqExtras)
+    }
   }
 
   // Compute actual distribution

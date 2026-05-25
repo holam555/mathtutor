@@ -214,6 +214,139 @@ python3 scripts/verify_assessment_answers.py
 | `StudentDetailModal` | modal 彈出 | 獨立頁面 `/admin/students/[id]` | 更多資料需要完整畫布 |
 | 登入頁 | 單一 `/login` | 三個 role-specific 頁面 | 嚴格分離、減少 role 錯亂 |
 
+### Sprint 7（家長指定考試範圍 + 模擬考試試卷 + 長答題 LQ）
+
+**核心理念**：家長預設好即將嘅校內考試範圍（大單元），系統根據範圍生成一份 40 題嘅模擬考試試卷（多項選擇 + 短答 + 長答），學生可以喺手機完成 MC/SQ 部分，列印 LQ 部分由家長協助拍照上載。
+
+#### 1. 新表
+
+```sql
+exam_scopes (
+  id uuid PRIMARY KEY,
+  student_id uuid REFERENCES student_profiles,
+  parent_id uuid REFERENCES auth.users,
+  exam_name text,                   -- e.g. '第一段考'
+  exam_date date,
+  unit_ids uuid[] NOT NULL,         -- FK array to curriculum_units.id
+  notice_image_urls text[],         -- 校方通告/課本目錄影印（可選）
+  toc_image_urls text[],
+  created_at timestamptz
+)
+
+long_questions (
+  id uuid PRIMARY KEY,
+  topic_id uuid REFERENCES curriculum_topics,
+  question_text text NOT NULL,
+  model_answer text NOT NULL,       -- 答案紙原文（verbatim handwriting）
+  difficulty_tier text CHECK (IN ('basic','enhancement','advanced')),
+  image_url text,                   -- Supabase Storage path or 'local:...' placeholder
+  source_paper text,                -- 'p4a_lq_batch', 'p5b_lq_batch', etc.
+  source_question text,             -- 'LQ162', 'Q41', 'U7Q3'
+  notes text,
+  is_active boolean DEFAULT true,
+  created_at timestamptz
+  -- ⚠️ total_marks DROPPED in migration 0021; marking is paper-level
+)
+
+mock_exam_papers (
+  id uuid PRIMARY KEY,
+  student_id uuid REFERENCES student_profiles,
+  exam_scope_id uuid REFERENCES exam_scopes,
+  mc_question_ids uuid[],
+  sq_question_ids uuid[],
+  lq_question_ids uuid[],
+  lq_count int,
+  status text,                      -- 'created' | 'in_progress' | 'lq_pending' | 'completed'
+  timer_started_at timestamptz,
+  timer_paused_at timestamptz,
+  timer_elapsed_seconds int,
+  timer_status text,                -- 'idle' | 'running' | 'paused_for_lq' | 'completed'
+  created_at timestamptz
+)
+```
+
+#### 2. 分數制度（`src/lib/mockExamMarks.ts`）
+
+| 題型 | 每題分數 |
+|------|---------|
+| MC 多項選擇題 | 1.5 |
+| SQ 短答題 | 2 |
+| LQ 長答題 | 6 |
+
+40 題標準試卷 = 18 MC + 17 SQ + 5 LQ = 27 + 34 + 30 = **91 分**。`marksForQuestionType()` / `totalPossibleMarks()` 係 single source of truth — 唔好 hardcode（legacy `ExamPaperSheet.tsx` 已更新使用呢個）。
+
+#### 3. 抽題邏輯（`src/lib/mockExamSelection.ts`）
+
+- **範圍 filter**：用 `exam_scopes.unit_ids` → `curriculum_topics.id[]` → `.in('topic_id', topicIds)` 喺 SQL 層強制過濾。**唔係**淨係 display；range 一定要應用喺抽題。
+- **三層難度分配**：20% 易 / 60% 中 / 20% 難（per section quota in `TIER_TARGET_MC/SQ/LQ`）。
+- **Group atomicity**：`assessment_questions.group_id` 相同嘅 sub-questions（例如 Q5(a), Q5(b), Q5(c)）一齊抽，唔可以分開（否則學生睇唔到共用 setup / 圖）。Singleton rows = group of size 1。
+- **Section top-up**：如果 MC pool 不足，會優先補 MC 而唔係補 SQ（否則顯示「18 MC + 17 SQ」會誤導）。
+- **LQ pool**：唔用 group_id（`long_questions` 無 group_id column）。
+
+#### 4. 路由
+
+```
+家長（role='parent'）：
+  /parent/exam-scope             指定考試範圍（揀大單元、上載通告、輸入考試日期）
+  /parent/exam-scope/upload      API: POST upload exam scope
+                                  - 強制檢查 parent_student_relationships
+                                  - unit_ids 一定要係子女嘅年級
+
+學生（role='student'）：
+  /student/mock-exam/[paperId]/start            開始畫面（顯示題數、分數、預計時間）
+  /student/mock-exam/[paperId]                  MC + SQ 答題（timer running）
+  /student/mock-exam/[paperId]/lq               長答題 PDF（列印用 / iPad view）
+  /student/mock-exam/[paperId]/lq-timer         長答題作答中（timer paused_for_lq）
+  /student/mock-exam/[paperId]/results          結果（含 LQ 由老師批改後 unlock）
+
+API:
+  /api/mock-exam/start            POST 創建 paper（filter by exam_scopes.unit_ids）
+  /api/mock-exam/submit-mcsq      POST 提交 MC + SQ 答案，pause timer 入 LQ 模式
+  /api/mock-exam/finish-lq        POST 完成 LQ，timer 停止，等老師批改
+  /api/parent/exam-scope/upload   POST 家長設定範圍 + 上載通告 / TOC
+
+代幣（前 token）：
+  /parent (整合進首頁)            子女列表 + 上載 past paper + 兌換代幣
+  /parent/upload                  上載 past paper
+  Token → 改名為「代幣」（commit 3cf61a9）
+```
+
+#### 5. Timer 規則
+
+- `timer_status = 'running'`：MC + SQ 答題期間，倒數計時
+- `timer_status = 'paused_for_lq'`：學生開始 LQ 期間，timer freeze
+- `timer_status = 'completed'`：學生 finish LQ
+- `MockExamTimer` 只喺 `running` 時 tick（每秒），避免 paused 狀態 drift
+
+#### 6. LQ PDF 列印
+
+- 由 `/student/mock-exam/[paperId]/lq` server-rendered，列印格式 A4
+- 包含 logo（72px）、題目 + 答題位、page-break-inside: avoid
+- 列印按鈕喺手機 view 改為 bottom bar；desktop 喺右上角
+
+#### 7. LQ 題庫種子
+
+| 檔案 | 內容 |
+|------|------|
+| `seed_p3a_lq_batch.sql` | P3A 17 LQs |
+| `seed_p3b_lq_batch.sql` | P3B 24 LQs |
+| `seed_p4a_lq_batch.sql` | P4A 16 LQs |
+| `seed_p4b_lq_batch1.sql` | P4B batch1 30 LQs |
+| `seed_p4b_lq_batch2.sql` | P4B batch2 19 LQs |
+| `seed_p5a_lq_batch.sql` | P5A 31 LQs |
+| `seed_p5b_lq_batch.sql` | P5B 33 LQs |
+| `seed_p6_lq_batch{1,2,3}.sql` | P6 7 + 20 + 27 LQs |
+
+每個 seed 用 `source_paper` + `source_question` idempotent，apply 一次即可。詳見 `docs/lq_seed_workflow.md`。
+
+#### 8. 老師後台增強
+
+- `/admin/questions` migrate 去 `assessment_questions` + curriculum hierarchy（commit `582f568`）
+- 顯示 多項選擇題 / 短答題 / 長答題 grouping（commit `dd70743`）
+- 圖片上載 + 顯示 + replace（commit `64aaaf5`）
+- Sub-question groups 顯示（commit `a9aa651`）
+- Past paper image crop + sign existing URLs（commits `59cecf8`, `da6460f`）
+
 ---
 
 ## 📋 下一 Sprint 前置條件

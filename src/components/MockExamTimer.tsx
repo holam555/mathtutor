@@ -22,7 +22,12 @@ export default function MockExamTimer({
   const [remaining, setRemaining] = useState(() => computeRemainingSeconds(initial))
 
   useEffect(() => {
-    if (initial.timer_status !== 'running' && initial.timer_status !== 'paused_for_lq') return
+    // Only tick while the timer is actually running. When paused_for_lq, the
+    // remaining seconds are fixed by the snapshot taken on pause — there's
+    // nothing to recompute, and re-running computeRemainingSeconds every
+    // second invites drift if the function ever starts mixing wall-clock
+    // into the paused branch. The initial useState seeds the paused display.
+    if (initial.timer_status !== 'running') return
     const tick = () => {
       const r = computeRemainingSeconds(initial)
       setRemaining(r)
