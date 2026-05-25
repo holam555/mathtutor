@@ -59,4 +59,6 @@ supabase/.temp/
 
 # Root-level dev scripts (not part of deployed app)
 /lib/
-/scripts/
+# Ignore /scripts/* by default but track the ones other contributors need
+/scripts/*
+!/scripts/upload_lq_images.ts

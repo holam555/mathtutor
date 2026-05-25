@@ -63,13 +63,38 @@ export default async function LqPaperPage({
       : Promise.resolve({ data: [] as Array<{ id: string; question_text: string; model_answer: string; image_url: string | null }> }),
   ])
 
-  type Lq = { id: string; question_text: string; model_answer: string; image_url: string | null }
+  type Lq = {
+    id: string
+    question_text: string
+    model_answer: string
+    image_url: string | null
+    // 'ok'      → image_url is a usable URL the browser can fetch
+    // 'pending' → image_url is a 'local:…' placeholder; image was never
+    //             uploaded to Supabase Storage. Render a visible note so
+    //             the teacher/parent knows something is missing.
+    // 'none'    → row genuinely has no image (image_url was NULL)
+    image_status?: 'ok' | 'pending' | 'none'
+    image_hint?: string | null
+  }
 
   // Sign any private-storage image URLs
   const signedLqs: Lq[] = await Promise.all(
     ((lqs ?? []) as Lq[]).map(async (q: Lq): Promise<Lq> => {
       const original = q.image_url
-      if (!original) return q
+      if (!original) return { ...q, image_url: null, image_status: 'none' }
+
+      // 'local:…' = placeholder left by the LQ seed workflow. The matching
+      // file lives under _lq_input/ on the maintainer's machine and needs
+      // to be uploaded to Storage (see scripts/upload_lq_images.ts).
+      if (original.startsWith('local:')) {
+        const filename = original.replace(/^local:/, '').split('/').pop() ?? original
+        console.warn(
+          `[lq paper] image_url for LQ ${q.id} is a local placeholder (${original}). ` +
+            `Run scripts/upload_lq_images.ts then apply the generated UPDATE SQL.`
+        )
+        return { ...q, image_url: null, image_status: 'pending', image_hint: filename }
+      }
+
       let url: string | null = original
       if (!original.startsWith('https://')) {
         const { data } = await service.storage.from('past-papers').createSignedUrl(original, 3600)
@@ -80,7 +105,12 @@ export default async function LqPaperPage({
         const { data } = await service.storage.from('past-papers').createSignedUrl(path, 3600)
         url = data?.signedUrl ?? null
       }
-      return { ...q, image_url: url }
+
+      if (!url) {
+        console.warn(`[lq paper] failed to sign image_url for LQ ${q.id}: ${original}`)
+        return { ...q, image_url: null, image_status: 'pending', image_hint: original }
+      }
+      return { ...q, image_url: url, image_status: 'ok' }
     })
   )
 
@@ -117,6 +147,12 @@ export default async function LqPaperPage({
             .lq-marks { font-size: 12px; color: #666; }
             .lq-text { font-size: 14px; white-space: pre-wrap; }
             .lq-img { max-width: 320px; margin: 6px 0; border: 1px solid #ddd; }
+            .lq-img-missing {
+              max-width: 320px; margin: 6px 0; padding: 16px;
+              border: 1px dashed #cc8800; background: #fff7e0;
+              font-size: 12px; color: #806000; border-radius: 4px;
+            }
+            .lq-img-missing strong { display: block; font-size: 13px; margin-bottom: 2px; }
             .lq-ans-box { border: 1px dashed #aaa; min-height: 120px; margin-top: 8px; padding: 8px; font-size: 12px; color: #aaa; }
             .lq-model-ans { margin-top: 8px; padding: 10px 12px; background: #fff7e6; border-left: 3px solid #EF9F27; white-space: pre-wrap; font-size: 13px; }
             /* Mobile-friendly bottom-fixed print bar */
@@ -188,9 +224,15 @@ export default async function LqPaperPage({
               <span className="lq-marks">（{formatMarks(MARKS.lq)} 分）</span>
             </div>
             <div className="lq-text">{q.question_text}</div>
-            {q.image_url && (
+            {q.image_url && q.image_status === 'ok' && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={q.image_url} alt="題目圖片" className="lq-img" />
+            )}
+            {q.image_status === 'pending' && (
+              <div className="lq-img-missing">
+                <strong>📷 題目圖片待上載</strong>
+                {q.image_hint ? <>檔案：{q.image_hint}</> : null}
+              </div>
             )}
             {view === 'question' ? (
               <div className="lq-ans-box">作答空間</div>
