@@ -29,7 +29,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import * as dotenv from 'dotenv'
 
@@ -97,6 +97,39 @@ async function collectLocalPaths(): Promise<Set<string>> {
  * value to an actual on-disk path. The on-disk folder is `_lq_input:` (with
  * a colon), so we try both spellings.
  */
+// Find a file by name anywhere under `dir` (one-level dive into immediate
+// subfolders). Used as a fallback when the seed's path prefix doesn't match
+// the actual on-disk folder structure (e.g. seed says _lq_input/p6/images/
+// but the files live in _lq_input:/p6/p6a images/).
+function findByName(dir: string, filename: string, maxDepth = 2): string | null {
+  if (!existsSync(dir)) return null
+  let stack: Array<{ p: string; d: number }> = [{ p: dir, d: 0 }]
+  // Use sync APIs here — small directory trees, simpler than async recursion.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const fs = require('node:fs') as typeof import('node:fs')
+  while (stack.length) {
+    const { p, d } = stack.pop()!
+    let entries: string[]
+    try {
+      entries = fs.readdirSync(p)
+    } catch {
+      continue
+    }
+    for (const name of entries) {
+      const full = path.join(p, name)
+      if (name === filename) return full
+      if (d < maxDepth) {
+        try {
+          if (statSync(full).isDirectory()) stack.push({ p: full, d: d + 1 })
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+  return null
+}
+
 function resolveDiskPath(localUrl: string): string | null {
   const rel = localUrl.replace(/^local:/, '') // e.g. _lq_input/p4/p4b images/Screenshot...
   // Try both roots (in case user passed --media-root) and both spellings of
@@ -106,9 +139,27 @@ function resolveDiskPath(localUrl: string): string | null {
     path.join(r, rel),
     path.join(r, rel.replace(/^_lq_input(?!:)/, '_lq_input:')),
   ]
+
+  // Exact-path match wins
   for (const r of roots) {
     for (const c of variants(r)) {
       if (existsSync(c)) return c
+    }
+  }
+
+  // Fallback: scan the grade folder (p3/p4/p5/p6) for the filename. Some
+  // older seed batches used a generic .../p<n>/images/ path even though the
+  // files actually live in .../p<n>/p<n>a images/ etc.
+  const filename = rel.split('/').pop()
+  const gradeMatch = rel.match(/_lq_input\/(p[3-6])\//)
+  if (filename && gradeMatch) {
+    const grade = gradeMatch[1]
+    for (const r of roots) {
+      for (const inputDir of ['_lq_input:', '_lq_input']) {
+        const gradeRoot = path.join(r, inputDir, grade)
+        const hit = findByName(gradeRoot, filename, 2)
+        if (hit) return hit
+      }
     }
   }
   return null
