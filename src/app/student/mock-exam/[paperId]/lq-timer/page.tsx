@@ -43,7 +43,7 @@ export default async function LqTimerPage({
 
       <div className="bg-white rounded-2xl p-5 shadow-sm mb-5">
         <p className="text-sm text-gray-700 leading-relaxed">
-          請在已下載嘅長答題試卷上完成所有 <strong>{paper.lq_count}</strong> 題。
+          請在已下載的長答題試卷上完成所有 <strong>{paper.lq_count}</strong> 題。
         </p>
         <p className="text-xs text-gray-500 mt-3">
           完成後請：

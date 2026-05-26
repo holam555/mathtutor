@@ -28,7 +28,7 @@ export default function RedeemButton({
     if (!child) return
     if (
       !confirm(
-        `用 ${child.name} 嘅 ${tokensRequired} 個代幣兌換「${rewardDescription}」？提交後等老師審批。`
+        `用 ${child.name} 的 ${tokensRequired} 個代幣兌換「${rewardDescription}」？提交後等老師審批。`
       )
     )
       return
@@ -68,7 +68,7 @@ export default function RedeemButton({
 
       {showPicker && eligible.length > 1 && (
         <div className="absolute right-5 mt-12 z-10 bg-white rounded-2xl shadow-lg p-3 border border-gray-100 w-56">
-          <p className="text-xs text-gray-500 mb-2">用邊位子女嘅代幣兌換？</p>
+          <p className="text-xs text-gray-500 mb-2">用邊位子女的代幣兌換？</p>
           <div className="space-y-1">
             {eligible.map((c) => (
               <button

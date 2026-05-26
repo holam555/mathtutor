@@ -33,6 +33,8 @@ export default async function ParentLqUploadPage({
     .maybeSingle()
   if (!link) redirect('/parent')
 
+  // Fetch the LQ texts for an at-a-glance reminder, and any existing
+  // submission images so the parent can see what's already been uploaded.
   const [{ data: student }, { data: lqs }, { data: existing }] = await Promise.all([
     service.from('student_profiles').select('name').eq('id', paper.student_id).single(),
     paper.lq_question_ids?.length
@@ -43,26 +45,32 @@ export default async function ParentLqUploadPage({
       : Promise.resolve({ data: [] as Array<{ id: string; question_text: string }> }),
     service
       .from('mock_exam_lq_submissions')
-      .select('long_question_id, image_urls, ai_extracted_answer')
-      .eq('paper_id', paper.id),
+      .select('image_urls')
+      .eq('paper_id', paper.id)
+      .limit(1),
   ])
 
   type Lq = { id: string; question_text: string }
-  type Sub = { long_question_id: string; image_urls: string[] | null; ai_extracted_answer: string | null }
-
-  const lqById = new Map<string, Lq>(((lqs ?? []) as Lq[]).map((q: Lq): [string, Lq] => [q.id, q]))
+  const lqById = new Map<string, Lq>(((lqs ?? []) as Lq[]).map((q): [string, Lq] => [q.id, q]))
   const ordered: Lq[] = (paper.lq_question_ids ?? [])
     .map((id: string) => lqById.get(id))
     .filter((q: Lq | undefined): q is Lq => q != null)
 
-  const existingByQ = new Map<string, Sub>(
-    ((existing ?? []) as Sub[]).map((s: Sub): [string, Sub] => [s.long_question_id, s])
+  // Every per-LQ submission row carries the same bundled image_paths in the
+  // new flow, so it's enough to read one row to learn what's been uploaded.
+  const existingPaths: string[] = (existing?.[0]?.image_urls ?? []) as string[]
+  const signedExisting: string[] = await Promise.all(
+    existingPaths.map(async (p: string): Promise<string> => {
+      if (p.startsWith('https://')) return p
+      const { data } = await service.storage.from('mock-exam-lq').createSignedUrl(p, 3600)
+      return data?.signedUrl ?? p
+    })
   )
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-blue-50/40 to-white">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/parent" className="text-gray-400 hover:text-gray-600">
+        <Link href="/parent" className="text-gray-400 hover:text-gray-600 text-xl">
           ←
         </Link>
         <h1 className="text-xl font-bold">📝 上載長答題答卷</h1>
@@ -72,24 +80,30 @@ export default async function ParentLqUploadPage({
         <p className="text-sm text-gray-700">
           學生：<strong>{student?.name ?? ''}</strong>
         </p>
-        <p className="text-xs text-gray-500 mt-1">
-          請逐題拍照上載學生嘅手寫答卷。每張圖片清晰可辨即可，AI 會自動辨識手寫內容。
+        <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+          請拍清楚 <strong>所有 {ordered.length} 題長答題</strong> 的作答內容，可以分 1–2
+          張相一次過上載。每張相清晰可辨即可，老師會根據相片批改。
         </p>
       </div>
 
-      <div className="space-y-5">
-        {ordered.map((q: Lq, idx: number) => (
-          <LqUploadForm
-            key={q.id}
-            paperId={paper.id}
-            longQuestionId={q.id}
-            index={idx + 1}
-            questionText={q.question_text}
-            existingImageCount={existingByQ.get(q.id)?.image_urls?.length ?? 0}
-            existingTranscript={existingByQ.get(q.id)?.ai_extracted_answer ?? null}
-          />
-        ))}
-      </div>
+      <LqUploadForm paperId={paper.id} existingPageUrls={signedExisting} />
+
+      {ordered.length > 0 && (
+        <div className="mt-6">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+            試卷上的長答題（共 {ordered.length} 題）
+          </p>
+          <ol className="space-y-2 list-decimal list-inside">
+            {ordered.map((q: Lq) => (
+              <li key={q.id} className="text-xs text-gray-600 leading-relaxed bg-white rounded-lg p-3 shadow-sm">
+                {q.question_text.length > 80
+                  ? q.question_text.slice(0, 80) + '…'
+                  : q.question_text}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       {ordered.length === 0 && (
         <p className="text-sm text-gray-500 text-center py-8">此試卷暫無長答題</p>

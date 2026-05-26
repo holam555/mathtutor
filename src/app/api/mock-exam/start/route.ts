@@ -80,7 +80,7 @@ export async function POST() {
   const lqQuestionIds = lqQuestions.map((q) => q.id)
 
   if (mcSqQuestionIds.length === 0) {
-    return NextResponse.json({ error: '考試範圍內沒有可用嘅 MC/SQ 題目' }, { status: 404 })
+    return NextResponse.json({ error: '考試範圍內沒有可用的 MC/SQ 題目' }, { status: 404 })
   }
 
   // 4. Create the linked practice_sessions row (MC+SQ phase)

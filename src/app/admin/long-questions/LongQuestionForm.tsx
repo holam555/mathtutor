@@ -205,7 +205,7 @@ export default function LongQuestionForm({
           placeholder="逐步寫出解題過程及最終答案"
           className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm resize-y font-mono"
         />
-        <p className="text-xs text-gray-400 mt-1">家長會用呢個對住學生嘅長答題答卷批改</p>
+        <p className="text-xs text-gray-400 mt-1">家長會用呢個對住學生的長答題答卷批改</p>
       </div>
 
       {/* Difficulty */}

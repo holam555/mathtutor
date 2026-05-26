@@ -172,7 +172,7 @@ export default async function ParentHome() {
                 className="block bg-amber-50 border border-amber-200 rounded-xl p-3 hover:bg-amber-100 transition"
               >
                 <p className="text-sm font-semibold text-amber-900">
-                  📝 {p.studentName} 嘅模擬考試
+                  📝 {p.studentName} 的模擬考試
                 </p>
                 <p className="text-xs text-amber-700 mt-0.5">
                   {p.lq_count} 題長答題 · 點擊上載手寫答卷
@@ -234,7 +234,7 @@ export default async function ParentHome() {
               {/* Redemption options */}
               {!options?.length ? (
                 <div className="bg-white rounded-2xl p-6 text-center">
-                  <p className="text-sm text-gray-400">暫時冇可兌換嘅獎賞</p>
+                  <p className="text-sm text-gray-400">暫時冇可兌換的獎賞</p>
                 </div>
               ) : (
                 <div className="space-y-2">

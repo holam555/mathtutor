@@ -116,7 +116,7 @@ export default function MockExamTimer({
             <p className="text-5xl mb-3">⏰</p>
             <p className="text-lg font-bold text-gray-800 mb-1">時間到</p>
             <p className="text-sm text-gray-500 leading-relaxed">
-              多項選擇題 + 短答題部分已結束，正在儲存你嘅答案…
+              多項選擇題 + 短答題部分已結束，正在儲存你的答案…
             </p>
           </div>
         </div>

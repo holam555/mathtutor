@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
   }
 
   if (allowedTopicIds.length === 0) {
-    return NextResponse.json({ questions: [], modules: [], warnings: ['揀咗嘅單元下面冇任何小單元'] })
+    return NextResponse.json({ questions: [], modules: [], warnings: ['揀咗的單元下面冇任何小單元'] })
   }
 
   // Pull all candidate questions
@@ -155,7 +155,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       questions: [],
       modules: [],
-      warnings: ['揀咗嘅範圍內冇題目，題庫尚在建設中'],
+      warnings: ['揀咗的範圍內冇題目，題庫尚在建設中'],
       empty: true,
     })
   }

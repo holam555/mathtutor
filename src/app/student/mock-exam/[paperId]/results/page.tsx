@@ -195,7 +195,7 @@ export default async function MockExamResultsPage({
           ⏱ 仲有 {paper.lq_count} 題長答題未做（{formatMarks(lqMarksAvailable)} 分）
         </p>
         <p className="text-xs text-amber-700 leading-relaxed">
-          按下方按鈕後計時將繼續，請喺已下載嘅試卷上完成所有長答題。完成後家長幫手影相上載畀老師批改。
+          按下方按鈕後計時將繼續，請喺已下載的試卷上完成所有長答題。完成後家長幫手影相上載畀老師批改。
         </p>
       </div>
 

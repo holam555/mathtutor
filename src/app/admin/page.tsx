@@ -75,7 +75,7 @@ export default async function AdminHome() {
         >
           <div>
             <h2 className="font-semibold">長答題管理</h2>
-            <p className="text-sm text-gray-500 mt-0.5">模擬考試試卷用嘅 LQ 題庫</p>
+            <p className="text-sm text-gray-500 mt-0.5">模擬考試試卷用的 LQ 題庫</p>
           </div>
           <span className="text-gray-400">→</span>
         </Link>
