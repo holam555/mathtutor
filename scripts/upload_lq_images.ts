@@ -35,8 +35,21 @@ import * as dotenv from 'dotenv'
 
 const args = new Set(process.argv.slice(2))
 const dryRun = args.has('--dry') || args.has('-n')
-const rootArg = process.argv.find((a, i) => process.argv[i - 1] === '--root')
+
+function readArg(flag: string): string | undefined {
+  const i = process.argv.indexOf(flag)
+  return i >= 0 ? process.argv[i + 1] : undefined
+}
+
+// --root        repo containing supabase/seed_*lq*.sql and (usually) .env.local
+// --media-root  repo containing _lq_input:/ on disk. Defaults to --root.
+//               Useful when running from a worktree whose seeds branch has the
+//               LQ seeds, but the gitignored _lq_input:/ folder lives in the
+//               primary checkout.
+const rootArg = readArg('--root')
+const mediaArg = readArg('--media-root')
 const repoRoot = rootArg ? path.resolve(rootArg) : process.cwd()
+const mediaRoot = mediaArg ? path.resolve(mediaArg) : repoRoot
 
 dotenv.config({ path: path.join(repoRoot, '.env.local') })
 dotenv.config({ path: path.join(repoRoot, '.env') })
@@ -86,12 +99,17 @@ async function collectLocalPaths(): Promise<Set<string>> {
  */
 function resolveDiskPath(localUrl: string): string | null {
   const rel = localUrl.replace(/^local:/, '') // e.g. _lq_input/p4/p4b images/Screenshot...
-  const candidates = [
-    path.join(repoRoot, rel), // _lq_input/...
-    path.join(repoRoot, rel.replace(/^_lq_input(?!:)/, '_lq_input:')), // _lq_input:/...
+  // Try both roots (in case user passed --media-root) and both spellings of
+  // the input folder (_lq_input/ in the seed value vs _lq_input:/ on disk).
+  const roots = mediaRoot !== repoRoot ? [mediaRoot, repoRoot] : [repoRoot]
+  const variants = (r: string) => [
+    path.join(r, rel),
+    path.join(r, rel.replace(/^_lq_input(?!:)/, '_lq_input:')),
   ]
-  for (const c of candidates) {
-    if (existsSync(c)) return c
+  for (const r of roots) {
+    for (const c of variants(r)) {
+      if (existsSync(c)) return c
+    }
   }
   return null
 }
@@ -163,7 +181,8 @@ async function uploadOne(localUrl: string): Promise<Outcome> {
 }
 
 async function main() {
-  console.log(`▶ Repo root: ${repoRoot}`)
+  console.log(`▶ Repo root  (seeds + env): ${repoRoot}`)
+  console.log(`▶ Media root (_lq_input/): ${mediaRoot}`)
   console.log(`▶ ${dryRun ? 'DRY RUN — no uploads' : 'Live mode — will upload'}`)
 
   const locals = await collectLocalPaths()
