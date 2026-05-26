@@ -1,7 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { generateMockExamComment } from '@/lib/gemini'
 import { MARKS, formatMarks, marksForQuestionType, totalPossibleMarks } from '@/lib/mockExamMarks'
 import ResumeTimerButton from './ResumeTimerButton'
 
@@ -21,7 +20,7 @@ export default async function MockExamResultsPage({
   const { data: paper } = await service
     .from('mock_exam_papers')
     .select(
-      'id, student_id, mc_sq_session_id, mc_sq_count, lq_count, mc_sq_question_ids, status, timer_status, ai_comment'
+      'id, student_id, mc_sq_session_id, mc_sq_count, lq_count, mc_sq_question_ids, status, timer_status'
     )
     .eq('id', params.paperId)
     .single()
@@ -42,50 +41,72 @@ export default async function MockExamResultsPage({
   const totalCount = session?.total_questions ?? paper.mc_sq_count
   const accuracy = totalCount === 0 ? 0 : Math.round((correctCount / totalCount) * 100)
 
-  // Pull question_type for every MC+SQ question on this paper so we can:
-  //   (a) compute earned marks (MC = 1.5, SQ = 2)
-  //   (b) compute the MC+SQ portion of the paper's 滿分
-  //   (c) reuse the topic_id map for AI comment generation below
+  // Pull every MC+SQ question's text + correct_answer so the page can render
+  // a per-question breakdown (right/wrong + reveal). question_type drives
+  // the per-question marks calc (MC = 1.5, SQ = 2). The Gemini-based AI
+  // comment path that used to live here is gone — teachers found it
+  // inaccurate ("did well on…" when the student got 4 / 35) so we let the
+  // score + per-question reveal speak for itself instead.
   const qIds = (paper.mc_sq_question_ids ?? []) as string[]
   const { data: aqRows } = qIds.length
     ? await service
         .from('assessment_questions')
-        .select('id, topic_id, question_type')
+        .select('id, question_type, question_text, correct_answer')
         .in('id', qIds)
-    : { data: [] as { id: string; topic_id: string; question_type: string }[] }
+    : { data: [] as Array<{ id: string; question_type: string; question_text: string; correct_answer: string }> }
 
-  const qToType = new Map<string, string>(
-    (aqRows ?? []).map((q: { id: string; question_type: string }) => [q.id, q.question_type])
-  )
-  const mcSqPossibleMarks = (aqRows ?? []).reduce(
+  type AqRow = { id: string; question_type: string; question_text: string; correct_answer: string }
+  const aqRowsTyped = (aqRows ?? []) as AqRow[]
+
+  const qToType = new Map<string, string>(aqRowsTyped.map((q) => [q.id, q.question_type]))
+  const aqById = new Map<string, AqRow>(aqRowsTyped.map((q) => [q.id, q]))
+  const mcSqPossibleMarks = aqRowsTyped.reduce(
     (s, q) => s + marksForQuestionType(q.question_type),
     0
   )
 
-  // Earned marks: fetched once, used for the score display and as input for
-  // the AI comment block below.
+  // Earned marks + per-question student answers
   const { data: answerRows } = sessionDone && paper.mc_sq_session_id
     ? await service
         .from('answer_records')
-        .select('question_id, is_correct')
+        .select('question_id, student_answer, is_correct')
         .eq('session_id', paper.mc_sq_session_id)
-    : { data: [] as { question_id: string; is_correct: boolean }[] }
+    : { data: [] as Array<{ question_id: string; student_answer: string; is_correct: boolean }> }
+
+  type AnsRow = { question_id: string; student_answer: string; is_correct: boolean }
+  const ansRowsTyped = (answerRows ?? []) as AnsRow[]
 
   let earnedMarks = 0
-  for (const a of answerRows ?? []) {
+  for (const a of ansRowsTyped) {
     if (!a.is_correct) continue
     const type = qToType.get(a.question_id) ?? 'fill_in_number'
     earnedMarks += marksForQuestionType(type)
   }
 
-  const lqMarksAvailable = paper.lq_count * MARKS.lq
-  const totalPaperMarks = totalPossibleMarks({
-    mc: (aqRows ?? []).filter((q) => q.question_type === 'multiple_choice').length,
-    sq: (aqRows ?? []).filter((q) => q.question_type !== 'multiple_choice').length,
-    lq: paper.lq_count,
+  const answerById = new Map<string, { student_answer: string; is_correct: boolean }>(
+    ansRowsTyped.map((a) => [a.question_id, { student_answer: a.student_answer, is_correct: a.is_correct }])
+  )
+
+  const breakdown = qIds.map((qid, i) => {
+    const q = aqById.get(qid)
+    const ans = answerById.get(qid)
+    return {
+      num: i + 1,
+      text: q?.question_text ?? '(題目資料缺失)',
+      type: q?.question_type ?? '',
+      correct: q?.correct_answer ?? '',
+      student: ans?.student_answer ?? '(未作答)',
+      answered: !!ans,
+      isCorrect: !!ans?.is_correct,
+    }
   })
 
-  let aiComment = paper.ai_comment ?? ''
+  const lqMarksAvailable = paper.lq_count * MARKS.lq
+  const totalPaperMarks = totalPossibleMarks({
+    mc: aqRowsTyped.filter((q) => q.question_type === 'multiple_choice').length,
+    sq: aqRowsTyped.filter((q) => q.question_type !== 'multiple_choice').length,
+    lq: paper.lq_count,
+  })
 
   // Pause timer + flip status if not yet done (idempotent)
   if (sessionDone && paper.timer_status === 'running') {
@@ -93,60 +114,6 @@ export default async function MockExamResultsPage({
       .from('mock_exam_papers')
       .update({ status: 'mc_sq_done' })
       .eq('id', paper.id)
-  }
-
-  // Generate AI comment lazily on first view if missing
-  if (sessionDone && !aiComment) {
-    try {
-      const { data: profile } = await service
-        .from('student_profiles')
-        .select('name')
-        .eq('id', user.id)
-        .single()
-
-      const answers = answerRows
-      const qToTopic = new Map<string, string>(
-        (aqRows ?? []).map((q: { id: string; topic_id: string }) => [q.id, q.topic_id])
-      )
-      const topicIds: string[] = Array.from(new Set<string>(Array.from(qToTopic.values())))
-      const { data: topics } = topicIds.length
-        ? await service.from('curriculum_topics').select('id, name').in('id', topicIds)
-        : { data: [] as { id: string; name: string }[] }
-      const topicName = new Map<string, string>(
-        (topics ?? []).map((t: { id: string; name: string }) => [t.id, t.name])
-      )
-
-      const tally = new Map<string, { correct: number; total: number }>()
-      for (const a of answers ?? []) {
-        const tid = qToTopic.get(a.question_id)
-        if (!tid) continue
-        const cur = tally.get(tid) ?? { correct: 0, total: 0 }
-        cur.total += 1
-        if (a.is_correct) cur.correct += 1
-        tally.set(tid, cur)
-      }
-      const perTopic = Array.from(tally.entries()).map(([tid, v]) => ({
-        topic_name: topicName.get(tid) ?? '未分類',
-        correct: v.correct,
-        total: v.total,
-      }))
-
-      aiComment = await generateMockExamComment({
-        studentName: profile?.name ?? '同學',
-        totalAnswered: answers?.length ?? 0,
-        totalCorrect: answers?.filter((a) => a.is_correct).length ?? 0,
-        perTopic,
-      })
-
-      if (aiComment) {
-        await service
-          .from('mock_exam_papers')
-          .update({ ai_comment: aiComment })
-          .eq('id', paper.id)
-      }
-    } catch (e) {
-      console.error('Mock exam AI comment generation failed:', e)
-    }
   }
 
   return (
@@ -170,23 +137,65 @@ export default async function MockExamResultsPage({
         </p>
       </div>
 
-      {aiComment && (
+      {breakdown.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            老師評語
-          </p>
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-            {aiComment}
-          </p>
+          <p className="text-sm font-semibold text-gray-700 mb-3">詳細答題情況</p>
+          <ul className="space-y-3">
+            {breakdown.map((b) => (
+              <li key={b.num} className="flex items-start gap-3">
+                <span
+                  className={`shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                    b.isCorrect
+                      ? 'bg-[#1D9E75] text-white'
+                      : b.answered
+                        ? 'bg-[#EF9F27] text-white'
+                        : 'bg-gray-300 text-white'
+                  }`}
+                  aria-label={b.isCorrect ? '答對' : b.answered ? '答錯' : '未作答'}
+                >
+                  {b.isCorrect ? '✓' : b.answered ? '✗' : '—'}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800">
+                    第 {b.num} 題
+                    <span className="ml-2 text-xs text-gray-400">
+                      {b.type === 'multiple_choice' ? '多項選擇' : '短答'}
+                    </span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5 break-words">{b.text}</p>
+                  <div className="mt-1 text-xs leading-relaxed">
+                    <span className="text-gray-500">你的答案：</span>
+                    <span
+                      className={
+                        b.isCorrect
+                          ? 'text-[#1D9E75] font-semibold'
+                          : b.answered
+                            ? 'text-[#EF9F27] font-semibold'
+                            : 'text-gray-400 italic'
+                      }
+                    >
+                      {b.student}
+                    </span>
+                    {!b.isCorrect && (
+                      <>
+                        <span className="text-gray-500 ml-2">正確答案：</span>
+                        <span className="text-[#1D9E75] font-semibold break-words">{b.correct}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
         <p className="text-sm font-semibold text-amber-800 mb-1">
-          ⏱ 請繼續完成長答題部分
+          ⏱ 仲有 {paper.lq_count} 題長答題未做（{formatMarks(lqMarksAvailable)} 分）
         </p>
-        <p className="text-xs text-amber-700">
-          按下方按鈕後計時將繼續，請在已下載嘅試卷上完成 {paper.lq_count} 題長答題。
+        <p className="text-xs text-amber-700 leading-relaxed">
+          按下方按鈕後計時將繼續，請喺已下載嘅試卷上完成所有長答題。完成後家長幫手影相上載畀老師批改。
         </p>
       </div>
 

@@ -114,6 +114,14 @@ export default async function PracticePage({
       .eq('mc_sq_session_id', params.sessionId)
       .maybeSingle()
     if (paper) {
+      // Look up the paperId so the timer can self-handle expiry: at 0s it
+      // completes this session, pauses the paper timer, and redirects to
+      // /student/mock-exam/<paperId>/results — blocking further tapping.
+      const { data: paperIdRow } = await service
+        .from('mock_exam_papers')
+        .select('id')
+        .eq('mc_sq_session_id', params.sessionId)
+        .maybeSingle()
       timerEl = (
         <MockExamTimer
           initial={{
@@ -122,6 +130,8 @@ export default async function PracticePage({
             timer_elapsed_seconds: paper.timer_elapsed_seconds ?? 0,
             timer_status: paper.timer_status,
           }}
+          paperId={paperIdRow?.id}
+          sessionId={params.sessionId}
         />
       )
     }
