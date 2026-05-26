@@ -72,12 +72,12 @@ export default function PracticeFlow({
     [currentIndex, questions.length, sessionId, router]
   )
 
-  // Auto-advance after feedback. In practice mode the student needs a beat
-  // to see green/orange; in mock-exam mode there's nothing to look at so we
-  // advance almost immediately (300ms keeps the UI from flickering).
+  // Auto-advance after feedback. Practice mode lingers 1.5s so the student
+  // can take in the green/orange result. Mock-exam mode shows the neutral
+  // "已記錄" beat for 1s — long enough to feel responsive without dragging.
   useEffect(() => {
     if (feedback === 'idle') return
-    const delay = feedback === 'recorded' ? 300 : 1500
+    const delay = feedback === 'recorded' ? 1000 : 1500
     const timer = setTimeout(() => advanceOrFinish(), delay)
     return () => clearTimeout(timer)
   }, [feedback, advanceOrFinish])
