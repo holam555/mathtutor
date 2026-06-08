@@ -1,23 +1,31 @@
 'use client'
 
 import { useFormState, useFormStatus } from 'react-dom'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createQuestion, type QuestionFormState } from '../actions'
-import type { QuestionCategory } from '@/types/database'
 
-type CategoryGroup = {
-  label: string
-  categories: QuestionCategory[]
+type Unit = {
+  id: string
+  grade: number
+  unit_number: number
+  name: string
+  semester: string
+  display_order: number
 }
 
-function groupCategories(categories: QuestionCategory[]): CategoryGroup[] {
-  const map = new Map<string, QuestionCategory[]>()
-  for (const cat of categories) {
-    const key = `小${cat.grade === 5 ? '五' : '六'}${cat.semester}學期`
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(cat)
-  }
-  return Array.from(map.entries()).map(([label, cats]) => ({ label, categories: cats }))
+type Topic = {
+  id: string
+  unit_id: string
+  lesson_number: number
+  name: string
+  display_order: number
+}
+
+const GRADE_LABEL: Record<number, string> = {
+  3: 'P3 小三',
+  4: 'P4 小四',
+  5: 'P5 小五',
+  6: 'P6 小六',
 }
 
 function SubmitButton() {
@@ -33,37 +41,130 @@ function SubmitButton() {
   )
 }
 
-export default function NewQuestionForm({ categories }: { categories: QuestionCategory[] }) {
+export default function NewQuestionForm({
+  units,
+  topics,
+  defaultGrade,
+}: {
+  units: Unit[]
+  topics: Topic[]
+  defaultGrade: number
+}) {
   const [state, formAction] = useFormState(createQuestion, {} as QuestionFormState)
-  const [questionType, setQuestionType] = useState('fill_in')
-  const groups = groupCategories(categories)
+  const [grade, setGrade] = useState(defaultGrade)
+  const [unitId, setUnitId] = useState('')
+  const [topicId, setTopicId] = useState('')
+  const [questionType, setQuestionType] = useState('fill_in_number')
+
+  const gradeUnits = useMemo(() => units.filter((u) => u.grade === grade), [units, grade])
+  const unitTopics = useMemo(() => topics.filter((t) => t.unit_id === unitId), [topics, unitId])
+  const semesterGroups = useMemo(
+    () => ({
+      A: gradeUnits.filter((u) => u.semester === 'A'),
+      B: gradeUnits.filter((u) => u.semester === 'B'),
+    }),
+    [gradeUnits]
+  )
+  const selectedUnit = gradeUnits.find((u) => u.id === unitId)
+
+  function onGradeChange(g: number) {
+    setGrade(g)
+    setUnitId('')
+    setTopicId('')
+  }
+
+  function onUnitChange(id: string) {
+    setUnitId(id)
+    setTopicId('')
+  }
 
   return (
     <form action={formAction} className="space-y-5">
-      {/* Category */}
+
+      {/* 1. Grade */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          年級 <span className="text-red-500">*</span>
+        </label>
+        <div className="grid grid-cols-4 gap-2">
+          {[3, 4, 5, 6].map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => onGradeChange(g)}
+              className={`h-10 rounded-xl text-sm font-medium border transition ${
+                grade === g
+                  ? 'border-[#4A90E2] bg-[#4A90E2] text-white'
+                  : 'border-gray-300 text-gray-600 hover:border-[#4A90E2]'
+              }`}
+            >
+              {GRADE_LABEL[g]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 2. 大單元 */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          題目分類 <span className="text-red-500">*</span>
+          大單元 <span className="text-red-500">*</span>
         </label>
         <select
-          name="category_id"
-          required
-          className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] focus:ring-2 focus:ring-[#4A90E2]/20 outline-none text-base bg-white"
+          value={unitId}
+          onChange={(e) => onUnitChange(e.target.value)}
+          className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white"
         >
-          <option value="">請選擇分類</option>
-          {groups.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.code} {cat.name}
+          <option value="">請選擇大單元</option>
+          {semesterGroups.A.length > 0 && (
+            <optgroup label="上學期（A 冊）">
+              {semesterGroups.A.map((u) => (
+                <option key={u.id} value={u.id}>
+                  U{u.unit_number} {u.name}
                 </option>
               ))}
             </optgroup>
-          ))}
+          )}
+          {semesterGroups.B.length > 0 && (
+            <optgroup label="下學期（B 冊）">
+              {semesterGroups.B.map((u) => (
+                <option key={u.id} value={u.id}>
+                  U{u.unit_number} {u.name}
+                </option>
+              ))}
+            </optgroup>
+          )}
         </select>
       </div>
 
-      {/* Question text */}
+      {/* 3. 小單元 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          小單元 <span className="text-red-500">*</span>
+        </label>
+        <select
+          name="topic_id"
+          value={topicId}
+          onChange={(e) => setTopicId(e.target.value)}
+          disabled={!unitId}
+          required
+          className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white disabled:opacity-50"
+        >
+          <option value="">{unitId ? '請選擇小單元' : '先選大單元'}</option>
+          {unitTopics.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.lesson_number}. {t.name}
+            </option>
+          ))}
+        </select>
+        {selectedUnit && (
+          <p className="text-xs text-gray-400 mt-1">
+            {selectedUnit.semester === 'A' ? '上學期' : '下學期'} · U{selectedUnit.unit_number}{' '}
+            {selectedUnit.name}
+          </p>
+        )}
+      </div>
+
+      {/* 4. Question text */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           題目內容 <span className="text-red-500">*</span>
@@ -73,18 +174,18 @@ export default function NewQuestionForm({ categories }: { categories: QuestionCa
           required
           rows={3}
           placeholder="例：下列哪個數不是 48 的因數？"
-          className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] focus:ring-2 focus:ring-[#4A90E2]/20 outline-none text-base resize-none"
+          className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm resize-none"
         />
       </div>
 
-      {/* Question type */}
+      {/* 5. Question type */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">題目類型</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">題目類型</label>
         <div className="grid grid-cols-2 gap-2">
           {[
+            { value: 'fill_in_number', label: '數字填充' },
             { value: 'multiple_choice', label: '選擇題' },
             { value: 'fill_in', label: '填充題（文字）' },
-            { value: 'fill_in_number', label: '數字填充' },
             { value: 'calculation', label: '計算題' },
           ].map((t) => (
             <label
@@ -109,7 +210,7 @@ export default function NewQuestionForm({ categories }: { categories: QuestionCa
         </div>
       </div>
 
-      {/* Options (multiple choice only) */}
+      {/* 6. Options (MC only) */}
       {questionType === 'multiple_choice' && (
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -121,16 +222,17 @@ export default function NewQuestionForm({ categories }: { categories: QuestionCa
               <input
                 name={`option_${letter}`}
                 type="text"
-                required={questionType === 'multiple_choice'}
+                required
                 placeholder={`選項 ${letter}`}
-                className="flex-1 h-11 px-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] focus:ring-2 focus:ring-[#4A90E2]/20 outline-none text-sm"
+                className="flex-1 h-11 px-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm"
               />
             </div>
           ))}
+          <p className="text-xs text-gray-400">正確答案須填整個選項，例「A. 答案文字」</p>
         </div>
       )}
 
-      {/* Correct answer */}
+      {/* 7. Correct answer */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
           正確答案 <span className="text-red-500">*</span>
@@ -140,33 +242,38 @@ export default function NewQuestionForm({ categories }: { categories: QuestionCa
           type="text"
           required
           placeholder={
-            questionType === 'multiple_choice' ? '例：A. 9（必須與選項格式一致）' : '例：5/6'
+            questionType === 'multiple_choice'
+              ? '例：A. 答案文字'
+              : questionType === 'fill_in_number'
+              ? '例：60 或 5/18 或 1 5/8'
+              : '例：正確答案文字'
           }
-          className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] focus:ring-2 focus:ring-[#4A90E2]/20 outline-none text-base"
+          className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm"
         />
       </div>
 
-      {/* Difficulty */}
+      {/* 8. Difficulty tier */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">難度</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">難度</label>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { value: '1', label: '易' },
-            { value: '2', label: '中' },
-            { value: '3', label: '難' },
+            { value: 'basic', label: '易', sub: '1 步' },
+            { value: 'enhancement', label: '中', sub: '2–3 步' },
+            { value: 'advanced', label: '難', sub: '4+ 步' },
           ].map((d) => (
             <label
               key={d.value}
-              className="flex items-center justify-center h-11 rounded-xl border border-gray-300 cursor-pointer text-sm font-medium text-gray-600 has-[:checked]:border-[#4A90E2] has-[:checked]:bg-[#4A90E2]/10 has-[:checked]:text-[#4A90E2] transition"
+              className="flex flex-col items-center justify-center h-14 rounded-xl border border-gray-300 cursor-pointer transition has-[:checked]:border-[#4A90E2] has-[:checked]:bg-[#4A90E2]/10"
             >
               <input
                 type="radio"
-                name="difficulty"
+                name="difficulty_tier"
                 value={d.value}
-                defaultChecked={d.value === '1'}
+                defaultChecked={d.value === 'basic'}
                 className="sr-only"
               />
-              {d.label}
+              <span className="text-sm font-semibold text-gray-700">{d.label}</span>
+              <span className="text-[10px] text-gray-400">{d.sub}</span>
             </label>
           ))}
         </div>
@@ -174,12 +281,10 @@ export default function NewQuestionForm({ categories }: { categories: QuestionCa
 
       {/* Feedback */}
       {state.error && (
-        <p className="text-sm text-[#F44336] bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
       )}
       {state.success && (
-        <p className="text-sm text-[#4CAF50] bg-green-50 rounded-lg px-3 py-2">
-          題目已成功儲存！
-        </p>
+        <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">題目已成功儲存！</p>
       )}
 
       <SubmitButton />

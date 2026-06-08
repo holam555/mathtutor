@@ -53,6 +53,13 @@ G1代數式表示 G2方程識別 G3解方程基礎 G4方程應用題
 H1立體圖形識別 H2立體圖形屬性 H3立體體積長方體 H4柱體體積
 I1假分數與帶分數互化 I2旋轉對稱識別 I3容量換算進階 I4時間計算行程`
 
+export type ImageRegion = {
+  x: number  // left edge as percentage of page width  (0-100)
+  y: number  // top  edge as percentage of page height (0-100)
+  w: number  // width  as percentage of page width     (0-100)
+  h: number  // height as percentage of page height    (0-100)
+}
+
 export type ExtractedQuestion = {
   question_text: string
   question_type: 'multiple_choice' | 'fill_in' | 'calculation'
@@ -60,6 +67,8 @@ export type ExtractedQuestion = {
   suggested_answer: string
   suggested_category_code: string
   has_image: boolean
+  image_region?: ImageRegion | null  // bounding box of the image region, if has_image
+  image_url?: string | null          // filled in after crop + storage upload
   page_number: number
 }
 
@@ -92,12 +101,21 @@ export async function extractQuestionsFromImages(
       "suggested_answer": "正確答案",
       "suggested_category_code": "A1",
       "has_image": false,
+      "image_region": null,
       "page_number": 1
     }
   ]
 }
 
-注意：options 只在 multiple_choice 時填寫，其他設為 null。has_image 設為 true 如果題目需要看圖才能作答。page_number 對應圖片順序（第一張為1）。答案必須正確。`
+注意：
+- options 只在 multiple_choice 時填寫，其他設為 null。
+- has_image 設為 true 如果題目需要看圖才能作答（包含圖形、表格、座標圖等）。
+- 如果 has_image 為 true，必須填寫 image_region：圖片在頁面上的位置，以百分比表示（0-100）：
+  {"x": 左邊距%, "y": 頂部距%, "w": 寬度%, "h": 高度%}
+  例如圖片在頁面右下角佔 40% 寬 20% 高：{"x": 60, "y": 75, "w": 40, "h": 20}
+  如果 has_image 為 false，image_region 設為 null。
+- page_number 對應圖片順序（第一張為1）。
+- 答案必須正確。`
 
   const parts = [
     ...images.map((img) => ({
@@ -130,6 +148,147 @@ export async function extractQuestionsFromImages(
       typeof q.suggested_answer === 'string' &&
       ['multiple_choice', 'fill_in', 'calculation'].includes(q.question_type)
   )
+}
+
+// ── Exam-scope → curriculum_units matching ────────────────────────────────
+//
+// Parent uploads photo(s) of the school's 考試範圍 sheet. Gemini Vision is
+// told which unit/topic ids are valid (pulled live from the DB for the
+// child's grade) and must only return ids from that authoritative list —
+// never invent new units or use its own curriculum knowledge.
+
+export type ScopeUnitCandidate = {
+  unit_id: string
+  unit_number: number
+  name: string
+  semester?: 'A' | 'B'
+}
+
+export type ScopeTopicCandidate = {
+  topic_id: string
+  lesson_number: number
+  name: string
+  unit_id: string
+}
+
+export type ScopeMatchResult = {
+  matched_unit_ids: string[]
+  matched_topic_ids: string[]
+  notes?: string
+}
+
+export async function matchScopeToUnits(
+  input: {
+    notice_images: { data: string; mimeType: string }[]
+    textbook_images: { data: string; mimeType: string }[]
+  },
+  grade: number,
+  units: ScopeUnitCandidate[],
+  topics: ScopeTopicCandidate[] = []
+): Promise<ScopeMatchResult> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+  const gradeLabel = ['', '', '', '小三', '小四', '小五', '小六'][grade] ?? `小${grade}`
+
+  const unitsJson = JSON.stringify(
+    units.map((u) => ({
+      unit_id: u.unit_id,
+      unit_number: u.unit_number,
+      name: u.name,
+      semester: u.semester,
+    }))
+  )
+
+  const topicsBlock = topics.length
+    ? `\n以下係${gradeLabel}嘅小單元清單（如配對得到小單元層級就揀小單元 id）：\n${JSON.stringify(
+        topics.map((t) => ({
+          topic_id: t.topic_id,
+          lesson_number: t.lesson_number,
+          name: t.name,
+          unit_id: t.unit_id,
+        }))
+      )}\n`
+    : ''
+
+  const prompt = `你係香港小學數學考試範圍分析助手。
+
+以下係${gradeLabel}嘅完整課程大單元清單（由系統提供，係唯一可選範圍）：
+${unitsJson}
+${topicsBlock}
+家長會上載兩組相片：
+
+【第一組 — 學校通告】（標籤 NOTICE）
+學校派發嘅家長通告 / 考試時間表 / 範圍紙，會用文字寫低數學科考試範圍。例如：
+  「數學 5下A冊第3-6課，5下B冊第8-13課，及複合棒形圖」
+請從相片入面搵出**數學科**嗰一欄嘅考試範圍文字，記低提到嘅「冊」+「課題編號」+其他關鍵字。
+（如果通告只係寫單元名，或者乜都冇，就用第二組相片做主）
+
+【第二組 — 課本目錄】（標籤 TEXTBOOK）
+課本嘅目錄頁，會列出「課題編號 + 課題標題」嘅對應，例如「3 立體的截面、4 立體圖形、5 小數乘法（一）」。
+請從目錄頁搵出第一組通告提到嘅課題編號對應嘅標題。
+（家長唔需要喺課本上面剔起任何嘢；你需要靠自己對照通告嘅「冊+課題編號」嚟揾課題名。）
+
+工作流程：
+  1. 由 NOTICE 萃取出考試範圍嘅「冊 + 課題編號 list」 + 額外關鍵字 (e.g. 「複合棒形圖」)。
+  2. 由 TEXTBOOK 目錄查返每個課題編號嘅實際標題。
+  3. 將每個標題對應上面清單入面 unit name 最接近嗰個 (例如「立體圖形」→ U8 體積的認識？睇清楚 unit name 揾最相近)。
+  4. NOTICE 入面提到但 TEXTBOOK 入面冇對應頁嘅關鍵字，直接用關鍵字配 unit name。
+  5. 同一個 unit 由多個來源指向，merge 入同一個 unit_id，唔好重複。
+  6. 完全唔肯定嘅唔好強行配；喺 notes 簡短解釋。
+
+唔好自己創造或引用清單以外嘅課程名。唔好用自己對課程嘅理解去推斷通告/目錄冇提及嘅單元。
+
+只輸出JSON，唔好任何解釋或markdown:
+{
+  "matched_unit_ids": ["<uuid>", ...],
+  "matched_topic_ids": ["<uuid>", ...],
+  "notes": "簡短備註（中文，可選；例如「通告提到「立體的截面」但年級清單冇對應單元，已略過」）"
+}
+
+如果完全認唔到任何單元，返回空陣列。matched_unit_ids 入面嘅 uuid 必須完全等於上面清單入面其中一個 unit_id；matched_topic_ids 必須等於上面清單入面其中一個 topic_id。`
+
+  const parts = [
+    { text: '【NOTICE — 學校通告】' },
+    ...input.notice_images.map((img) => ({
+      inlineData: { mimeType: img.mimeType, data: img.data },
+    })),
+    { text: '【TEXTBOOK — 課本目錄】' },
+    ...input.textbook_images.map((img) => ({
+      inlineData: { mimeType: img.mimeType, data: img.data },
+    })),
+    { text: prompt },
+  ]
+
+  const response = await generateContentWithFallback(ai, {
+    contents: [{ role: 'user', parts }],
+    config: {
+      responseMimeType: 'application/json',
+      temperature: 0.1,
+    },
+  })
+
+  const text = response.text ?? ''
+  const clean = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+
+  let parsed: ScopeMatchResult
+  try {
+    parsed = JSON.parse(clean) as ScopeMatchResult
+  } catch {
+    throw new Error(`Gemini 返回了無效的 JSON：${clean.slice(0, 200)}`)
+  }
+
+  const validUnitIds = new Set(units.map((u) => u.unit_id))
+  const validTopicIds = new Set(topics.map((t) => t.topic_id))
+
+  return {
+    matched_unit_ids: Array.from(
+      new Set((parsed.matched_unit_ids ?? []).filter((id) => validUnitIds.has(id)))
+    ),
+    matched_topic_ids: Array.from(
+      new Set((parsed.matched_topic_ids ?? []).filter((id) => validTopicIds.has(id)))
+    ),
+    notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
+  }
 }
 
 // ── Variation generation ───────────────────────────────────────────────────
@@ -189,4 +348,79 @@ export async function generateVariations(
       typeof q.correct_answer === 'string' &&
       ['multiple_choice', 'fill_in', 'calculation'].includes(q.question_type)
   )
+}
+
+
+// ── Mock-exam: extract handwriting from a student's LQ answer photo ────────
+//
+// Caller supplies one or more photos for ONE long question. Returns the
+// transcribed answer as plain Chinese text (preserving fractions, units, and
+// step structure). Returns an empty string if the photo is unreadable.
+export async function extractLqHandwriting(
+  images: { data: string; mimeType: string }[]
+): Promise<string> {
+  if (!images.length) return ''
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+  const prompt = `你係批改助手。下面嘅圖片係學生喺數學模擬考試嘅長答題答卷。請：
+1. 將學生手寫嘅內容逐字 transcribe 成繁體中文純文字
+2. 保留分數寫法（例 1/2、1 5/8）、計算步驟、單位
+3. 用換行符分開唔同步驟
+4. 唔好加任何評論、解釋或標題
+5. 如果圖片完全無法辨識，輸出空字串
+
+只輸出 transcribed 嘅文字，唔好包 markdown code block。`
+
+  const parts: Array<
+    | { text: string }
+    | { inlineData: { data: string; mimeType: string } }
+  > = [{ text: prompt }]
+  for (const img of images) parts.push({ inlineData: img })
+
+  const response = await generateContentWithFallback(ai, {
+    contents: [{ role: 'user', parts }],
+  })
+
+  return (response.text ?? '').trim()
+}
+
+
+// ── Mock-exam: generate strength/weakness comment for MC+SQ section ────────
+export async function generateMockExamComment(input: {
+  studentName: string
+  totalAnswered: number
+  totalCorrect: number
+  perTopic: { topic_name: string; correct: number; total: number }[]
+}): Promise<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+
+  const accuracy =
+    input.totalAnswered === 0
+      ? 0
+      : Math.round((input.totalCorrect / input.totalAnswered) * 100)
+
+  const topicLines = input.perTopic
+    .map((t) => `${t.topic_name}: ${t.correct}/${t.total}`)
+    .join('\n')
+
+  const prompt = `你係香港小學數學老師。以下係 ${input.studentName} 喺模擬考試多項選擇題 + 短答題部分嘅表現。
+
+整體正確率：${input.totalCorrect}/${input.totalAnswered}（${accuracy}%）
+
+各題目分類表現：
+${topicLines || '(無資料)'}
+
+請寫一段 80-120 字嘅中文評語，要求：
+1. 指出 1-2 個強項（正確率高嘅單元/題型）
+2. 指出 1-2 個弱項（正確率低嘅單元/題型）
+3. 唔好評論未做嘅長答題部分
+4. 語氣要鼓勵、正面，唔好負面標籤
+
+只輸出評語本身，唔好加標題或 markdown。`
+
+  const response = await generateContentWithFallback(ai, {
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+  })
+
+  return (response.text ?? '').trim()
 }

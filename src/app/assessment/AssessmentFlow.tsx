@@ -304,8 +304,8 @@ function TopicSelect({
     <div className="min-h-screen bg-gray-50 pb-32">
       <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
         <button onClick={onBack} className="text-sm text-gray-400 mb-2">← 返回大單元</button>
-        <h2 className="text-lg font-bold text-gray-800">細揀學生已學嘅小單元</h2>
-        <p className="text-xs text-gray-500 mt-1">每個小單元 = 一堂課嘅內容。</p>
+        <h2 className="text-lg font-bold text-gray-800">細揀學生已學的小單元</h2>
+        <p className="text-xs text-gray-500 mt-1">每個小單元 = 一堂課的內容。</p>
       </div>
 
       <div className="p-5 space-y-5">

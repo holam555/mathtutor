@@ -50,9 +50,15 @@ _crops:/
 /p3 mock/
 /pre assessment curriculum/
 
+# LQ extraction input — screenshots / PDFs stay local; never push past-paper content
+/_lq_input/**/*
+!/_lq_input/**/.gitkeep
+
 # Supabase CLI temp
 supabase/.temp/
 
 # Root-level dev scripts (not part of deployed app)
 /lib/
-/scripts/
+# Ignore /scripts/* by default but track the ones other contributors need
+/scripts/*
+!/scripts/upload_lq_images.ts

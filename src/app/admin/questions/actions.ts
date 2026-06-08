@@ -1,7 +1,18 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+
+async function assertTeacher() {
+  const supabase = createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user || user.user_metadata?.role !== 'teacher') {
+    throw new Error('權限不足')
+  }
+  return user
+}
 
 export type QuestionFormState = {
   error?: string
@@ -12,33 +23,19 @@ export async function createQuestion(
   _prev: QuestionFormState,
   formData: FormData
 ): Promise<QuestionFormState> {
-  const supabase = createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user || user.user_metadata?.role !== 'teacher') {
+  try {
+    await assertTeacher()
+  } catch {
     return { error: '權限不足' }
   }
 
-  const category_id = formData.get('category_id')
-  const question_text = formData.get('question_text')
-  const question_type = formData.get('question_type')
-  const correct_answer = formData.get('correct_answer')
-  const difficulty = formData.get('difficulty')
+  const topic_id = formData.get('topic_id') as string | null
+  const question_text = (formData.get('question_text') as string | null)?.trim()
+  const question_type = formData.get('question_type') as string | null
+  const correct_answer = (formData.get('correct_answer') as string | null)?.trim()
+  const difficulty_tier = formData.get('difficulty_tier') as string | null
 
-  if (
-    typeof category_id !== 'string' ||
-    typeof question_text !== 'string' ||
-    typeof question_type !== 'string' ||
-    typeof correct_answer !== 'string' ||
-    typeof difficulty !== 'string'
-  ) {
-    return { error: '請填寫所有必填欄位' }
-  }
-
-  if (!category_id || !question_text.trim() || !correct_answer.trim()) {
+  if (!topic_id || !question_text || !question_type || !correct_answer || !difficulty_tier) {
     return { error: '請填寫所有必填欄位' }
   }
 
@@ -46,53 +43,119 @@ export async function createQuestion(
   let options: string[] | null = null
   if (question_type === 'multiple_choice') {
     const opts = ['A', 'B', 'C', 'D'].map((letter) => {
-      const val = formData.get(`option_${letter}`)
-      return typeof val === 'string' ? `${letter}. ${val.trim()}` : ''
+      const val = (formData.get(`option_${letter}`) as string | null) ?? ''
+      return `${letter}. ${val.trim()}`
     })
-    if (opts.some((o) => !o.replace(/^[A-D]\. /, '').trim())) {
-      return { error: '選擇題須填寫全部4個選項' }
+    if (opts.some((o) => o.replace(/^[A-D]\. /, '').trim() === '')) {
+      return { error: '選擇題須填寫全部 4 個選項' }
     }
     options = opts
   }
 
-  const { error } = await supabase.from('questions').insert({
-    category_id,
-    question_text: question_text.trim(),
+  const service = createServiceClient()
+  const { error } = await service.from('assessment_questions').insert({
+    topic_id,
+    question_text,
     question_type,
     options,
-    correct_answer: correct_answer.trim(),
-    difficulty: parseInt(difficulty, 10),
-    source: 'manual',
+    correct_answer,
+    difficulty_tier,
     is_active: true,
+    source: 'manual',
   })
 
-  if (error) {
-    return { error: `儲存失敗：${error.message}` }
-  }
+  if (error) return { error: `儲存失敗：${error.message}` }
 
   revalidatePath('/admin/questions')
   return { success: true }
 }
 
-export async function toggleQuestionActive(questionId: string, isActive: boolean) {
-  const supabase = createClient()
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user || user.user_metadata?.role !== 'teacher') {
+export async function updateQuestion(
+  questionId: string,
+  _prev: QuestionFormState,
+  formData: FormData
+): Promise<QuestionFormState> {
+  try {
+    await assertTeacher()
+  } catch {
     return { error: '權限不足' }
   }
 
-  const { error } = await supabase
-    .from('questions')
+  const topic_id = formData.get('topic_id') as string | null
+  const question_text = (formData.get('question_text') as string | null)?.trim()
+  const question_type = formData.get('question_type') as string | null
+  const correct_answer = (formData.get('correct_answer') as string | null)?.trim()
+  const difficulty_tier = formData.get('difficulty_tier') as string | null
+
+  if (!topic_id || !question_text || !question_type || !correct_answer || !difficulty_tier) {
+    return { error: '請填寫所有必填欄位' }
+  }
+
+  let options: string[] | null = null
+  if (question_type === 'multiple_choice') {
+    const opts = ['A', 'B', 'C', 'D'].map((letter) => {
+      const val = (formData.get(`option_${letter}`) as string | null) ?? ''
+      return `${letter}. ${val.trim()}`
+    })
+    if (opts.some((o) => o.replace(/^[A-D]\. /, '').trim() === '')) {
+      return { error: '選擇題須填寫全部 4 個選項' }
+    }
+    options = opts
+  }
+
+  const service = createServiceClient()
+
+  // Handle image: upload new file, clear, or leave unchanged
+  let imageUrlUpdate: { image_url: string | null } | undefined
+  const clearImage = formData.get('clear_image') === '1'
+  const imageFile = formData.get('image_file') as File | null
+
+  if (clearImage) {
+    imageUrlUpdate = { image_url: null }
+  } else if (imageFile && imageFile.size > 0) {
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowed.includes(imageFile.type)) return { error: '不支援的圖片格式（只接受 JPG、PNG、WEBP）' }
+    if (imageFile.size > 5 * 1024 * 1024) return { error: '圖片太大（最大 5MB）' }
+    const ext = imageFile.type === 'image/png' ? 'png' : imageFile.type === 'image/webp' ? 'webp' : 'jpg'
+    const path = `question-images/${questionId}-${Date.now()}.${ext}`
+    const buffer = Buffer.from(await imageFile.arrayBuffer())
+    const { error: uploadErr } = await service.storage
+      .from('past-papers')
+      .upload(path, buffer, { contentType: imageFile.type, upsert: true })
+    if (uploadErr) return { error: `圖片上傳失敗：${uploadErr.message}` }
+    imageUrlUpdate = { image_url: path }
+  }
+
+  const { error } = await service
+    .from('assessment_questions')
+    .update({ topic_id, question_text, question_type, options, correct_answer, difficulty_tier, ...imageUrlUpdate })
+    .eq('id', questionId)
+
+  if (error) return { error: `儲存失敗：${error.message}` }
+
+  revalidatePath('/admin/questions')
+  revalidatePath(`/admin/questions/${questionId}`)
+  return { success: true }
+}
+
+export async function toggleQuestionActive(
+  questionId: string,
+  isActive: boolean,
+  table: 'questions' | 'assessment_questions' = 'assessment_questions'
+) {
+  try {
+    await assertTeacher()
+  } catch {
+    return { error: '權限不足' }
+  }
+
+  const service = createServiceClient()
+  const { error } = await service
+    .from(table)
     .update({ is_active: isActive })
     .eq('id', questionId)
 
-  if (error) {
-    return { error: error.message }
-  }
+  if (error) return { error: error.message }
 
   revalidatePath('/admin/questions')
   return { success: true }

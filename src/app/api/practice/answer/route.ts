@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { isAnswerCorrect } from '@/lib/answerUtils'
 import { generateVariationsForCategory } from '@/lib/variationGenerator'
 
-const WRONG_THRESHOLD = 3 // auto-trigger variation generation after this many wrongs
+const WRONG_THRESHOLD = 3
 
 export async function POST(request: NextRequest) {
   const supabase = createClient()
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     session_id: string
     question_id: string
     student_answer: string
-    category_id: string
+    category_id?: string | null
     time_spent_seconds?: number
   }
 
@@ -31,13 +31,9 @@ export async function POST(request: NextRequest) {
 
   const { session_id, question_id, student_answer, category_id, time_spent_seconds } = body
 
-  // SECURITY: confirm this session belongs to the caller AND that the
-  // question is actually in this session's question_ids. Without this,
-  // a student could (a) post answers under another student's session_id
-  // or (b) grind any question for ⭐ outside their session's list.
   const { data: sessionRow, error: sessionError } = await supabase
     .from('practice_sessions')
-    .select('student_id, question_ids')
+    .select('student_id, question_ids, session_type')
     .eq('id', session_id)
     .single()
 
@@ -51,25 +47,50 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '此題不屬於此練習' }, { status: 400 })
   }
 
-  // Look up correct_answer server-side — never trust the client.
-  const { data: questionRow, error: lookupError } = await supabase
-    .from('questions')
-    .select('correct_answer')
-    .eq('id', question_id)
-    .single()
+  const service = createServiceClient()
 
-  if (lookupError || !questionRow) {
+  // Sessions started after 0018 use assessment_questions for all modes
+  // except retry_wrong (which can mix). Detect source by querying both —
+  // assessment_questions first since legacy is now all is_active=false.
+  let correctAnswer: string | null = null
+  let questionSource: 'assessment_questions' | 'questions' = 'assessment_questions'
+  let topicId: string | null = null
+  let legacyCategoryId: string | null = null
+
+  const { data: aq } = await service
+    .from('assessment_questions')
+    .select('correct_answer, topic_id')
+    .eq('id', question_id)
+    .maybeSingle()
+
+  if (aq) {
+    correctAnswer = aq.correct_answer
+    topicId = aq.topic_id ?? null
+    questionSource = 'assessment_questions'
+  } else {
+    const { data: lq } = await service
+      .from('questions')
+      .select('correct_answer, category_id')
+      .eq('id', question_id)
+      .maybeSingle()
+    if (lq) {
+      correctAnswer = lq.correct_answer
+      legacyCategoryId = (lq.category_id as string | null) ?? category_id ?? null
+      questionSource = 'questions'
+    }
+  }
+
+  if (correctAnswer == null) {
     return NextResponse.json({ error: '題目不存在' }, { status: 404 })
   }
 
-  const correct = isAnswerCorrect(student_answer, questionRow.correct_answer)
+  const correct = isAnswerCorrect(student_answer, correctAnswer)
 
-  // Record answer
   const { error: answerError } = await supabase.from('answer_records').insert({
     session_id,
     student_id: user.id,
     question_id,
-    question_source: 'questions',
+    question_source: questionSource,
     student_answer,
     is_correct: correct,
     time_spent_seconds: time_spent_seconds ?? null,
@@ -79,21 +100,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '記錄失敗' }, { status: 500 })
   }
 
-  // Update wrong_question_bank
   if (!correct) {
-    await supabase.rpc('upsert_wrong_question', {
-      p_student_id: user.id,
-      p_question_id: question_id,
-      p_category_id: category_id,
-    })
-
-    // Auto-trigger variation generation if wrong count crosses threshold
-    // Fire-and-forget (don't await — don't block the student response)
-    triggerVariationIfNeeded(user.id, category_id).catch(() => {
-      // Silently ignore errors — generation failure shouldn't affect student flow
-    })
+    if (questionSource === 'assessment_questions' && topicId) {
+      await service.rpc('upsert_wrong_assessment_question', {
+        p_student_id: user.id,
+        p_question_id: question_id,
+        p_topic_id: topicId,
+      })
+    } else if (questionSource === 'questions' && legacyCategoryId) {
+      await supabase.rpc('upsert_wrong_question', {
+        p_student_id: user.id,
+        p_question_id: question_id,
+        p_category_id: legacyCategoryId,
+      })
+      // Variation auto-trigger only for legacy-source wrongs (the variation
+      // pipeline keys off question_categories — and legacy questions are
+      // inactive now so this rarely fires).
+      triggerVariationIfNeeded(user.id, legacyCategoryId).catch(() => {})
+    }
   } else {
-    // Update streak in wrong bank
+    // Mark progress in wrong bank if previously wrong
     const { data: existing } = await supabase
       .from('wrong_question_bank')
       .select('id, correct_streak')
@@ -114,24 +140,17 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // SECURITY: also return correct_answer to the client so the practice UI can
-  // show it in the wrong-answer banner. This is post-submit (the student has
-  // already committed their answer) so it does not enable cheating; the
-  // /api/practice/start response no longer leaks correct_answer up-front.
-  return NextResponse.json({ correct, correct_answer: questionRow.correct_answer })
+  // Mock-exam sessions must not leak correctness back to the client — the
+  // UI hides instant feedback and DevTools shouldn't reveal it either. The
+  // student still sees their final score on the dedicated results page
+  // after the paper completes.
+  if (sessionRow.session_type === 'mock_exam') {
+    return NextResponse.json({ recorded: true })
+  }
+  return NextResponse.json({ correct, correct_answer: correctAnswer })
 }
 
-/**
- * Checks if the student has >= WRONG_THRESHOLD unresolved wrong questions
- * in the given category, and if so, generates AI variations for that category.
- * Called fire-and-forget — errors are silently ignored. Calls the generator
- * in-process so it does not need to satisfy the teacher-only check on the
- * /api/variations/generate route.
- */
-async function triggerVariationIfNeeded(
-  studentId: string,
-  categoryId: string,
-) {
+async function triggerVariationIfNeeded(studentId: string, categoryId: string) {
   const { createClient } = await import('@/lib/supabase/server')
   const supabase = createClient()
 
@@ -143,6 +162,5 @@ async function triggerVariationIfNeeded(
     .eq('is_resolved', false)
 
   if ((count ?? 0) < WRONG_THRESHOLD) return
-
   await generateVariationsForCategory(categoryId)
 }

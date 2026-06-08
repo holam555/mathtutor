@@ -1,7 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { DAILY_GOAL } from '@/lib/trophies'
+import { DAILY_GOAL, TROPHIES, type StudentStats } from '@/lib/trophies'
 
 export default async function ResultsPage({
   params,
@@ -17,21 +17,85 @@ export default async function ResultsPage({
 
   const { data: session } = await supabase
     .from('practice_sessions')
-    .select('id, correct_count, student_id')
+    .select('id, correct_count, total_questions, student_id, session_type')
     .eq('id', params.sessionId)
     .eq('student_id', user.id)
     .single()
 
   if (!session) notFound()
 
-  const starsEarned = session.correct_count ?? 0
+  // Mock-exam sessions have their own results page (MC+SQ score + AI
+  // comment + 繼續計時 button for the LQ portion).
+  if (session.session_type === 'mock_exam') {
+    const { data: paper } = await supabase
+      .from('mock_exam_papers')
+      .select('id')
+      .eq('mc_sq_session_id', session.id)
+      .maybeSingle()
+    if (paper) redirect(`/student/mock-exam/${paper.id}/results`)
+  }
 
-  // Today's answer count to decide if daily goal was just hit
-  const { data: todayCountData } = await supabase.rpc('get_today_answer_count', {
-    p_student_id: user.id,
-  })
+  const starsEarned = session.correct_count ?? 0
+  const sessionTotal = session.total_questions ?? 0
+
+  // Fetch current (post-session) stats
+  const [
+    { data: todayCountData },
+    { data: totalCorrectData },
+    { data: totalAnsweredData },
+    { data: streakData },
+    { data: weekDots },
+    { data: bestCat },
+    { count: sessionCount },
+  ] = await Promise.all([
+    supabase.rpc('get_today_answer_count', { p_student_id: user.id }),
+    supabase.rpc('get_student_total_correct', { p_student_id: user.id }),
+    supabase.rpc('get_student_total_answered', { p_student_id: user.id }),
+    supabase.rpc('get_student_streak', { p_student_id: user.id }),
+    supabase.rpc('get_week_completion', { p_student_id: user.id }),
+    supabase.rpc('get_student_best_category', { p_student_id: user.id }),
+    supabase
+      .from('practice_sessions')
+      .select('*', { count: 'exact', head: true })
+      .eq('student_id', user.id)
+      .not('completed_at', 'is', null),
+  ])
+
   const todayAnswered = (todayCountData as number) ?? 0
   const dailyGoalMet = todayAnswered >= DAILY_GOAL
+
+  const totalCorrect = (totalCorrectData as number) ?? 0
+  const totalAnswered = (totalAnsweredData as number) ?? 0
+  const streak = (streakData as number) ?? 0
+  const weekDotsArr = (weekDots as { day_offset: number; has_practice: boolean }[] | null) ?? []
+  const weekCompletionCount = weekDotsArr.filter((d) => d.has_practice).length
+  const best = (bestCat as { category_name: string; accuracy: number; attempts: number }[] | null)?.[0]
+
+  const afterStats: StudentStats = {
+    totalAnswered,
+    totalCorrect,
+    streak,
+    weekCompletionCount,
+    bestCategoryName: best?.category_name ?? null,
+    bestCategoryAccuracy: Number(best?.accuracy ?? 0),
+    bestCategoryAttempts: Number(best?.attempts ?? 0),
+    sessionCount: sessionCount ?? 0,
+  }
+
+  // Approximate pre-session stats by subtracting this session's contribution
+  const beforeStats: StudentStats = {
+    ...afterStats,
+    totalAnswered: Math.max(0, totalAnswered - sessionTotal),
+    totalCorrect: Math.max(0, totalCorrect - starsEarned),
+    sessionCount: Math.max(0, (sessionCount ?? 0) - 1),
+  }
+
+  // Detect newly unlocked trophies this session
+  const newlyUnlocked = TROPHIES.filter((t) => {
+    const before = t.check(beforeStats)
+    const after = t.check(afterStats)
+    return !before.unlocked && after.unlocked
+  })
 
   return (
     <main className="min-h-screen px-5 py-10 max-w-md mx-auto bg-gradient-to-b from-[#F7FBF9] to-white flex flex-col items-center justify-center">
@@ -49,7 +113,7 @@ export default async function ResultsPage({
       </div>
 
       {/* Stars earned */}
-      <div className="bg-white rounded-3xl shadow-sm px-8 py-6 mb-8 text-center">
+      <div className="bg-white rounded-3xl shadow-sm px-8 py-6 mb-6 text-center w-full">
         <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">今次獲得</p>
         <p className="text-5xl font-bold text-[#EF9F27] flex items-center justify-center gap-1">
           <span>⭐</span>
@@ -57,6 +121,24 @@ export default async function ResultsPage({
           <span>{starsEarned}</span>
         </p>
       </div>
+
+      {/* New trophy banner */}
+      {newlyUnlocked.length > 0 && (
+        <div className="w-full bg-gradient-to-r from-[#FFE7B5] to-[#FFCC66] rounded-2xl px-5 py-4 mb-6 shadow-sm">
+          <p className="text-sm font-bold text-[#8B6000] mb-2">🏅 新獎杯解鎖！</p>
+          <div className="flex flex-col gap-1.5">
+            {newlyUnlocked.map((t) => (
+              <div key={t.id} className="flex items-center gap-2">
+                <span className="text-2xl">{t.emoji}</span>
+                <div>
+                  <p className="text-sm font-semibold text-[#5C3D00]">{t.title}</p>
+                  <p className="text-xs text-[#7A5200]">{t.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Action */}
       <Link

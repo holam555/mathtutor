@@ -12,6 +12,7 @@ type SessionRow = {
   total_questions: number | null
   correct_count: number | null
   completed_at: string | null
+  session_type?: string | null
 }
 
 type WrongGroup = {
@@ -40,6 +41,7 @@ export default function StudentReport({
   wrongGroups,
   avgSecondsPerQuestion,
   activeTab,
+  sprintTabHref,
 }: {
   mode: ReportMode
   studentName: string
@@ -52,6 +54,7 @@ export default function StudentReport({
   wrongGroups: WrongGroup[]
   avgSecondsPerQuestion: number
   activeTab: 'overview' | 'wrong' | 'history'
+  sprintTabHref?: string
 }) {
   const accuracy = computeAccuracy(stats.correctAnswers, stats.totalAnswers)
 
@@ -106,12 +109,12 @@ export default function StudentReport({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-5 border-b border-gray-200">
+      <div className="flex gap-1 mb-5 border-b border-gray-200 overflow-x-auto">
         {(['overview', 'wrong', 'history'] as const).map((t) => (
           <Link
             key={t}
             href={`${basePath}?tab=${t}&range=${range}`}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition ${
+            className={`px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition ${
               activeTab === t
                 ? 'border-[#4A90E2] text-[#4A90E2]'
                 : 'border-transparent text-gray-500'
@@ -120,6 +123,14 @@ export default function StudentReport({
             {tabLabel[t]}
           </Link>
         ))}
+        {sprintTabHref && (
+          <Link
+            href={sprintTabHref}
+            className="px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition border-transparent text-gray-500 hover:text-gray-700"
+          >
+            模擬考試
+          </Link>
+        )}
       </div>
 
       {/* Tab content */}
@@ -272,27 +283,43 @@ export default function StudentReport({
                         60000
                     )
                   : 0
+              const isSprint = s.session_type === 'exam_sprint' || s.session_type === 'mock_exam'
               return (
-                <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-700">
-                      {new Date(s.started_at).toLocaleDateString('zh-HK')}{' '}
-                      <span className="text-xs text-gray-400">
-                        {new Date(s.started_at).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </p>
+                <div key={s.id} className="bg-white rounded-xl p-3 shadow-sm flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <p className="text-sm text-gray-700">
+                        {new Date(s.started_at).toLocaleDateString('zh-HK')}{' '}
+                        <span className="text-xs text-gray-400">
+                          {new Date(s.started_at).toLocaleTimeString('zh-HK', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </p>
+                      {isSprint && (
+                        <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">模擬考試</span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400 mt-0.5">
                       {s.correct_count ?? 0} / {s.total_questions ?? 0} 題
                       {duration > 0 ? ` · ${duration} 分鐘` : ''}
                     </p>
                   </div>
-                  <span
-                    className={`text-sm font-semibold ${
-                      pct >= 70 ? 'text-[#4CAF50]' : pct >= 50 ? 'text-[#4A90E2]' : 'text-red-500'
-                    }`}
-                  >
-                    {pct}%
-                  </span>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span
+                      className={`text-sm font-semibold ${
+                        pct >= 70 ? 'text-[#4CAF50]' : pct >= 50 ? 'text-[#4A90E2]' : 'text-red-500'
+                      }`}
+                    >
+                      {pct}%
+                    </span>
+                    {mode === 'parent' && (
+                      <Link
+                        href={`${basePath}/session/${s.id}`}
+                        className="text-xs text-[#4A90E2] underline whitespace-nowrap"
+                      >
+                        詳情
+                      </Link>
+                    )}
+                  </div>
                 </div>
               )
             })

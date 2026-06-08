@@ -1,8 +1,16 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
 import StudentHomeClient from './StudentHomeClient'
+import MockExamLauncher from './MockExamLauncher'
+
+const GRADE_LABEL: Record<number, string> = {
+  3: '小三',
+  4: '小四',
+  5: '小五',
+  6: '小六',
+}
 import {
   DAILY_GOAL,
   TROPHIES,
@@ -85,6 +93,17 @@ export default async function StudentHome() {
   const greeting = getGreeting()
   const todayIdx = (new Date().getDay() + 6) % 7 // Monday=0
 
+  // Active exam scope (latest) — drives the 考試衝刺練習 card.
+  const service = createServiceClient()
+  const { data: examScope } = await service
+    .from('exam_scopes')
+    .select('id, exam_name, exam_date, unit_ids')
+    .eq('student_id', user.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
   // SVG circle maths
   const size = 180
   const strokeWidth = 14
@@ -102,7 +121,7 @@ export default async function StudentHome() {
           </h1>
           {profile?.grade && (
             <p className="text-sm text-gray-400 mt-0.5">
-              小{profile.grade === 5 ? '五' : '六'}
+              {GRADE_LABEL[profile.grade] ?? `小${profile.grade}`}
             </p>
           )}
         </div>
@@ -232,6 +251,11 @@ export default async function StudentHome() {
         </div>
       )}
 
+      {/* Mock exam paper CTA (only if active exam_scope exists) */}
+      {examScope && (
+        <MockExamLauncher />
+      )}
+
       {/* Start practice CTA */}
       <StudentHomeClient wrongCount={wrongCount ?? 0} studentId={user.id} />
 
@@ -241,7 +265,7 @@ export default async function StudentHome() {
           所有獎杯
         </Link>
         <Link href="/student/practice/select-category" className="text-gray-400 underline">
-          按題型練習
+          按單元練習
         </Link>
       </div>
     </main>

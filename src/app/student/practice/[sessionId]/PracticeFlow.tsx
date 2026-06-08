@@ -3,31 +3,31 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Question } from '@/types/database'
-import FractionDisplay, { QuestionContent } from '@/components/FractionDisplay'
+import { QuestionContent } from '@/components/FractionDisplay'
+import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 
-type FeedbackState = 'idle' | 'correct' | 'wrong'
+// Practice mode shows immediate green/orange feedback after each answer
+// (the Duolingo-style loop). Mock-exam mode hides correct/wrong entirely
+// — students get a neutral "已記錄" beat and the question advances, just
+// like the 學前評估 (prelesson assessment) flow. Both modes still POST the
+// answer to the server, so analytics + the results page are identical.
+type FeedbackState = 'idle' | 'correct' | 'wrong' | 'recorded'
 
 // Server-augmented question: numeric_answer flag tells us whether the
 // fill_in question expects a number/fraction (custom keyboard) without
 // leaking the answer itself.
 type SessionQuestion = Question & { numeric_answer?: boolean }
 
-// 4-column numeric keyboard rows: [label, value] pairs
-// value === 'backspace' | 'confirm' are special actions
-const NUMBER_KEYBOARD: [string, string][][] = [
-  [['7', '7'], ['8', '8'], ['9', '9'], ['⌫', 'backspace']],
-  [['4', '4'], ['5', '5'], ['6', '6'], ['又', '又']],
-  [['1', '1'], ['2', '2'], ['3', '3'], ['/', '/']],
-  [['0', '0'], ['.', '.'], ['、', '、'], ['確認', 'confirm']],
-]
-
 export default function PracticeFlow({
   sessionId,
   questions,
+  mode = 'practice',
 }: {
   sessionId: string
   questions: SessionQuestion[]
+  mode?: 'practice' | 'mock_exam'
 }) {
+  const instantFeedback = mode === 'practice'
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
@@ -72,10 +72,13 @@ export default function PracticeFlow({
     [currentIndex, questions.length, sessionId, router]
   )
 
-  // Auto-advance after 1.5s feedback
+  // Auto-advance after feedback. Practice mode lingers 1.5s so the student
+  // can take in the green/orange result. Mock-exam mode shows the neutral
+  // "已記錄" beat for 1s — long enough to feel responsive without dragging.
   useEffect(() => {
     if (feedback === 'idle') return
-    const timer = setTimeout(() => advanceOrFinish(), 1500)
+    const delay = feedback === 'recorded' ? 1000 : 1500
+    const timer = setTimeout(() => advanceOrFinish(), delay)
     return () => clearTimeout(timer)
   }, [feedback, advanceOrFinish])
 
@@ -108,14 +111,23 @@ export default function PracticeFlow({
         }),
       })
       const data: { correct?: boolean; correct_answer?: string } = await res.json().catch(() => ({}))
-      const correct = !!data.correct
-      setRevealedAnswer(data.correct_answer ?? '')
-      setFeedback(correct ? 'correct' : 'wrong')
+      if (instantFeedback) {
+        const correct = !!data.correct
+        setRevealedAnswer(data.correct_answer ?? '')
+        setFeedback(correct ? 'correct' : 'wrong')
+      } else {
+        // Mock-exam mode: never reveal correct/wrong. The answer is still
+        // recorded server-side; the student only sees a neutral "recorded"
+        // state before the next question loads.
+        setRevealedAnswer('')
+        setFeedback('recorded')
+      }
     } catch {
-      // Network failure: fall back to a neutral "wrong" feedback so the
-      // student can still progress; nothing is recorded if the request died.
+      // Network failure: in practice mode fall back to "wrong" so the
+      // student can still progress; in mock-exam mode use the same neutral
+      // "recorded" beat (we don't punish them for our network blip).
       setRevealedAnswer('')
-      setFeedback('wrong')
+      setFeedback(instantFeedback ? 'wrong' : 'recorded')
     } finally {
       setIsSubmitting(false)
     }
@@ -127,22 +139,19 @@ export default function PracticeFlow({
     submitAnswer(option)
   }
 
-  function handleNumKey(value: string) {
-    if (feedback !== 'idle') return
-    if (value === 'backspace') {
-      setFillInput((prev) => prev.slice(0, -1))
-    } else if (value === 'confirm') {
-      submitAnswer(fillInput)
-    } else {
-      setFillInput((prev) => prev + value)
-    }
-  }
-
   function getOptionStyle(option: string) {
     const base =
       'w-full h-14 rounded-xl text-left px-4 text-base font-medium transition-all active:scale-[0.98] border-2'
     if (feedback === 'idle') {
       return `${base} bg-white border-[#1D9E75] text-gray-800 hover:bg-[#1D9E75]/5`
+    }
+    if (feedback === 'recorded') {
+      // Mock-exam mode: highlight only the student's selection in a neutral
+      // colour. Don't reveal correctness.
+      if (option === selectedOption) {
+        return `${base} bg-gray-100 border-gray-400 text-gray-800`
+      }
+      return `${base} bg-white border-gray-200 text-gray-400`
     }
     // Use the server-revealed correct answer (post-submit) — the question
     // payload itself never carries it.
@@ -154,14 +163,6 @@ export default function PracticeFlow({
     }
     return `${base} bg-white border-gray-200 text-gray-400`
   }
-
-  const fillDisplayClass = `mt-4 h-14 rounded-xl flex items-center justify-center text-2xl font-semibold border-2 transition-colors ${
-    feedback === 'correct'
-      ? 'bg-[#1D9E75] border-[#1D9E75] text-white'
-      : feedback === 'wrong'
-        ? 'bg-[#EF9F27] border-[#EF9F27] text-white'
-        : 'bg-white border-[#1D9E75] text-gray-800'
-  }`
 
   return (
     <div className="flex flex-col min-h-screen max-w-md mx-auto">
@@ -216,19 +217,13 @@ export default function PracticeFlow({
                 ? 'bg-[#1D9E75] border-[#1D9E75] text-white placeholder:text-white/60'
                 : feedback === 'wrong'
                   ? 'bg-[#EF9F27] border-[#EF9F27] text-white placeholder:text-white/60'
-                  : 'bg-white border-[#1D9E75] text-gray-800 placeholder:text-gray-300'
+                  : feedback === 'recorded'
+                    ? 'bg-gray-100 border-gray-400 text-gray-800 placeholder:text-gray-400'
+                    : 'bg-white border-[#1D9E75] text-gray-800 placeholder:text-gray-300'
             }`}
           />
         )}
 
-        {/* Custom keyboard display box (numbers, fractions, mixed numbers) */}
-        {useCustomKeyboard && (
-          <div className={fillDisplayClass}>
-            {fillInput
-              ? <FractionDisplay value={fillInput} />
-              : <span className="text-gray-300 text-base">輸入答案</span>}
-          </div>
-        )}
 
         {/* Hint for calculation */}
         {qType === 'calculation' && (
@@ -267,35 +262,21 @@ export default function PracticeFlow({
           </button>
         )}
 
-        {/* Custom fraction keyboard */}
+        {/* Unified keyboard (numbers, fractions, mixed numbers) */}
         {useCustomKeyboard && (
-          <div className="grid grid-cols-4 gap-2">
-            {NUMBER_KEYBOARD.flat().map(([label, value]) => {
-              const isConfirm = value === 'confirm'
-              const isBackspace = value === 'backspace'
-              return (
-                <button
-                  key={value}
-                  onClick={() => handleNumKey(value)}
-                  disabled={feedback !== 'idle' || (isConfirm && !fillInput.trim())}
-                  className={`h-14 rounded-lg text-lg font-medium transition active:scale-[0.95] disabled:opacity-40 ${
-                    isConfirm
-                      ? 'bg-[#1D9E75] text-white text-base font-semibold'
-                      : isBackspace
-                        ? 'bg-[#F1EFE8] text-gray-500'
-                        : 'bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
+          <UnifiedKeyboard
+            value={fillInput}
+            onChange={(v) => { if (feedback === 'idle') setFillInput(v) }}
+            onSubmit={() => submitAnswer(fillInput)}
+            disabled={feedback !== 'idle'}
+          />
         )}
       </div>
 
-      {/* Feedback bar */}
-      {feedback !== 'idle' && (
+      {/* Feedback bar — practice mode only. Mock-exam shows a minimal,
+          colour-neutral "已記錄" line instead so students don't learn the
+          answer before the paper is graded. */}
+      {(feedback === 'correct' || feedback === 'wrong') && (
         <div
           className={`fixed bottom-0 left-0 right-0 px-6 py-4 text-white ${
             feedback === 'correct' ? 'bg-[#1D9E75]' : 'bg-[#EF9F27]'
@@ -311,12 +292,17 @@ export default function PracticeFlow({
             <div className="mt-1">
               {revealedAnswer && (
                 <p className="text-sm font-semibold text-white flex items-center gap-1 flex-wrap">
-                  正確答案：<FractionDisplay value={revealedAnswer} />
+                  正確答案：{revealedAnswer}
                 </p>
               )}
               <p className="text-xs text-white/70 mt-0.5">已加入挑戰題，下次再戰！</p>
             </div>
           )}
+        </div>
+      )}
+      {feedback === 'recorded' && (
+        <div className="fixed bottom-0 left-0 right-0 px-6 py-3 bg-gray-100 border-t border-gray-200 text-center">
+          <span className="text-sm font-medium text-gray-600">已記錄，繼續下一題…</span>
         </div>
       )}
     </div>
