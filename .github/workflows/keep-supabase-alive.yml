@@ -1,0 +1,35 @@
+name: Keep Supabase Alive
+
+# Supabase free-tier projects pause after ~7 days of inactivity.
+# This job makes one tiny read query every day to keep the project awake.
+# No AI / Gemini calls — just a single lightweight REST GET.
+
+on:
+  schedule:
+    # Runs every day at 02:17 UTC (10:17 HKT). Odd minute to avoid GitHub's
+    # busy top-of-hour scheduling queue.
+    - cron: '17 2 * * *'
+  workflow_dispatch: {} # allows manual "Run workflow" from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: https://eafuotdjswwouhcnaqnz.supabase.co
+          # Publishable (anon) key — public by design, already shipped to every browser.
+          SUPABASE_ANON_KEY: sb_publishable_DtP89RiN683q96G_-kUN6g_DPDHAwk1
+        run: |
+          set -euo pipefail
+          # Read a single row from a small, always-present table.
+          status=$(curl -sS -o /dev/null -w '%{http_code}' \
+            "${SUPABASE_URL}/rest/v1/curriculum_units?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          echo "Supabase responded with HTTP ${status}"
+          if [ "${status}" -lt 200 ] || [ "${status}" -ge 400 ]; then
+            echo "::error::Unexpected status ${status} — Supabase ping failed."
+            exit 1
+          fi
+          echo "Supabase ping OK."
