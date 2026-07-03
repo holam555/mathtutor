@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# mathtutor
 
-## Getting Started
+A web app that uses AI to generate practice questions mirroring real exams and analyze student performance, while helping parents and tutors manage questions and results.
 
-First, run the development server:
+Built to give lower-income families access to quality, affordable math practice — 50+ students using it within two months of launch. Three roles, one app: students work through mobile-first practice sessions, parents set exam scopes and track progress, tutors curate the question bank and mark long-answer work. Built solo, end to end — schema design, RLS policies, AI pipelines, the works.
+
+## What it does
+
+- **Diagnostic assessment** — before a student starts a course, the app pulls a weighted sample of questions across curriculum units (P3–P6) to find weak spots, with per-unit and per-difficulty quotas so the sample is actually representative, not random noise.
+- **Mock exam generator** — parents pick the units on the upcoming school test, and the app assembles a 40-question paper (MC + short-answer + long-answer) matched to that scope, with a fixed easy/medium/hard mix and sub-question groups kept intact (you can't split 5(a) from 5(b) when they share a diagram).
+- **Past paper ingestion** — parents photograph old exam papers; Gemini Vision extracts questions, a teacher reviews/corrects, and approved questions flow into the bank. Parents earn redeemable credits per approved page.
+- **AI-generated variations** — when a student keeps missing a question type, Gemini generates fresh practice questions in the same pattern for teacher approval, instead of just repeating the same failed question.
+- **Long-answer marking loop** — students photograph handwritten LQ answers, papers sit in a `lq_pending` state with the timer frozen, and results unlock once a teacher grades them.
+- **Wrong-question bank & spaced retry** — mistakes get tracked per student and resurface until answered correctly twice.
+- **Gamified student home** — daily goal ring, streak tracker, trophy shelf — all computed on the fly from practice stats, no separate trophies table to keep in sync.
+
+## Stack
+
+- **Next.js 14** (App Router) + TypeScript + Tailwind
+- **Supabase** — Postgres, Auth, Storage, and Row Level Security as the actual authorization layer (not just app-level checks — `is_parent_of()` / `is_teacher()` SQL functions gate every student-data table)
+- **Gemini 2.5 Flash** (Vision + text) for OCR extraction and question generation
+- **sharp** / **pdfjs-dist** / **canvas** for image and PDF processing on uploaded exam papers
+
+## Scale, for context
+
+~19.5k lines of TypeScript, 20 SQL migrations, 3 role-specific auth flows, and question banks spanning 4 grade levels — built and iterated solo over about 6 weeks.
+
+## Running it locally
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in Supabase + Gemini keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Then apply the SQL migrations in `supabase/migrations/` in order, and seed a curriculum + question bank from `supabase/seed_*.sql` (see `CLAUDE.md` for the exact apply order — there's a few grades' worth of seed files and they're not all independent).
