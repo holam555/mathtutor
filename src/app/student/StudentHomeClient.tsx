@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function StudentHomeClient({
   wrongCount,
@@ -11,6 +12,7 @@ export default function StudentHomeClient({
   studentId: string
 }) {
   const router = useRouter()
+  const { t } = useLang()
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -48,9 +50,9 @@ export default function StudentHomeClient({
         className="w-full h-16 rounded-2xl bg-[#1D9E75] text-white text-lg font-bold disabled:opacity-60 active:scale-[0.98] transition flex items-center justify-center gap-2 shadow-md"
       >
         {loading === 'new' ? (
-          <span className="animate-pulse">準備題目中…</span>
+          <span className="animate-pulse">{t('準備題目中…')}</span>
         ) : (
-          <>開始練習 <span className="text-xl">→</span></>
+          <>{t('開始練習')} <span className="text-xl">→</span></>
         )}
       </button>
 
@@ -60,7 +62,7 @@ export default function StudentHomeClient({
           disabled={!!loading}
           className="w-full h-12 rounded-2xl bg-[#EF9F27]/10 border-2 border-[#EF9F27]/30 text-[#C87E10] text-sm font-semibold disabled:opacity-40 active:scale-[0.98] transition"
         >
-          {loading === 'retry_wrong' ? '準備題目中…' : '挑戰題再戰 ⚔️'}
+          {loading === 'retry_wrong' ? t('準備題目中…') : `${t('挑戰題再戰')} ⚔️`}
         </button>
       )}
     </div>

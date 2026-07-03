@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import ProgressCircle from '@/components/ProgressCircle'
 import UnitPracticeClient from './UnitPracticeClient'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 type UnitRow = {
   id: string
@@ -27,6 +29,7 @@ const GRADE_LABEL: Record<number, string> = {
 
 export default async function SelectUnitPage() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -110,8 +113,8 @@ export default async function SelectUnitPage() {
   // Group by grade + semester
   const groupMap = new Map<string, UnitRow[]>()
   for (const u of rows) {
-    const gLabel = grade ? GRADE_LABEL[grade] ?? `小${grade}` : ''
-    const semLabel = u.semester === 'A' ? '上學期' : '下學期'
+    const gLabel = grade ? translate(GRADE_LABEL[grade] ?? `小${grade}`, lang) : ''
+    const semLabel = translate(u.semester === 'A' ? '上學期' : '下學期', lang)
     const key = `${gLabel}${semLabel}`
     if (!groupMap.has(key)) groupMap.set(key, [])
     groupMap.get(key)!.push(u)
@@ -127,12 +130,12 @@ export default async function SelectUnitPage() {
         <Link href="/student" className="text-gray-400 hover:text-gray-600 text-lg">
           ←
         </Link>
-        <h1 className="text-xl font-bold">按單元練習</h1>
+        <h1 className="text-xl font-bold">{translate('按單元練習', lang)}</h1>
       </div>
 
       {groups.length === 0 ? (
         <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
-          <p className="text-gray-400">暫時沒有題目，請聯絡老師</p>
+          <p className="text-gray-400">{translate('暫時沒有題目，請聯絡老師', lang)}</p>
         </div>
       ) : (
         <div className="space-y-6">
@@ -158,18 +161,18 @@ export default async function SelectUnitPage() {
                           <ProgressCircle pct={accuracy} size={48} />
                         ) : (
                           <div className="w-12 h-12 rounded-full border-4 border-gray-200 flex items-center justify-center">
-                            <span className="text-xs text-gray-300">新</span>
+                            <span className="text-xs text-gray-300">{translate('新', lang)}</span>
                           </div>
                         )}
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-800 truncate">
-                          單元 {u.unit_number}：{u.name}
+                          {translate('單元', lang)} {u.unit_number}：{u.name}
                         </p>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          {u.question_count} 題
-                          {total > 0 && ` · 練習 ${total} 次`}
+                          {u.question_count} {translate('題', lang)}
+                          {total > 0 && ` · ${translate('練習', lang)} ${total} ${translate('次', lang)}`}
                         </p>
                       </div>
 

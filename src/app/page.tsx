@@ -2,9 +2,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/server'
+import { getLang } from '@/lib/i18n/getLang'
+import { t } from '@/lib/i18n/translate'
 
 export default async function Home() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -30,10 +33,10 @@ export default async function Home() {
               style={{ mixBlendMode: 'multiply' }}
             />
           </div>
-          <p className="text-sm text-gray-500">小學數學升分專家</p>
+          <p className="text-sm text-gray-500">{t('小學數學升分專家', lang)}</p>
         </div>
 
-        <p className="text-sm text-gray-600 text-center mb-5">請選擇你的身份</p>
+        <p className="text-sm text-gray-600 text-center mb-5">{t('請選擇你的身份', lang)}</p>
 
         <div className="space-y-3">
           <Link
@@ -45,8 +48,8 @@ export default async function Home() {
                 🎒
               </div>
               <div>
-                <p className="font-semibold text-gray-800">學生</p>
-                <p className="text-xs text-gray-400 mt-0.5">開始數學練習</p>
+                <p className="font-semibold text-gray-800">{t('學生', lang)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('開始數學練習', lang)}</p>
               </div>
             </div>
           </Link>
@@ -60,8 +63,8 @@ export default async function Home() {
                 👨‍👩‍👧
               </div>
               <div>
-                <p className="font-semibold text-gray-800">家長</p>
-                <p className="text-xs text-gray-400 mt-0.5">查看子女進度、上載 Past Paper</p>
+                <p className="font-semibold text-gray-800">{t('家長', lang)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('查看子女進度、上載 Past Paper', lang)}</p>
               </div>
             </div>
           </Link>
@@ -75,8 +78,8 @@ export default async function Home() {
                 🧑‍🏫
               </div>
               <div>
-                <p className="font-semibold text-gray-800">老師</p>
-                <p className="text-xs text-gray-400 mt-0.5">管理題庫、審核</p>
+                <p className="font-semibold text-gray-800">{t('老師', lang)}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('管理題庫、審核', lang)}</p>
               </div>
             </div>
           </Link>
@@ -92,15 +95,15 @@ export default async function Home() {
                 📝
               </div>
               <div>
-                <p className="font-semibold text-white">學前評估</p>
-                <p className="text-xs text-white/80 mt-0.5">免費評估數學程度，即時獲取診斷報告</p>
+                <p className="font-semibold text-white">{t('學前評估', lang)}</p>
+                <p className="text-xs text-white/80 mt-0.5">{t('免費評估數學程度，即時獲取診斷報告', lang)}</p>
               </div>
             </div>
           </Link>
         </div>
 
         <p className="text-xs text-gray-400 text-center mt-6">
-          首次使用請聯絡老師開設帳戶
+          {t('首次使用請聯絡老師開設帳戶', lang)}
         </p>
       </div>
     </main>

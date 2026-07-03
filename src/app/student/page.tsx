@@ -4,6 +4,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { signOut } from '@/app/login/actions'
 import StudentHomeClient from './StudentHomeClient'
 import MockExamLauncher from './MockExamLauncher'
+import { getLang } from '@/lib/i18n/getLang'
+import { t } from '@/lib/i18n/translate'
 
 const GRADE_LABEL: Record<number, string> = {
   3: '小三',
@@ -23,6 +25,7 @@ const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
 
 export default async function StudentHome() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -117,16 +120,16 @@ export default async function StudentHome() {
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">
-            {greeting}，{profile?.name ?? '同學'} 👋
+            {t(greeting, lang)}，{profile?.name ?? t('同學', lang)} 👋
           </h1>
           {profile?.grade && (
             <p className="text-sm text-gray-400 mt-0.5">
-              {GRADE_LABEL[profile.grade] ?? `小${profile.grade}`}
+              {t(GRADE_LABEL[profile.grade] ?? `小${profile.grade}`, lang)}
             </p>
           )}
         </div>
         <form action={signOut}>
-          <button className="text-sm text-gray-400 underline">登出</button>
+          <button className="text-sm text-gray-400 underline">{t('登出', lang)}</button>
         </form>
       </div>
 
@@ -161,7 +164,7 @@ export default async function StudentHome() {
                 {todayAnswered}
                 <span className="text-xl text-gray-400">/{DAILY_GOAL}</span>
               </p>
-              <p className="text-xs text-gray-400 mt-1">今日目標</p>
+              <p className="text-xs text-gray-400 mt-1">{t('今日目標', lang)}</p>
             </div>
           </div>
           <p className={`mt-4 text-base font-semibold ${dailyDone ? 'text-[#1D9E75]' : 'text-gray-700'}`}>
@@ -175,10 +178,10 @@ export default async function StudentHome() {
       {/* Weekly streak dots */}
       <div className="bg-white rounded-3xl p-5 shadow-sm mb-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">本週練習</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('本週練習', lang)}</p>
           <p className="text-sm">
             <span className="font-bold text-[#EF9F27]">{streak}</span>
-            <span className="text-xs text-gray-400 ml-1">連續天數 🔥</span>
+            <span className="text-xs text-gray-400 ml-1">{t('連續天數', lang)} 🔥</span>
           </p>
         </div>
         <div className="flex justify-between">
@@ -210,9 +213,9 @@ export default async function StudentHome() {
       {/* Trophy shelf */}
       <Link href="/student/trophies" className="block bg-white rounded-3xl p-5 shadow-sm mb-4">
         <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">我的獎杯</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('我的獎杯', lang)}</p>
           <p className="text-xs text-gray-400">
-            {unlockedCount} / {TROPHIES.length} 解鎖
+            {unlockedCount} / {TROPHIES.length} {t('解鎖', lang)}
           </p>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
@@ -224,7 +227,7 @@ export default async function StudentHome() {
                   ? 'bg-gradient-to-br from-[#FFE7B5] to-[#FFCC66]'
                   : 'bg-gray-100 opacity-50 grayscale'
               }`}
-              title={`${def.title} — ${status.progressText}`}
+              title={`${t(def.title, lang)} — ${status.progressText}`}
             >
               {def.emoji}
             </div>
@@ -236,9 +239,9 @@ export default async function StudentHome() {
       {next && (
         <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-gray-500">下一個獎杯</p>
+            <p className="text-xs text-gray-500">{t('下一個獎杯', lang)}</p>
             <p className="text-xs font-semibold text-gray-700">
-              {next.trophy.emoji} {next.trophy.title}
+              {next.trophy.emoji} {t(next.trophy.title, lang)}
             </p>
           </div>
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -262,10 +265,10 @@ export default async function StudentHome() {
       {/* Sub navigation */}
       <div className="mt-5 flex justify-center gap-5 text-xs">
         <Link href="/student/trophies" className="text-gray-400 underline">
-          所有獎杯
+          {t('所有獎杯', lang)}
         </Link>
         <Link href="/student/practice/select-category" className="text-gray-400 underline">
-          按單元練習
+          {t('按單元練習', lang)}
         </Link>
       </div>
     </main>

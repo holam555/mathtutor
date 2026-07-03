@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { getLang } from '@/lib/i18n/getLang'
+import { LanguageProvider } from '@/lib/i18n/LanguageProvider'
+import { LanguageToggle } from '@/components/LanguageToggle'
 
 export const metadata: Metadata = {
   title: {
@@ -20,10 +23,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const lang = getLang()
+
   return (
     <html lang="zh-Hant">
       <body className="antialiased bg-[#F5F5F5] text-gray-900 min-h-screen">
-        {children}
+        <LanguageProvider initialLang={lang}>
+          <LanguageToggle />
+          {children}
+        </LanguageProvider>
       </body>
     </html>
   )
