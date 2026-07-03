@@ -4,6 +4,8 @@ A web app that uses AI to generate practice questions mirroring real exams and a
 
 Built to give lower-income families access to quality, affordable math practice — 50+ students using it within two months of launch. Three roles, one app: students work through mobile-first practice sessions, parents set exam scopes and track progress, tutors curate the question bank and mark long-answer work. Built solo, end to end — schema design, RLS policies, AI pipelines, the works.
 
+Live Demo: https://mathtutor-delta.vercel.app/
+
 ## What it does
 
 - **Diagnostic assessment** — before a student starts a course, the app pulls a weighted sample of questions across curriculum units (P3–P6) to find weak spots, with per-unit and per-difficulty quotas so the sample is actually representative, not random noise.
