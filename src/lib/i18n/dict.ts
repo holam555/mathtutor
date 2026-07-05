@@ -622,6 +622,14 @@ export const dict: Record<string, string> = {
   '開始衝刺練習': 'Start Sprint Practice',
   '多項選擇題 + 短答題部分已結束，正在儲存你的答案…': 'The MC + short-answer section has ended — saving your answers…',
 
+  // Caught by scripts/check_i18n.mjs — keys referenced in code but absent
+  '登出': 'Log out',
+  '總評估人數': 'Total Assessments',
+  '本週新增': 'New This Week',
+  '平均總分': 'Average Score',
+  '年級分佈': 'Grade Distribution',
+  '已批准並加入題庫': 'Approved and added to the question bank',
+
   // Assessment report
   '報告正在生成中，請稍後重新載入頁面。': 'The report is being generated — please reload the page shortly.',
   '數學學習評估': 'Math Learning Assessment',
