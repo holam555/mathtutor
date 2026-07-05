@@ -8,6 +8,7 @@ import {
   updateLongQuestion,
   type LongQuestionFormState,
 } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type Unit = {
   id: string
@@ -33,13 +34,14 @@ const GRADE_LABEL: Record<number, string> = { 3: 'P3 小三', 4: 'P4 小四', 5:
 
 function SubmitButton({ isEdit }: { isEdit: boolean }) {
   const { pending } = useFormStatus()
+  const { t } = useLang()
   return (
     <button
       type="submit"
       disabled={pending}
       className="w-full h-14 rounded-xl bg-[#4A90E2] text-white text-base font-semibold disabled:opacity-60 active:scale-[0.98] transition"
     >
-      {pending ? '儲存中…' : isEdit ? '儲存更改' : '新增長答題'}
+      {pending ? t('儲存中…') : t(isEdit ? '儲存更改' : '新增長答題')}
     </button>
   )
 }
@@ -59,6 +61,7 @@ export default function LongQuestionForm({
 }) {
   const isEdit = !!question?.id
   const router = useRouter()
+  const { t: translate } = useLang()
   const boundAction = isEdit
     ? updateLongQuestion.bind(null, question!.id!)
     : createLongQuestion
@@ -102,7 +105,7 @@ export default function LongQuestionForm({
     <form action={formAction} className="space-y-5">
       {/* Grade */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">年級</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{translate('年級')}</label>
         <div className="grid grid-cols-4 gap-2">
           {[3, 4, 5, 6].map((g) => (
             <button
@@ -115,7 +118,7 @@ export default function LongQuestionForm({
                   : 'border-gray-300 text-gray-600 hover:border-[#4A90E2]'
               }`}
             >
-              {GRADE_LABEL[g]}
+              {translate(GRADE_LABEL[g])}
             </button>
           ))}
         </div>
@@ -123,15 +126,15 @@ export default function LongQuestionForm({
 
       {/* Unit */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">大單元</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{translate('大單元')}</label>
         <select
           value={unitId}
           onChange={(e) => onUnitChange(e.target.value)}
           className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white"
         >
-          <option value="">請選擇大單元</option>
+          <option value="">{translate('請選擇大單元')}</option>
           {semesterGroups.A.length > 0 && (
-            <optgroup label="上學期（A 冊）">
+            <optgroup label={translate('上學期（A 冊）')}>
               {semesterGroups.A.map((u) => (
                 <option key={u.id} value={u.id}>
                   U{u.unit_number} {u.name}
@@ -140,7 +143,7 @@ export default function LongQuestionForm({
             </optgroup>
           )}
           {semesterGroups.B.length > 0 && (
-            <optgroup label="下學期（B 冊）">
+            <optgroup label={translate('下學期（B 冊）')}>
               {semesterGroups.B.map((u) => (
                 <option key={u.id} value={u.id}>
                   U{u.unit_number} {u.name}
@@ -153,7 +156,7 @@ export default function LongQuestionForm({
 
       {/* Topic */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">小單元</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{translate('小單元')}</label>
         <select
           name="topic_id"
           value={topicId}
@@ -162,7 +165,7 @@ export default function LongQuestionForm({
           required
           className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white disabled:opacity-50"
         >
-          <option value="">{unitId ? '請選擇小單元' : '先選大單元'}</option>
+          <option value="">{translate(unitId ? '請選擇小單元' : '先選大單元')}</option>
           {unitTopics.map((t) => (
             <option key={t.id} value={t.id}>
               {t.lesson_number}. {t.name}
@@ -171,7 +174,7 @@ export default function LongQuestionForm({
         </select>
         {selectedUnit && (
           <p className="text-xs text-gray-400 mt-1">
-            {selectedUnit.semester === 'A' ? '上學期' : '下學期'} · U{selectedUnit.unit_number}{' '}
+            {translate(selectedUnit.semester === 'A' ? '上學期' : '下學期')} · U{selectedUnit.unit_number}{' '}
             {selectedUnit.name}
           </p>
         )}
@@ -180,14 +183,14 @@ export default function LongQuestionForm({
       {/* Question text */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          題目內容 <span className="text-red-500">*</span>
+          {translate('題目內容')} <span className="text-red-500">*</span>
         </label>
         <textarea
           name="question_text"
           required
           rows={5}
           defaultValue={question?.question_text ?? ''}
-          placeholder="請輸入完整題目（可包含多步驟、子題）"
+          placeholder={translate('請輸入完整題目（可包含多步驟、子題）')}
           className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm resize-y"
         />
       </div>
@@ -195,23 +198,23 @@ export default function LongQuestionForm({
       {/* Model answer */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          模範答案 / 步驟解析 <span className="text-red-500">*</span>
+          {translate('模範答案 / 步驟解析')} <span className="text-red-500">*</span>
         </label>
         <textarea
           name="model_answer"
           required
           rows={6}
           defaultValue={question?.model_answer ?? ''}
-          placeholder="逐步寫出解題過程及最終答案"
+          placeholder={translate('逐步寫出解題過程及最終答案')}
           className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm resize-y font-mono"
         />
-        <p className="text-xs text-gray-400 mt-1">家長會用呢個對住學生的長答題答卷批改</p>
+        <p className="text-xs text-gray-400 mt-1">{translate('家長會用呢個對住學生的長答題答卷批改')}</p>
       </div>
 
       {/* Difficulty */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          難度 <span className="text-red-500">*</span>
+          {translate('難度')} <span className="text-red-500">*</span>
         </label>
         <select
           name="difficulty_tier"
@@ -219,34 +222,34 @@ export default function LongQuestionForm({
           defaultValue={question?.difficulty_tier ?? 'enhancement'}
           className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white"
         >
-          <option value="basic">易（1 步）</option>
-          <option value="enhancement">中（2–3 步）</option>
-          <option value="advanced">難（4+ 步）</option>
+          <option value="basic">{translate('易（1 步）')}</option>
+          <option value="enhancement">{translate('中（2–3 步）')}</option>
+          <option value="advanced">{translate('難（4+ 步）')}</option>
         </select>
       </div>
 
       {/* Notes */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">備註（選填）</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{translate('備註（選填）')}</label>
         <input
           name="notes"
           type="text"
           defaultValue={question?.notes ?? ''}
-          placeholder="例：來自 XX 學校 2024 期末考第 5 題"
+          placeholder={translate('例：來自 XX 學校 2024 期末考第 5 題')}
           className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm"
         />
       </div>
 
       {/* Image */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">題目圖片（選填）</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{translate('題目圖片（選填）')}</label>
 
         {imagePreview && !clearImage && (
           <div className="mb-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imagePreview}
-              alt="題目圖片"
+              alt={translate('題目圖片')}
               className="max-h-52 w-auto rounded-xl border border-gray-200 object-contain mb-2"
             />
             <button
@@ -258,7 +261,7 @@ export default function LongQuestionForm({
               }}
               className="text-xs text-red-500 underline"
             >
-              移除圖片
+              {translate('移除圖片')}
             </button>
           </div>
         )}
@@ -280,7 +283,7 @@ export default function LongQuestionForm({
           }}
           className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#4A90E2]/10 file:text-[#4A90E2] hover:file:bg-[#4A90E2]/20 transition"
         />
-        <p className="text-xs text-gray-400 mt-1">支援 JPG、PNG、WEBP，最大 5MB</p>
+        <p className="text-xs text-gray-400 mt-1">{translate('支援 JPG、PNG、WEBP，最大 5MB')}</p>
       </div>
 
       {/* Feedback */}
@@ -289,7 +292,7 @@ export default function LongQuestionForm({
       )}
       {state.success && (
         <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">
-          {isEdit ? '已成功儲存！' : '已新增！正在跳轉…'}
+          {translate(isEdit ? '已成功儲存！' : '已新增！正在跳轉…')}
         </p>
       )}
 

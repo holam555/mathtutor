@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import MockExamTimer from '@/components/MockExamTimer'
 import FinishLqButton from './FinishLqButton'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function LqTimerPage({
   params,
@@ -10,6 +12,7 @@ export default async function LqTimerPage({
   params: { paperId: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -39,19 +42,19 @@ export default async function LqTimerPage({
         }}
       />
 
-      <h1 className="text-xl font-bold mb-3">📝 長答題作答中</h1>
+      <h1 className="text-xl font-bold mb-3">📝 {translate('長答題作答中', lang)}</h1>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm mb-5">
         <p className="text-sm text-gray-700 leading-relaxed">
-          請在已下載的長答題試卷上完成所有 <strong>{paper.lq_count}</strong> 題。
+          {translate('請在已下載的長答題試卷上完成所有', lang)} <strong>{paper.lq_count}</strong> {translate('題。', lang)}
         </p>
         <p className="text-xs text-gray-500 mt-3">
-          完成後請：
+          {translate('完成後請：', lang)}
         </p>
         <ol className="text-xs text-gray-500 list-decimal pl-5 mt-1 space-y-1">
-          <li>按下方「我已完成長答題」停止計時</li>
-          <li>叫家長協助拍照上載每題答卷</li>
-          <li>等候老師批改</li>
+          <li>{translate('按下方「我已完成長答題」停止計時', lang)}</li>
+          <li>{translate('叫家長協助拍照上載每題答卷', lang)}</li>
+          <li>{translate('等候老師批改', lang)}</li>
         </ol>
       </div>
 
@@ -63,7 +66,7 @@ export default async function LqTimerPage({
           target="_blank"
           className="text-sm text-gray-500 underline"
         >
-          重新下載長答題試卷
+          {translate('重新下載長答題試卷', lang)}
         </Link>
       </div>
     </main>

@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function ResumeTimerButton({ paperId }: { paperId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
   const [error, setError] = useState<string | null>(null)
 
   async function handleClick() {
@@ -25,13 +27,13 @@ export default function ResumeTimerButton({ paperId }: { paperId: string }) {
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setError(data.error ?? '無法繼續計時')
+        setError(data.error ?? t('無法繼續計時'))
         setLoading(false)
         return
       }
       router.push(`/student/mock-exam/${paperId}/lq-timer`)
     } catch {
-      setError('網絡錯誤，請重試')
+      setError(t('網絡錯誤，請重試'))
       setLoading(false)
     }
   }
@@ -46,7 +48,7 @@ export default function ResumeTimerButton({ paperId }: { paperId: string }) {
         disabled={loading}
         className="w-full h-14 rounded-2xl bg-[#4A90E2] text-white text-base font-bold disabled:opacity-60 active:scale-[0.98] transition shadow-md"
       >
-        {loading ? '準備中…' : '繼續計時，開始長答題 →'}
+        {loading ? t('準備中…') : `${t('繼續計時，開始長答題')} →`}
       </button>
     </>
   )

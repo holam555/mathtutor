@@ -6,6 +6,7 @@ import {
   computeRemainingSeconds,
   type TimerState,
 } from '@/lib/mockExamTimer'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 function format(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -30,6 +31,7 @@ export default function MockExamTimer({
 }) {
   const router = useRouter()
   const [remaining, setRemaining] = useState(() => computeRemainingSeconds(initial))
+  const { t } = useLang()
   const [expired, setExpired] = useState(false)
   const expireHandledRef = useRef(false)
 
@@ -114,9 +116,9 @@ export default function MockExamTimer({
         >
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center shadow-xl">
             <p className="text-5xl mb-3">⏰</p>
-            <p className="text-lg font-bold text-gray-800 mb-1">時間到</p>
+            <p className="text-lg font-bold text-gray-800 mb-1">{t('時間到')}</p>
             <p className="text-sm text-gray-500 leading-relaxed">
-              多項選擇題 + 短答題部分已結束，正在儲存你的答案…
+              {t('多項選擇題 + 短答題部分已結束，正在儲存你的答案…')}
             </p>
           </div>
         </div>

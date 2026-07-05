@@ -2,9 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { signOut } from '@/app/login/actions'
 import Link from 'next/link'
+import { getLang } from '@/lib/i18n/getLang'
+import { t } from '@/lib/i18n/translate'
 
 export default async function AdminHome() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -13,10 +16,19 @@ export default async function AdminHome() {
     redirect('/login')
   }
 
-  const { count: questionCount } = await supabase
-    .from('questions')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true)
+  // The question bank lives in assessment_questions + long_questions now
+  // (the legacy `questions` table is empty, which made this card show 0).
+  const [{ count: aqCount }, { count: lqCount }] = await Promise.all([
+    supabase
+      .from('assessment_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true),
+    supabase
+      .from('long_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true),
+  ])
+  const questionCount = (aqCount ?? 0) + (lqCount ?? 0)
 
   const { count: pendingVariations } = await supabase
     .from('generated_questions')
@@ -38,11 +50,11 @@ export default async function AdminHome() {
     <main className="min-h-screen px-5 py-8 max-w-lg mx-auto">
       <div className="flex justify-between items-start mb-8">
         <div>
-          <h1 className="text-2xl font-bold">老師後台</h1>
+          <h1 className="text-2xl font-bold">{t('老師後台', lang)}</h1>
           <p className="text-sm text-gray-500 mt-1">{user.email}</p>
         </div>
         <form action={signOut}>
-          <button className="text-sm text-gray-500 underline">登出</button>
+          <button className="text-sm text-gray-500 underline">{t('登出', lang)}</button>
         </form>
       </div>
 
@@ -52,8 +64,8 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">題目管理</h2>
-            <p className="text-sm text-gray-500 mt-0.5">現有 {questionCount ?? 0} 條啟用題目</p>
+            <h2 className="font-semibold">{t('題目管理', lang)}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('現有', lang)} {questionCount ?? 0} {t('條啟用題目', lang)}</p>
           </div>
           <span className="text-gray-400">→</span>
         </Link>
@@ -63,8 +75,8 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-[#4A90E2] rounded-2xl p-5 shadow-sm hover:bg-[#3a80d2] transition"
         >
           <div>
-            <h2 className="font-semibold text-white">新增題目</h2>
-            <p className="text-sm text-white/75 mt-0.5">手動加入新題目</p>
+            <h2 className="font-semibold text-white">{t('新增題目', lang)}</h2>
+            <p className="text-sm text-white/75 mt-0.5">{t('手動加入新題目', lang)}</p>
           </div>
           <span className="text-white/75">+</span>
         </Link>
@@ -74,8 +86,8 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">長答題管理</h2>
-            <p className="text-sm text-gray-500 mt-0.5">模擬考試試卷用的 LQ 題庫</p>
+            <h2 className="font-semibold">{t('長答題管理', lang)}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('模擬考試試卷用的 LQ 題庫', lang)}</p>
           </div>
           <span className="text-gray-400">→</span>
         </Link>
@@ -85,8 +97,8 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">模擬考試 LQ 批改</h2>
-            <p className="text-sm text-gray-500 mt-0.5">審核學生長答題上載圖片及 AI 辨識答案</p>
+            <h2 className="font-semibold">{t('模擬考試 LQ 批改', lang)}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('審核學生長答題上載圖片及 AI 辨識答案', lang)}</p>
           </div>
           <span className="text-gray-400">→</span>
         </Link>
@@ -96,11 +108,11 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">AI 題目生成及審核</h2>
+            <h2 className="font-semibold">{t('AI 題目生成及審核', lang)}</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               {(pendingVariations ?? 0) > 0
-                ? `${pendingVariations} 條 AI 生成題目待審核`
-                : '生成及審核 AI variation 題目'}
+                ? `${pendingVariations} ${t('條 AI 生成題目待審核', lang)}`
+                : t('生成及審核 AI variation 題目', lang)}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -118,11 +130,11 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">Past Paper 審核</h2>
+            <h2 className="font-semibold">{t('Past Paper 審核', lang)}</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               {(pendingPapers ?? 0) > 0
-                ? `${pendingPapers} 份試卷待審核`
-                : '審核家長上載的 Past Paper'}
+                ? `${pendingPapers} ${t('份試卷待審核', lang)}`
+                : t('審核家長上載的 Past Paper', lang)}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -140,11 +152,11 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">Token 兌換管理</h2>
+            <h2 className="font-semibold">{t('Token 兌換管理', lang)}</h2>
             <p className="text-sm text-gray-500 mt-0.5">
               {(pendingRedemptions ?? 0) > 0
-                ? `${pendingRedemptions} 個兌換申請待審批`
-                : '審批兌換申請，手動調整 Token'}
+                ? `${pendingRedemptions} ${t('個兌換申請待審批', lang)}`
+                : t('審批兌換申請，手動調整 Token', lang)}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -162,8 +174,8 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">學生數據</h2>
-            <p className="text-sm text-gray-500 mt-0.5">查看各學生練習進度和正確率</p>
+            <h2 className="font-semibold">{t('學生數據', lang)}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('查看各學生練習進度和正確率', lang)}</p>
           </div>
           <span className="text-gray-400">→</span>
         </Link>
@@ -173,8 +185,8 @@ export default async function AdminHome() {
           className="flex items-center justify-between bg-white rounded-2xl p-5 shadow-sm hover:shadow-md transition"
         >
           <div>
-            <h2 className="font-semibold">學前評估記錄</h2>
-            <p className="text-sm text-gray-500 mt-0.5">查看公開評估提交的學生聯絡資料</p>
+            <h2 className="font-semibold">{t('學前評估記錄', lang)}</h2>
+            <p className="text-sm text-gray-500 mt-0.5">{t('查看公開評估提交的學生聯絡資料', lang)}</p>
           </div>
           <span className="text-gray-400">→</span>
         </Link>

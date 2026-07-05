@@ -1,6 +1,8 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   in_progress: { label: '進行中', color: 'bg-gray-100 text-gray-600' },
@@ -15,6 +17,7 @@ export default async function MockExamAdminPage({
   searchParams: { status?: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -43,7 +46,7 @@ export default async function MockExamAdminPage({
         <Link href="/admin" className="text-gray-400 hover:text-gray-600">
           ←
         </Link>
-        <h1 className="text-xl font-bold">模擬考試 LQ 批改</h1>
+        <h1 className="text-xl font-bold">{translate('模擬考試 LQ 批改', lang)}</h1>
       </div>
 
       <div className="flex gap-2 mb-5">
@@ -57,14 +60,14 @@ export default async function MockExamAdminPage({
                 : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
-            {STATUS_LABEL[s]?.label ?? s}
+            {translate(STATUS_LABEL[s]?.label ?? s, lang)}
           </Link>
         ))}
       </div>
 
       {(papers ?? []).length === 0 ? (
         <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm">
-          暫無試卷
+          {translate('暫無試卷', lang)}
         </div>
       ) : (
         <div className="space-y-2">
@@ -80,16 +83,16 @@ export default async function MockExamAdminPage({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-sm">
-                      {student?.name ?? '未知'}（小{['', '', '', '三', '四', '五', '六'][student?.grade ?? 0]}）
+                      {student?.name ?? translate('未知', lang)}（{translate(`小${['', '', '', '三', '四', '五', '六'][student?.grade ?? 0]}`, lang)}）
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {p.lq_count} 條長答題 · {new Date(p.created_at).toLocaleDateString('zh-Hant-HK')}
+                      {p.lq_count} {translate('條長答題', lang)} · {new Date(p.created_at).toLocaleDateString('zh-Hant-HK')}
                     </p>
                   </div>
                   <span
                     className={`text-xs font-medium px-2 py-0.5 rounded-full ${meta?.color ?? 'bg-gray-100 text-gray-600'}`}
                   >
-                    {meta?.label ?? p.status}
+                    {translate(meta?.label ?? p.status, lang)}
                   </span>
                 </div>
               </Link>

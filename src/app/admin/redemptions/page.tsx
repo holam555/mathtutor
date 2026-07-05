@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { RedemptionButtons } from './RedemptionActions'
 import ManualAdjustForm from './ManualAdjustForm'
 import OptionManager from './OptionManager'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function RedemptionsPage({
   searchParams,
@@ -20,6 +22,7 @@ export default async function RedemptionsPage({
   }
 
   const service = createServiceClient()
+  const lang = getLang()
   const tab = searchParams.tab ?? 'pending'
 
   // Redemption requests
@@ -53,10 +56,10 @@ export default async function RedemptionsPage({
     <main className="min-h-screen px-4 py-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/admin" className="text-gray-400 hover:text-gray-600">←</Link>
-        <h1 className="text-xl font-bold">Token 兌換管理</h1>
+        <h1 className="text-xl font-bold">{translate('Token 兌換管理', lang)}</h1>
         {(pendingCount ?? 0) > 0 && (
           <span className="bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            {pendingCount} 待審批
+            {pendingCount} {translate('待審批', lang)}
           </span>
         )}
       </div>
@@ -71,7 +74,7 @@ export default async function RedemptionsPage({
               tab === t ? 'bg-[#4A90E2] text-white' : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
-            {t === 'pending' ? '待審批' : t === 'approved' ? '已批准' : '已拒絕'}
+            {translate(t === 'pending' ? '待審批' : t === 'approved' ? '已批准' : '已拒絕', lang)}
           </Link>
         ))}
       </div>
@@ -79,13 +82,15 @@ export default async function RedemptionsPage({
       {/* Redemption list */}
       {!redemptions?.length ? (
         <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm text-sm mb-6">
-          沒有{tab === 'pending' ? '待審批' : tab === 'approved' ? '已批准' : '已拒絕'}的申請
+          {lang === 'en'
+            ? `No ${translate(tab === 'pending' ? '待審批' : tab === 'approved' ? '已批准' : '已拒絕', lang).toLowerCase()} requests`
+            : `沒有${tab === 'pending' ? '待審批' : tab === 'approved' ? '已批准' : '已拒絕'}的申請`}
         </div>
       ) : (
         <div className="space-y-3 mb-6">
           {redemptions.map((r) => {
             const studentName =
-              (r.student_profiles as unknown as { name: string } | null)?.name ?? '未知學生'
+              (r.student_profiles as unknown as { name: string } | null)?.name ?? translate('未知學生', lang)
             return (
               <div
                 key={r.id}

@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function MockExamLauncher() {
   const router = useRouter()
+  const { t } = useLang()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -15,12 +17,12 @@ export default function MockExamLauncher() {
       const res = await fetch('/api/mock-exam/start', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? '請稍後再試')
+        setError(data.error ?? t('請稍後再試'))
         return
       }
       router.push(`/student/mock-exam/${data.paper_id}/start`)
     } catch {
-      setError('網絡錯誤，請重試')
+      setError(t('網絡錯誤，請重試'))
     } finally {
       setLoading(false)
     }
@@ -35,9 +37,9 @@ export default function MockExamLauncher() {
       >
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-base font-bold text-white">📝 模擬考試試卷</p>
+            <p className="text-base font-bold text-white">📝 {t('模擬考試試卷')}</p>
             <p className="text-xs text-white/85 mt-0.5">
-              {loading ? '準備試卷中…' : '40 題 · 50 分鐘 · 多項選擇題 + 短答題 + 長答題'}
+              {loading ? t('準備試卷中…') : t('40 題 · 50 分鐘 · 多項選擇題 + 短答題 + 長答題')}
             </p>
           </div>
           <span className="text-white/80 text-sm">→</span>

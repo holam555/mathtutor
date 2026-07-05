@@ -4,6 +4,8 @@ import { signOut } from '@/app/login/actions'
 import Link from 'next/link'
 import { getInitial } from '@/lib/studentReport'
 import RedeemButton from './tokens/RedeemButton'
+import { getLang } from '@/lib/i18n/getLang'
+import { t } from '@/lib/i18n/translate'
 
 const GRADE_LABEL: Record<number, string> = {
   3: '小三',
@@ -14,6 +16,7 @@ const GRADE_LABEL: Record<number, string> = {
 
 export default async function ParentHome() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -95,28 +98,28 @@ export default async function ParentHome() {
   const pendingLqPapers = (lqPending ?? []).map((p) => ({
     id: p.id,
     lq_count: p.lq_count,
-    studentName: childById.get(p.student_id) ?? '學生',
+    studentName: childById.get(p.student_id) ?? t('學生', lang),
   }))
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">家長中心</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{t('家長中心', lang)}</h1>
           <p className="text-sm text-gray-400 mt-0.5">{user.email}</p>
         </div>
         <form action={signOut}>
-          <button className="text-sm text-gray-400 underline">登出</button>
+          <button className="text-sm text-gray-400 underline">{t('登出', lang)}</button>
         </form>
       </div>
 
       {/* Children list */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        我的子女
+        {t('我的子女', lang)}
       </h2>
       {!childList.length ? (
         <div className="bg-white rounded-2xl p-6 text-center shadow-sm mb-6">
-          <p className="text-sm text-gray-400">尚未關聯任何學生，請聯絡老師設定</p>
+          <p className="text-sm text-gray-400">{t('尚未關聯任何學生，請聯絡老師設定', lang)}</p>
         </div>
       ) : (
         <div className="space-y-3 mb-6">
@@ -132,8 +135,8 @@ export default async function ParentHome() {
               <div className="flex-1">
                 <p className="font-semibold text-gray-800">{c.name}</p>
                 <p className="text-xs text-gray-400">
-                  {(c.grade && GRADE_LABEL[c.grade]) ?? '—'} ·{' '}
-                  🪙 {c.token_balance ?? 0} 代幣
+                  {(c.grade && t(GRADE_LABEL[c.grade], lang)) ?? '—'} ·{' '}
+                  🪙 {c.token_balance ?? 0} {t('代幣', lang)}
                 </p>
               </div>
               <span className="text-gray-400">→</span>
@@ -144,16 +147,16 @@ export default async function ParentHome() {
 
       {/* Exam scope */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        模擬考試
+        {t('模擬考試', lang)}
       </h2>
       <Link
         href="/parent/exam-scope/upload"
         className="flex items-center justify-between bg-[#1D9E75] rounded-2xl p-5 shadow-sm hover:opacity-90 transition mb-4"
       >
         <div>
-          <h3 className="font-semibold text-white">🔥 設定考試範圍</h3>
+          <h3 className="font-semibold text-white">🔥 {t('設定考試範圍', lang)}</h3>
           <p className="text-sm text-white/80 mt-0.5">
-            揀選考試單元，學生主頁立即見到模擬考試試卷
+            {t('揀選考試單元，學生主頁立即見到模擬考試試卷', lang)}
           </p>
         </div>
         <span className="text-white/80 text-xl">+</span>
@@ -162,7 +165,7 @@ export default async function ParentHome() {
       {pendingLqPapers.length > 0 && (
         <div className="mb-4">
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            待上載長答題答卷
+            {t('待上載長答題答卷', lang)}
           </h3>
           <div className="space-y-2">
             {pendingLqPapers.map((p) => (
@@ -172,10 +175,10 @@ export default async function ParentHome() {
                 className="block bg-amber-50 border border-amber-200 rounded-xl p-3 hover:bg-amber-100 transition"
               >
                 <p className="text-sm font-semibold text-amber-900">
-                  📝 {p.studentName} 的模擬考試
+                  📝 {p.studentName} {t('的模擬考試', lang)}
                 </p>
                 <p className="text-xs text-amber-700 mt-0.5">
-                  {p.lq_count} 題長答題 · 點擊上載手寫答卷
+                  {p.lq_count} {t('題長答題 · 點擊上載手寫答卷', lang)}
                 </p>
               </Link>
             ))}
@@ -185,15 +188,15 @@ export default async function ParentHome() {
 
       {/* Past paper upload */}
       <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-        上載 Past Paper
+        {t('上載 Past Paper', lang)}
       </h2>
       <Link
         href="/parent/upload"
         className="flex items-center justify-between bg-[#EF9F27] rounded-2xl p-5 shadow-sm hover:opacity-90 transition mb-6"
       >
         <div>
-          <h3 className="font-semibold text-white">📄 上載試卷</h3>
-          <p className="text-sm text-white/80 mt-0.5">每頁可獲 10 代幣</p>
+          <h3 className="font-semibold text-white">📄 {t('上載試卷', lang)}</h3>
+          <p className="text-sm text-white/80 mt-0.5">{t('每頁可獲 10 代幣', lang)}</p>
         </div>
         <span className="text-white/80 text-xl">+</span>
       </Link>
@@ -202,15 +205,15 @@ export default async function ParentHome() {
       {childList.length > 0 && (
         <div className="mb-6">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            代幣獎賞
+            {t('代幣獎賞', lang)}
           </h2>
           <details className="group shadow-sm rounded-2xl overflow-hidden mb-0">
             {/* Collapsed card — styled like 模擬考試 / 上載 Past Paper */}
             <summary className="flex items-center justify-between bg-[#EF9F27] p-5 cursor-pointer list-none select-none">
               <div>
-                <h3 className="font-semibold text-white">🪙 用代幣換獎賞</h3>
+                <h3 className="font-semibold text-white">🪙 {t('用代幣換獎賞', lang)}</h3>
                 <p className="text-sm text-white/80 mt-0.5">
-                  合共 {totalBalance} 代幣 · 點擊查看獎賞
+                  {t('合共', lang)} {totalBalance} {t('代幣 · 點擊查看獎賞', lang)}
                 </p>
               </div>
               <span className="text-white/80 text-xl transition-transform duration-200 group-open:rotate-45">+</span>
@@ -221,7 +224,7 @@ export default async function ParentHome() {
               {/* What can tokens do */}
               <details className="bg-white border border-[#EF9F27]/20 rounded-2xl group/info">
                 <summary className="flex items-center justify-between px-4 py-3 cursor-pointer list-none select-none">
-                  <p className="text-sm font-semibold text-gray-800">代幣有什麼用？</p>
+                  <p className="text-sm font-semibold text-gray-800">{t('代幣有什麼用？', lang)}</p>
                   <span className="text-[#EF9F27] text-xs transition-transform group-open/info:rotate-180">▼</span>
                 </summary>
                 <ul className="text-xs text-gray-600 space-y-1 leading-5 px-4 pb-3">
@@ -234,7 +237,7 @@ export default async function ParentHome() {
               {/* Redemption options */}
               {!options?.length ? (
                 <div className="bg-white rounded-2xl p-6 text-center">
-                  <p className="text-sm text-gray-400">暫時冇可兌換的獎賞</p>
+                  <p className="text-sm text-gray-400">{t('暫時冇可兌換的獎賞', lang)}</p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -269,16 +272,16 @@ export default async function ParentHome() {
               {redemptions.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-                    兌換紀錄
+                    {t('兌換紀錄', lang)}
                   </p>
                   <div className="space-y-2">
                     {redemptions.map((r) => {
                       const statusMeta =
                         r.status === 'approved'
-                          ? { text: '已批准', color: 'text-green-600 bg-green-50' }
+                          ? { text: t('已批准', lang), color: 'text-green-600 bg-green-50' }
                           : r.status === 'rejected'
-                            ? { text: '已拒絕', color: 'text-gray-400 bg-gray-50' }
-                            : { text: '審批中', color: 'text-amber-600 bg-amber-50' }
+                            ? { text: t('已拒絕', lang), color: 'text-gray-400 bg-gray-50' }
+                            : { text: t('審批中', lang), color: 'text-amber-600 bg-amber-50' }
                       return (
                         <div
                           key={r.id}
@@ -313,7 +316,7 @@ export default async function ParentHome() {
       {uploads && uploads.length > 0 && (
         <>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            近期上載
+            {t('近期上載', lang)}
           </h2>
           <div className="space-y-2">
             {uploads.map((u) => {
@@ -322,10 +325,10 @@ export default async function ParentHome() {
                 : 0
               const statusMeta =
                 u.review_status === 'approved'
-                  ? { text: '已批准', color: 'text-green-600 bg-green-50' }
+                  ? { text: t('已批准', lang), color: 'text-green-600 bg-green-50' }
                   : u.review_status === 'rejected'
-                    ? { text: '已拒絕', color: 'text-gray-400 bg-gray-50' }
-                    : { text: '待審核', color: 'text-amber-600 bg-amber-50' }
+                    ? { text: t('已拒絕', lang), color: 'text-gray-400 bg-gray-50' }
+                    : { text: t('待審核', lang), color: 'text-amber-600 bg-amber-50' }
               return (
                 <div
                   key={u.id}
@@ -333,11 +336,11 @@ export default async function ParentHome() {
                 >
                   <div>
                     <p className="text-sm text-gray-700">
-                      {u.school_name ?? '未知學校'}
+                      {u.school_name ?? t('未知學校', lang)}
                       {u.exam_type ? ` · ${u.exam_type}` : ''}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {count} 題 ·{' '}
+                      {count} {t('題', lang)} ·{' '}
                       {new Date(u.created_at).toLocaleDateString('zh-HK')}
                     </p>
                   </div>

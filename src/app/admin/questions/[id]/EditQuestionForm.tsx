@@ -3,6 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom'
 import { useState, useMemo, useRef } from 'react'
 import { updateQuestion, type QuestionFormState } from '../actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type Unit = { id: string; grade: number; unit_number: number; name: string; semester: string; display_order: number }
 type Topic = { id: string; unit_id: string; lesson_number: number; name: string; display_order: number }
@@ -22,13 +23,14 @@ const GRADE_LABEL: Record<number, string> = { 3: 'P3 小三', 4: 'P4 小四', 5:
 
 function SubmitButton() {
   const { pending } = useFormStatus()
+  const { t: translate } = useLang()
   return (
     <button
       type="submit"
       disabled={pending}
       className="w-full h-14 rounded-xl bg-[#4A90E2] text-white text-base font-semibold disabled:opacity-60 active:scale-[0.98] transition"
     >
-      {pending ? '儲存中…' : '儲存更改'}
+      {pending ? translate('儲存中…') : translate('儲存更改')}
     </button>
   )
 }
@@ -46,6 +48,7 @@ export default function EditQuestionForm({
   units: Unit[]
   topics: Topic[]
 }) {
+  const { t: translate } = useLang()
   const boundUpdate = updateQuestion.bind(null, question.id)
   const [state, formAction] = useFormState(boundUpdate, {} as QuestionFormState)
 
@@ -92,7 +95,7 @@ export default function EditQuestionForm({
 
       {/* 1. Grade */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">年級</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{translate('年級')}</label>
         <div className="grid grid-cols-4 gap-2">
           {[3, 4, 5, 6].map((g) => (
             <button key={g} type="button" onClick={() => onGradeChange(g)}
@@ -100,7 +103,7 @@ export default function EditQuestionForm({
                 grade === g ? 'border-[#4A90E2] bg-[#4A90E2] text-white' : 'border-gray-300 text-gray-600 hover:border-[#4A90E2]'
               }`}
             >
-              {GRADE_LABEL[g]}
+              {translate(GRADE_LABEL[g])}
             </button>
           ))}
         </div>
@@ -108,20 +111,20 @@ export default function EditQuestionForm({
 
       {/* 2. 大單元 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">大單元</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{translate('大單元')}</label>
         <select value={unitId} onChange={(e) => onUnitChange(e.target.value)}
           className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white"
         >
-          <option value="">請選擇大單元</option>
+          <option value="">{translate('請選擇大單元')}</option>
           {semesterGroups.A.length > 0 && (
-            <optgroup label="上學期（A 冊）">
+            <optgroup label={translate('上學期（A 冊）')}>
               {semesterGroups.A.map((u) => (
                 <option key={u.id} value={u.id}>U{u.unit_number} {u.name}</option>
               ))}
             </optgroup>
           )}
           {semesterGroups.B.length > 0 && (
-            <optgroup label="下學期（B 冊）">
+            <optgroup label={translate('下學期（B 冊）')}>
               {semesterGroups.B.map((u) => (
                 <option key={u.id} value={u.id}>U{u.unit_number} {u.name}</option>
               ))}
@@ -132,19 +135,19 @@ export default function EditQuestionForm({
 
       {/* 3. 小單元 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">小單元</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{translate('小單元')}</label>
         <select name="topic_id" value={topicId} onChange={(e) => setTopicId(e.target.value)}
           disabled={!unitId} required
           className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm bg-white disabled:opacity-50"
         >
-          <option value="">{unitId ? '請選擇小單元' : '先選大單元'}</option>
+          <option value="">{translate(unitId ? '請選擇小單元' : '先選大單元')}</option>
           {unitTopics.map((t) => (
             <option key={t.id} value={t.id}>{t.lesson_number}. {t.name}</option>
           ))}
         </select>
         {selectedUnit && (
           <p className="text-xs text-gray-400 mt-1">
-            {selectedUnit.semester === 'A' ? '上學期' : '下學期'} · U{selectedUnit.unit_number} {selectedUnit.name}
+            {translate(selectedUnit.semester === 'A' ? '上學期' : '下學期')} · U{selectedUnit.unit_number} {selectedUnit.name}
           </p>
         )}
       </div>
@@ -152,7 +155,7 @@ export default function EditQuestionForm({
       {/* 4. Question text */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          題目內容 <span className="text-red-500">*</span>
+          {translate('題目內容')} <span className="text-red-500">*</span>
         </label>
         <textarea name="question_text" required rows={4} defaultValue={question.question_text}
           className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm resize-none"
@@ -161,7 +164,7 @@ export default function EditQuestionForm({
 
       {/* 5. Question type */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">題目類型</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{translate('題目類型')}</label>
         <div className="grid grid-cols-2 gap-2">
           {[
             { value: 'fill_in_number', label: '數字填充' },
@@ -178,7 +181,7 @@ export default function EditQuestionForm({
                 checked={questionType === t.value} onChange={() => setQuestionType(t.value)}
                 className="sr-only"
               />
-              {t.label}
+              {translate(t.label)}
             </label>
           ))}
         </div>
@@ -188,36 +191,36 @@ export default function EditQuestionForm({
       {questionType === 'multiple_choice' && (
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
-            選項 <span className="text-red-500">*</span>
+            {translate('選項')} <span className="text-red-500">*</span>
           </label>
           {(['A', 'B', 'C', 'D'] as const).map((letter) => (
             <div key={letter} className="flex items-center gap-2">
               <span className="w-8 text-sm font-semibold text-gray-500">{letter}.</span>
               <input name={`option_${letter}`} type="text" required
                 defaultValue={initialOptions[letter]}
-                placeholder={`選項 ${letter}`}
+                placeholder={`${translate('選項')} ${letter}`}
                 className="flex-1 h-11 px-3 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm"
               />
             </div>
           ))}
-          <p className="text-xs text-gray-400">正確答案須填整個選項，例「A. 答案文字」</p>
+          <p className="text-xs text-gray-400">{translate('正確答案須填整個選項，例「A. 答案文字」')}</p>
         </div>
       )}
 
       {/* 7. Correct answer */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">
-          正確答案 <span className="text-red-500">*</span>
+          {translate('正確答案')} <span className="text-red-500">*</span>
         </label>
         <input name="correct_answer" type="text" required defaultValue={question.correct_answer}
-          placeholder={questionType === 'multiple_choice' ? '例：A. 答案文字' : questionType === 'fill_in_number' ? '例：60 或 5/18 或 1 5/8' : '例：正確答案文字'}
+          placeholder={translate(questionType === 'multiple_choice' ? '例：A. 答案文字' : questionType === 'fill_in_number' ? '例：60 或 5/18 或 1 5/8' : '例：正確答案文字')}
           className="w-full h-12 px-4 rounded-xl border border-gray-300 focus:border-[#4A90E2] outline-none text-sm"
         />
       </div>
 
       {/* 8. Difficulty tier */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">難度</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{translate('難度')}</label>
         <div className="grid grid-cols-3 gap-2">
           {[
             { value: 'basic', label: '易', sub: '1 步' },
@@ -231,8 +234,8 @@ export default function EditQuestionForm({
                 defaultChecked={question.difficulty_tier === d.value}
                 className="sr-only"
               />
-              <span className="text-sm font-semibold text-gray-700">{d.label}</span>
-              <span className="text-[10px] text-gray-400">{d.sub}</span>
+              <span className="text-sm font-semibold text-gray-700">{translate(d.label)}</span>
+              <span className="text-[10px] text-gray-400">{translate(d.sub)}</span>
             </label>
           ))}
         </div>
@@ -240,14 +243,14 @@ export default function EditQuestionForm({
 
       {/* 9. Image */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">題目圖片（選填）</label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">{translate('題目圖片（選填）')}</label>
 
         {imagePreview && !clearImage && (
           <div className="mb-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imagePreview}
-              alt="現有圖片"
+              alt={translate('現有圖片')}
               className="max-h-52 w-auto rounded-xl border border-gray-200 object-contain mb-2"
             />
             <button
@@ -259,7 +262,7 @@ export default function EditQuestionForm({
               }}
               className="text-xs text-red-500 underline"
             >
-              移除圖片
+              {translate('移除圖片')}
             </button>
           </div>
         )}
@@ -281,7 +284,7 @@ export default function EditQuestionForm({
           }}
           className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#4A90E2]/10 file:text-[#4A90E2] hover:file:bg-[#4A90E2]/20 transition"
         />
-        <p className="text-xs text-gray-400 mt-1">上載新圖片將取代現有圖片。支援 JPG、PNG、WEBP，最大 5MB。</p>
+        <p className="text-xs text-gray-400 mt-1">{translate('上載新圖片將取代現有圖片。支援 JPG、PNG、WEBP，最大 5MB。')}</p>
       </div>
 
       {/* Feedback */}
@@ -289,7 +292,7 @@ export default function EditQuestionForm({
         <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
       )}
       {state.success && (
-        <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">已成功儲存！</p>
+        <p className="text-sm text-green-700 bg-green-50 rounded-lg px-3 py-2">{translate('已成功儲存！')}</p>
       )}
 
       <SubmitButton />

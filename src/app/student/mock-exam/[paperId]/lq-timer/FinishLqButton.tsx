@@ -2,14 +2,16 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function FinishLqButton({ paperId }: { paperId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
   const [error, setError] = useState<string | null>(null)
 
   async function handleClick() {
-    if (!confirm('確定已完成所有長答題？停止計時後將無法繼續作答。')) return
+    if (!confirm(t('確定已完成所有長答題？停止計時後將無法繼續作答。'))) return
     setLoading(true)
     setError(null)
     try {
@@ -20,13 +22,13 @@ export default function FinishLqButton({ paperId }: { paperId: string }) {
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setError(data.error ?? '無法停止計時')
+        setError(data.error ?? t('無法停止計時'))
         setLoading(false)
         return
       }
       router.push('/student')
     } catch {
-      setError('網絡錯誤，請重試')
+      setError(t('網絡錯誤，請重試'))
       setLoading(false)
     }
   }
@@ -41,7 +43,7 @@ export default function FinishLqButton({ paperId }: { paperId: string }) {
         disabled={loading}
         className="w-full h-14 rounded-2xl bg-[#1D9E75] text-white text-base font-bold disabled:opacity-60 active:scale-[0.98] transition shadow-md"
       >
-        {loading ? '處理中…' : '我已完成長答題 ✓'}
+        {loading ? t('處理中…') : `${t('我已完成長答題')} ✓`}
       </button>
     </>
   )

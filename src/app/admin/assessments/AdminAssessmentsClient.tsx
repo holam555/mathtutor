@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { RATING_COLORS, RATING_LABELS } from '@/lib/assessmentUtils'
 import type { ReportData, Rating, AssessmentAnswer, UnitMastery } from '@/types/assessment'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export type AssessmentRow = {
   id: string
@@ -103,6 +104,7 @@ function UnitMasteryRow({ m }: { m: UnitMastery }) {
 }
 
 function ExpandedDetail({ s }: { s: AssessmentRow }) {
+  const { t } = useLang()
   const answers = s.answers ?? []
   const wrong = answers.filter((a) => !a.is_correct)
   const report = s.report_data
@@ -120,7 +122,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
       {/* Contact + meta row */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">電話</p>
+          <p className="text-xs text-gray-400 mb-0.5">{t('電話')}</p>
           {s.parent_phone ? (
             <a href={`tel:${s.parent_phone}`} className="text-sm font-medium text-teal-600 hover:underline">
               {s.parent_phone}
@@ -128,7 +130,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
           ) : <p className="text-sm text-gray-400">—</p>}
         </div>
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">電郵</p>
+          <p className="text-xs text-gray-400 mb-0.5">{t('電郵')}</p>
           {s.parent_email ? (
             <a href={`mailto:${s.parent_email}`} className="text-sm font-medium text-teal-600 hover:underline break-all">
               {s.parent_email}
@@ -136,11 +138,11 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
           ) : <p className="text-sm text-gray-400">—</p>}
         </div>
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">總分</p>
+          <p className="text-xs text-gray-400 mb-0.5">{t('總分')}</p>
           <p className="text-sm font-bold text-gray-800">{report?.score ?? '—'} / 100</p>
         </div>
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">診斷等級</p>
+          <p className="text-xs text-gray-400 mb-0.5">{t('診斷等級')}</p>
           <p className="text-sm font-medium text-gray-700">{report?.diagnosticTier ?? report?.band ?? '—'}</p>
         </div>
       </div>
@@ -148,7 +150,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
       {/* Unit mastery */}
       {(report?.unitMastery ?? []).length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">大單元掌握度</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('大單元掌握度')}</p>
           <div className="space-y-2">
             {(report!.unitMastery!).map((m) => (
               <UnitMasteryRow key={m.unit_id} m={m} />
@@ -160,7 +162,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
       {/* Legacy module mastery */}
       {(report?.unitMastery ?? []).length === 0 && (report?.modules ?? []).length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">各範疇掌握度</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('各範疇掌握度')}</p>
           <div className="grid grid-cols-2 gap-2">
             {report!.modules.map((mod) => {
               const pct = mod.total > 0 ? Math.round((mod.correct / mod.total) * 100) : 0
@@ -183,7 +185,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
       {/* Strong / Weak areas */}
       {(report?.strongAreas ?? []).length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">強項</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('強項')}</p>
           <div className="flex flex-wrap gap-2">
             {report!.strongAreas.map((a, i) => (
               <span key={i} className="text-xs px-2 py-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-lg">
@@ -196,7 +198,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
 
       {(report?.weakAreas ?? []).length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">需加強範疇</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('需加強範疇')}</p>
           <div className="space-y-1">
             {report!.weakAreas.map((a, i) => {
               const dot = a.priority === '急需加強' ? 'bg-red-500' : a.priority === '需要加強' ? 'bg-amber-500' : 'bg-blue-500'
@@ -205,7 +207,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
                 <div key={i} className="flex items-start gap-2 text-xs text-gray-700">
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 mt-0.5 ${dot}`} />
                   <span className="flex-1">{a.name}</span>
-                  <span className={`font-medium flex-shrink-0 ${text}`}>{a.priority}</span>
+                  <span className={`font-medium flex-shrink-0 ${text}`}>{t(a.priority)}</span>
                 </div>
               )
             })}
@@ -217,7 +219,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
       {wrong.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            答錯題目（共 {wrong.length} 題）
+            {t('答錯題目')}（{wrong.length} {t('題')}）
           </p>
           <div className="space-y-3">
             {Array.from(wrongByUnit.entries()).map(([unit, qs]) => (
@@ -229,11 +231,11 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
                       <p className="text-gray-700 mb-1 leading-relaxed">{a.question_text}</p>
                       <div className="flex items-center gap-4 flex-wrap">
                         <span className="text-amber-600">
-                          <span className="font-medium">答：</span>
-                          <span className="line-through opacity-80">{a.student_answer || '（未答）'}</span>
+                          <span className="font-medium">{t('答：')}</span>
+                          <span className="line-through opacity-80">{a.student_answer || t('（未答）')}</span>
                         </span>
                         <span className="text-teal-600">
-                          <span className="font-medium">正確：</span>
+                          <span className="font-medium">{t('正確：')}</span>
                           <span className="font-semibold">{a.correct_answer}</span>
                         </span>
                         {a.difficulty_tier && (
@@ -252,7 +254,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
       {/* Learning plan */}
       {(report?.learningPlan ?? []).length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">建議學習計劃</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t('建議學習計劃')}</p>
           <div className="space-y-1">
             {report!.learningPlan.map((item, i) => (
               <div key={i} className="flex items-start gap-2 text-xs">
@@ -273,7 +275,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
           target="_blank"
           className="text-xs text-teal-600 hover:underline font-medium"
         >
-          開啟完整報告頁面 →
+          {t('開啟完整報告頁面')} →
         </Link>
       </div>
     </div>
@@ -281,6 +283,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
 }
 
 function SessionCard({ s }: { s: AssessmentRow }) {
+  const { t } = useLang()
   const [expanded, setExpanded] = useState(false)
 
   const answers = s.answers ?? []
@@ -313,24 +316,24 @@ function SessionCard({ s }: { s: AssessmentRow }) {
               </span>
               {report?.diagnosticTier && (
                 <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
-                  {report.diagnosticTier === 'advanced' ? '拔尖' : report.diagnosticTier === 'basic_mastery' ? '基礎' : '補強'}
+                  {t(report.diagnosticTier === 'advanced' ? '拔尖' : report.diagnosticTier === 'basic_mastery' ? '基礎' : '補強')}
                 </span>
               )}
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              {s.school_name ?? '學校未填'} · {date}
+              {s.school_name ?? t('學校未填')} · {date}
             </p>
             <div className="flex flex-wrap gap-3 mt-1.5 text-xs text-gray-400">
               {s.parent_phone && <span>📞 {s.parent_phone}</span>}
               {s.parent_email && <span>✉️ {s.parent_email}</span>}
-              {wrongCount > 0 && <span className="text-amber-500">✗ 錯 {wrongCount} 題</span>}
-              {weakCount > 0 && <span className="text-red-400">⚠ {weakCount} 個弱項</span>}
+              {wrongCount > 0 && <span className="text-amber-500">✗ {t('錯')} {wrongCount} {t('題')}</span>}
+              {weakCount > 0 && <span className="text-red-400">⚠ {weakCount} {t('個弱項')}</span>}
             </div>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="text-right">
               <ScoreBadge pct={score} />
-              <div className="text-xs text-gray-400 mt-0.5">{correct}/{total} 題</div>
+              <div className="text-xs text-gray-400 mt-0.5">{correct}/{total} {t('題')}</div>
             </div>
             <span className="text-gray-400 text-sm">{expanded ? '▲' : '▼'}</span>
           </div>
@@ -361,6 +364,7 @@ function SessionCard({ s }: { s: AssessmentRow }) {
 const GRADE_OPTIONS = ['全部年級', '小三', '小四', '小五', '小六']
 
 export default function AdminAssessmentsClient({ sessions }: { sessions: AssessmentRow[] }) {
+  const { t } = useLang()
   const [search, setSearch] = useState('')
   const [gradeFilter, setGradeFilter] = useState('全部年級')
 
@@ -405,19 +409,19 @@ export default function AdminAssessmentsClient({ sessions }: { sessions: Assessm
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-xs text-gray-500 mb-1">總評估人數</p>
+          <p className="text-xs text-gray-500 mb-1">{t('總評估人數')}</p>
           <p className="text-3xl font-bold text-gray-800">{totalLeads}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-xs text-gray-500 mb-1">本週新增</p>
+          <p className="text-xs text-gray-500 mb-1">{t('本週新增')}</p>
           <p className="text-3xl font-bold" style={{ color: '#1D9E75' }}>{thisWeek}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-xs text-gray-500 mb-1">平均總分</p>
+          <p className="text-xs text-gray-500 mb-1">{t('平均總分')}</p>
           <p className="text-3xl font-bold text-gray-800">{avgScore ?? '—'}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-xs text-gray-500 mb-2">年級分佈</p>
+          <p className="text-xs text-gray-500 mb-2">{t('年級分佈')}</p>
           <div className="space-y-0.5">
             {Object.entries(gradeCounts).sort().map(([g, n]) => (
               <div key={g} className="flex justify-between text-xs">
@@ -433,7 +437,7 @@ export default function AdminAssessmentsClient({ sessions }: { sessions: Assessm
       <div className="flex flex-wrap gap-3 items-center">
         <input
           type="search"
-          placeholder="搜尋學生姓名、學校、電話、電郵…"
+          placeholder={t('搜尋學生姓名、學校、電話、電郵…')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="flex-1 min-w-48 rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
@@ -444,21 +448,21 @@ export default function AdminAssessmentsClient({ sessions }: { sessions: Assessm
           className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 bg-white"
         >
           {GRADE_OPTIONS.map((g) => (
-            <option key={g}>{g}</option>
+            <option key={g} value={g}>{t(g)}</option>
           ))}
         </select>
         <button
           onClick={() => exportCSV(filtered)}
           className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-200 bg-white hover:bg-gray-50 transition-colors text-gray-700"
         >
-          ⬇ 匯出 CSV ({filtered.length})
+          ⬇ {t('匯出 CSV')} ({filtered.length})
         </button>
       </div>
 
       {/* Results count */}
       {search || gradeFilter !== '全部年級' ? (
         <p className="text-xs text-gray-400">
-          顯示 {filtered.length} / {totalLeads} 筆記錄
+          {t('顯示')} {filtered.length} / {totalLeads} {t('筆記錄')}
         </p>
       ) : null}
 
@@ -466,7 +470,7 @@ export default function AdminAssessmentsClient({ sessions }: { sessions: Assessm
       {filtered.length === 0 ? (
         <div className="bg-white rounded-2xl p-12 text-center shadow-sm">
           <div className="text-4xl mb-3">🔍</div>
-          <p className="text-gray-500">找不到符合條件的記錄</p>
+          <p className="text-gray-500">{t('找不到符合條件的記錄')}</p>
         </div>
       ) : (
         <div className="space-y-3">

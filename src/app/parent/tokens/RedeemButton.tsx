@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { redeemOption } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type Child = { id: string; name: string; balance: number }
 
@@ -17,6 +18,7 @@ export default function RedeemButton({
   childCandidates: Child[]
 }) {
   const [isPending, startTransition] = useTransition()
+  const { t, lang } = useLang()
   const [result, setResult] = useState<{ error?: string; success?: boolean } | null>(null)
   const [showPicker, setShowPicker] = useState(false)
 
@@ -28,7 +30,9 @@ export default function RedeemButton({
     if (!child) return
     if (
       !confirm(
-        `用 ${child.name} 的 ${tokensRequired} 個代幣兌換「${rewardDescription}」？提交後等老師審批。`
+        lang === 'en'
+          ? `Redeem "${rewardDescription}" using ${tokensRequired} of ${child.name}'s credits? The teacher will review after submission.`
+          : `用 ${child.name} 的 ${tokensRequired} 個代幣兌換「${rewardDescription}」？提交後等老師審批。`
       )
     )
       return
@@ -49,7 +53,7 @@ export default function RedeemButton({
   }
 
   if (result?.success) {
-    return <span className="text-xs text-green-600 font-medium">✓ 已提交申請</span>
+    return <span className="text-xs text-green-600 font-medium">✓ {t('已提交申請')}</span>
   }
 
   return (
@@ -63,12 +67,12 @@ export default function RedeemButton({
             : 'bg-gray-100 text-gray-400 cursor-not-allowed'
         } disabled:opacity-60`}
       >
-        {isPending ? '…' : canRedeem ? '兌換' : '代幣不足'}
+        {isPending ? '…' : t(canRedeem ? '兌換' : '代幣不足')}
       </button>
 
       {showPicker && eligible.length > 1 && (
         <div className="absolute right-5 mt-12 z-10 bg-white rounded-2xl shadow-lg p-3 border border-gray-100 w-56">
-          <p className="text-xs text-gray-500 mb-2">用邊位子女的代幣兌換？</p>
+          <p className="text-xs text-gray-500 mb-2">{t('用邊位子女的代幣兌換？')}</p>
           <div className="space-y-1">
             {eligible.map((c) => (
               <button
@@ -77,7 +81,7 @@ export default function RedeemButton({
                 className="block w-full text-left px-3 py-2 rounded-xl hover:bg-gray-50 text-sm"
               >
                 <span className="font-medium text-gray-800">{c.name}</span>
-                <span className="text-xs text-gray-400 ml-2">餘 {c.balance}</span>
+                <span className="text-xs text-gray-400 ml-2">{t('餘')} {c.balance}</span>
               </button>
             ))}
           </div>
@@ -85,7 +89,7 @@ export default function RedeemButton({
             onClick={() => setShowPicker(false)}
             className="mt-2 w-full text-xs text-gray-400 underline"
           >
-            取消
+            {t('取消')}
           </button>
         </div>
       )}

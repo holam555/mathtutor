@@ -2,6 +2,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ToggleLongActive from './ToggleLongActive'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 const GRADE_LABEL: Record<number, string> = { 3: 'P3', 4: 'P4', 5: 'P5', 6: 'P6' }
 const TIER_LABEL: Record<string, string> = { basic: '易', enhancement: '中', advanced: '難' }
@@ -17,6 +19,7 @@ export default async function LongQuestionsPage({
   searchParams: { grade?: string; unit_id?: string; active?: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -81,19 +84,23 @@ export default async function LongQuestionsPage({
           <Link href="/admin" className="text-gray-400 hover:text-gray-600">
             ←
           </Link>
-          <h1 className="text-xl font-bold">長答題管理</h1>
-          <span className="text-sm text-gray-400">({totalCount} 題)</span>
+          <h1 className="text-xl font-bold">{translate('長答題管理', lang)}</h1>
+          <span className="text-sm text-gray-400">({totalCount} {translate('題', lang)})</span>
         </div>
         <Link
           href={`/admin/long-questions/new?grade=${validGrade}`}
           className="px-4 py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-xl hover:bg-[#3a80d2] transition"
         >
-          + 新增長答題
+          + {translate('新增長答題', lang)}
         </Link>
       </div>
 
       <p className="text-xs text-gray-500 bg-blue-50 rounded-xl px-4 py-3 mb-5">
-        💡 長答題僅用於 <strong>模擬考試試卷</strong>，會以可列印的 PDF 形式提供畀學生，家長拍照上載學生答卷後 AI 會自動辨識手寫答案。
+        💡 {lang === 'en' ? (
+          <>Long-answer questions are only used in <strong>mock exam papers</strong>. They are given to students as a printable PDF; after parents photograph and upload the answer sheets, AI automatically recognizes the handwritten answers.</>
+        ) : (
+          <>長答題僅用於 <strong>模擬考試試卷</strong>，會以可列印的 PDF 形式提供畀學生，家長拍照上載學生答卷後 AI 會自動辨識手寫答案。</>
+        )}
       </p>
 
       {/* Grade tabs */}
@@ -116,7 +123,7 @@ export default async function LongQuestionsPage({
           href={`/admin/long-questions?grade=${validGrade}${showInactive ? '' : '&active=all'}`}
           className="self-center text-xs text-gray-400 underline pb-2"
         >
-          {showInactive ? '只顯示啟用' : '顯示全部（含停用）'}
+          {translate(showInactive ? '只顯示啟用' : '顯示全部（含停用）', lang)}
         </Link>
       </div>
 
@@ -130,7 +137,7 @@ export default async function LongQuestionsPage({
               : 'bg-white text-gray-600 border border-gray-200'
           }`}
         >
-          全部單元
+          {translate('全部單元', lang)}
         </Link>
         {(units ?? []).map((u) => (
           <Link
@@ -151,12 +158,12 @@ export default async function LongQuestionsPage({
 
       {totalCount === 0 ? (
         <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm">
-          <p>此{selectedUnitId ? '單元' : '年級'}暫時沒有長答題</p>
+          <p>{translate('此', lang)}{translate(selectedUnitId ? '單元' : '年級', lang)}{translate('暫時沒有長答題', lang)}</p>
           <Link
             href={`/admin/long-questions/new?grade=${validGrade}`}
             className="mt-3 inline-block text-sm text-[#4A90E2] underline"
           >
-            新增第一條長答題
+            {translate('新增第一條長答題', lang)}
           </Link>
         </div>
       ) : (
@@ -173,7 +180,7 @@ export default async function LongQuestionsPage({
                   </span>
                   <h2 className="font-semibold text-gray-800">{unit.name}</h2>
                   <span className="text-xs text-gray-400 ml-1">
-                    {unit.semester === 'A' ? '上學期' : '下學期'}
+                    {translate(unit.semester === 'A' ? '上學期' : '下學期', lang)}
                   </span>
                 </div>
 
@@ -185,7 +192,7 @@ export default async function LongQuestionsPage({
                       <div key={topic.id}>
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                           {topic.lesson_number}. {topic.name}
-                          <span className="ml-2 font-normal normal-case">（{qs.length} 題）</span>
+                          <span className="ml-2 font-normal normal-case">（{qs.length} {translate('題', lang)}）</span>
                         </p>
                         <div className="space-y-2">
                           {qs.map((q) => (
@@ -198,23 +205,23 @@ export default async function LongQuestionsPage({
                               <div className="flex items-start justify-between gap-3 p-3.5">
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5 flex-wrap mb-1">
-                                    <span className="text-xs text-gray-400">長答題</span>
+                                    <span className="text-xs text-gray-400">{translate('長答題', lang)}</span>
                                     {q.difficulty_tier && (
                                       <span
                                         className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${
                                           TIER_COLOR[q.difficulty_tier] ?? 'bg-gray-100 text-gray-500'
                                         }`}
                                       >
-                                        {TIER_LABEL[q.difficulty_tier]}
+                                        {translate(TIER_LABEL[q.difficulty_tier], lang)}
                                       </span>
                                     )}
                                     {q.image_url && (
                                       <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">
-                                        🖼 圖
+                                        🖼 {translate('圖', lang)}
                                       </span>
                                     )}
                                     {!q.is_active && (
-                                      <span className="text-xs text-gray-400 italic">已停用</span>
+                                      <span className="text-xs text-gray-400 italic">{translate('已停用', lang)}</span>
                                     )}
                                   </div>
                                   <p className="text-sm text-gray-800 line-clamp-2">{q.question_text}</p>
@@ -227,7 +234,7 @@ export default async function LongQuestionsPage({
                                     href={`/admin/long-questions/${q.id}?grade=${validGrade}`}
                                     className="text-xs text-[#4A90E2] underline"
                                   >
-                                    編輯
+                                    {translate('編輯', lang)}
                                   </Link>
                                   <ToggleLongActive questionId={q.id} isActive={q.is_active} />
                                 </div>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { saveRedemptionOption } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type Option = {
   id: string
@@ -11,6 +12,7 @@ type Option = {
 }
 
 export default function OptionManager({ options: initial }: { options: Option[] }) {
+  const { t } = useLang()
   const [options, setOptions] = useState(initial)
   const [editing, setEditing] = useState<string | null>(null) // id or 'new'
   const [isPending, startTransition] = useTransition()
@@ -64,12 +66,12 @@ export default function OptionManager({ options: initial }: { options: Option[] 
   return (
     <div className="bg-white rounded-2xl p-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold text-gray-800">兌換選項管理</h3>
+        <h3 className="font-semibold text-gray-800">{t('兌換選項管理')}</h3>
         <button
           onClick={startNew}
           className="text-sm text-[#4A90E2] font-medium"
         >
-          + 新增
+          + {t('新增')}
         </button>
       </div>
 
@@ -81,7 +83,7 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                 <input
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
-                  placeholder="兌換描述"
+                  placeholder={t('兌換描述')}
                   className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#4A90E2] outline-none"
                 />
                 <div className="flex items-center gap-3">
@@ -89,7 +91,7 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                     type="number"
                     value={formTokens}
                     onChange={(e) => setFormTokens(e.target.value)}
-                    placeholder="所需 Tokens"
+                    placeholder={t('所需 Tokens')}
                     className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#4A90E2] outline-none"
                   />
                   <label className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -99,7 +101,7 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                       onChange={(e) => setFormActive(e.target.checked)}
                       className="accent-[#4A90E2]"
                     />
-                    啟用
+                    {t('啟用')}
                   </label>
                 </div>
                 <div className="flex gap-2">
@@ -108,13 +110,13 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                     disabled={isPending}
                     className="flex-1 h-8 text-xs font-medium bg-[#4A90E2] text-white rounded-lg"
                   >
-                    儲存
+                    {t('儲存')}
                   </button>
                   <button
                     onClick={() => setEditing(null)}
                     className="flex-1 h-8 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg"
                   >
-                    取消
+                    {t('取消')}
                   </button>
                 </div>
               </div>
@@ -126,14 +128,14 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                   </span>
                   <span className="text-xs text-[#4A90E2] ml-2">{opt.tokens_required} T</span>
                   {!opt.is_active && (
-                    <span className="text-xs text-gray-400 ml-1">(已停用)</span>
+                    <span className="text-xs text-gray-400 ml-1">({t('已停用')})</span>
                   )}
                 </div>
                 <button
                   onClick={() => startEdit(opt)}
                   className="text-xs text-gray-400 underline"
                 >
-                  編輯
+                  {t('編輯')}
                 </button>
               </div>
             )}
@@ -145,7 +147,7 @@ export default function OptionManager({ options: initial }: { options: Option[] 
             <input
               value={formDesc}
               onChange={(e) => setFormDesc(e.target.value)}
-              placeholder="兌換描述"
+              placeholder={t('兌換描述')}
               className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#4A90E2] outline-none"
             />
             <div className="flex items-center gap-3">
@@ -153,7 +155,7 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                 type="number"
                 value={formTokens}
                 onChange={(e) => setFormTokens(e.target.value)}
-                placeholder="所需 Tokens"
+                placeholder={t('所需 Tokens')}
                 className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:border-[#4A90E2] outline-none"
               />
               <label className="flex items-center gap-1.5 text-sm text-gray-600">
@@ -163,7 +165,7 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                   onChange={(e) => setFormActive(e.target.checked)}
                   className="accent-[#4A90E2]"
                 />
-                啟用
+                {t('啟用')}
               </label>
             </div>
             <div className="flex gap-2">
@@ -172,13 +174,13 @@ export default function OptionManager({ options: initial }: { options: Option[] 
                 disabled={isPending}
                 className="flex-1 h-8 text-xs font-medium bg-[#4A90E2] text-white rounded-lg"
               >
-                儲存
+                {t('儲存')}
               </button>
               <button
                 onClick={() => setEditing(null)}
                 className="flex-1 h-8 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg"
               >
-                取消
+                {t('取消')}
               </button>
             </div>
           </div>

@@ -2,6 +2,8 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { DAILY_GOAL, TROPHIES, type StudentStats } from '@/lib/trophies'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function ResultsPage({
   params,
@@ -9,6 +11,7 @@ export default async function ResultsPage({
   params: { sessionId: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -103,18 +106,18 @@ export default async function ResultsPage({
       <div className="text-center mb-8">
         <div className="text-6xl mb-4">{dailyGoalMet ? '🎉' : '💪'}</div>
         <h1 className="text-3xl font-bold text-[#1D9E75] mb-2">
-          {dailyGoalMet ? '今日任務完成！' : '做得好！繼續加油！'}
+          {translate(dailyGoalMet ? '今日任務完成！' : '做得好！繼續加油！', lang)}
         </h1>
         <p className="text-gray-500 text-sm">
           {dailyGoalMet
-            ? '你已達成今日目標，太棒了！'
-            : `今日已完成 ${todayAnswered} / ${DAILY_GOAL} 題`}
+            ? translate('你已達成今日目標，太棒了！', lang)
+            : lang === 'en' ? `${todayAnswered} / ${DAILY_GOAL} done today` : `今日已完成 ${todayAnswered} / ${DAILY_GOAL} 題`}
         </p>
       </div>
 
       {/* Stars earned */}
       <div className="bg-white rounded-3xl shadow-sm px-8 py-6 mb-6 text-center w-full">
-        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">今次獲得</p>
+        <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{translate('今次獲得', lang)}</p>
         <p className="text-5xl font-bold text-[#EF9F27] flex items-center justify-center gap-1">
           <span>⭐</span>
           <span>×</span>
@@ -125,7 +128,7 @@ export default async function ResultsPage({
       {/* New trophy banner */}
       {newlyUnlocked.length > 0 && (
         <div className="w-full bg-gradient-to-r from-[#FFE7B5] to-[#FFCC66] rounded-2xl px-5 py-4 mb-6 shadow-sm">
-          <p className="text-sm font-bold text-[#8B6000] mb-2">🏅 新獎杯解鎖！</p>
+          <p className="text-sm font-bold text-[#8B6000] mb-2">🏅 {translate('新獎杯解鎖！', lang)}</p>
           <div className="flex flex-col gap-1.5">
             {newlyUnlocked.map((t) => (
               <div key={t.id} className="flex items-center gap-2">
@@ -145,7 +148,7 @@ export default async function ResultsPage({
         href="/student"
         className="w-full h-14 rounded-2xl bg-[#1D9E75] text-white text-base font-bold text-center leading-[56px] active:scale-[0.98] transition shadow-md"
       >
-        返回主頁
+        {translate('返回主頁', lang)}
       </Link>
     </main>
   )

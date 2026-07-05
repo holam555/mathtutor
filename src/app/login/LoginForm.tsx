@@ -2,11 +2,13 @@
 
 import { useFormState, useFormStatus } from 'react-dom'
 import type { AuthState } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 const initialState: AuthState = {}
 
 function SubmitButton({ color }: { color: string }) {
   const { pending } = useFormStatus()
+  const { t } = useLang()
   return (
     <button
       type="submit"
@@ -14,7 +16,7 @@ function SubmitButton({ color }: { color: string }) {
       style={{ backgroundColor: color }}
       className="w-full h-14 rounded-xl text-white text-base font-semibold disabled:opacity-60 active:scale-[0.98] transition"
     >
-      {pending ? '登入中…' : '登入'}
+      {pending ? t('登入中…') : t('登入')}
     </button>
   )
 }
@@ -27,11 +29,12 @@ export default function LoginForm({
   color: string
 }) {
   const [state, formAction] = useFormState(action, initialState)
+  const { t } = useLang()
 
   return (
     <form action={formAction} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">電郵</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('電郵')}</label>
         <input
           name="email"
           type="email"
@@ -41,7 +44,7 @@ export default function LoginForm({
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">密碼</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('密碼')}</label>
         <input
           name="password"
           type="password"
@@ -51,7 +54,7 @@ export default function LoginForm({
         />
       </div>
       {state.error && (
-        <p className="text-sm text-[#F44336] bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
+        <p className="text-sm text-[#F44336] bg-red-50 rounded-lg px-3 py-2">{t(state.error)}</p>
       )}
       <SubmitButton color={color} />
     </form>

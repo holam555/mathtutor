@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { MARKS, formatMarks, marksForQuestionType, totalPossibleMarks } from '@/lib/mockExamMarks'
 import ResumeTimerButton from './ResumeTimerButton'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function MockExamResultsPage({
   params,
@@ -10,6 +12,7 @@ export default async function MockExamResultsPage({
   params: { paperId: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -92,10 +95,10 @@ export default async function MockExamResultsPage({
     const ans = answerById.get(qid)
     return {
       num: i + 1,
-      text: q?.question_text ?? '(題目資料缺失)',
+      text: q?.question_text ?? translate('(題目資料缺失)', lang),
       type: q?.question_type ?? '',
       correct: q?.correct_answer ?? '',
-      student: ans?.student_answer ?? '(未作答)',
+      student: ans?.student_answer ?? translate('(未作答)', lang),
       answered: !!ans,
       isCorrect: !!ans?.is_correct,
     }
@@ -118,28 +121,28 @@ export default async function MockExamResultsPage({
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-[#FFF8EC] to-white">
-      <h1 className="text-xl font-bold mb-1">📝 模擬考試 · 階段一完成</h1>
-      <p className="text-sm text-gray-500 mb-5">多項選擇題 + 短答題</p>
+      <h1 className="text-xl font-bold mb-1">📝 {translate('模擬考試 · 階段一完成', lang)}</h1>
+      <p className="text-sm text-gray-500 mb-5">{translate('多項選擇題', lang)} + {translate('短答題', lang)}</p>
 
       <div className="bg-white rounded-2xl p-6 shadow-sm mb-4 text-center">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-          已得分數（多項選擇題 + 短答題）
+          {translate('已得分數', lang)}（{translate('多項選擇題', lang)} + {translate('短答題', lang)}）
         </p>
         <p className="text-5xl font-bold text-[#1D9E75]">
           {formatMarks(earnedMarks)}
-          <span className="text-2xl text-gray-400">/{formatMarks(mcSqPossibleMarks)} 分</span>
+          <span className="text-2xl text-gray-400">/{formatMarks(mcSqPossibleMarks)} {translate('分', lang)}</span>
         </p>
         <p className="text-xs text-gray-500 mt-2">
-          答對 {correctCount} / {totalCount} 題（{accuracy}%）
+          {translate('答對', lang)} {correctCount} / {totalCount}（{accuracy}%）
         </p>
         <p className="text-xs text-gray-400 mt-1">
-          長答題 {paper.lq_count} 題（{formatMarks(lqMarksAvailable)} 分）將由老師批改 · 全卷滿分 {formatMarks(totalPaperMarks)} 分
+          {lang === 'en' ? `${paper.lq_count} long-answer questions (${formatMarks(lqMarksAvailable)} marks) will be graded by the teacher · full paper ${formatMarks(totalPaperMarks)} marks` : `長答題 ${paper.lq_count} 題（${formatMarks(lqMarksAvailable)} 分）將由老師批改 · 全卷滿分 ${formatMarks(totalPaperMarks)} 分`}
         </p>
       </div>
 
       {breakdown.length > 0 && (
         <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
-          <p className="text-sm font-semibold text-gray-700 mb-3">詳細答題情況</p>
+          <p className="text-sm font-semibold text-gray-700 mb-3">{translate('詳細答題情況', lang)}</p>
           <ul className="space-y-3">
             {breakdown.map((b) => (
               <li key={b.num} className="flex items-start gap-3">
@@ -151,20 +154,20 @@ export default async function MockExamResultsPage({
                         ? 'bg-[#EF9F27] text-white'
                         : 'bg-gray-300 text-white'
                   }`}
-                  aria-label={b.isCorrect ? '答對' : b.answered ? '答錯' : '未作答'}
+                  aria-label={translate(b.isCorrect ? '答對' : b.answered ? '答錯' : '未作答', lang)}
                 >
                   {b.isCorrect ? '✓' : b.answered ? '✗' : '—'}
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800">
-                    第 {b.num} 題
+                    {lang === 'en' ? `Q${b.num}` : `第 ${b.num} 題`}
                     <span className="ml-2 text-xs text-gray-400">
-                      {b.type === 'multiple_choice' ? '多項選擇' : '短答'}
+                      {translate(b.type === 'multiple_choice' ? '多項選擇' : '短答', lang)}
                     </span>
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5 break-words">{b.text}</p>
                   <div className="mt-1 text-xs leading-relaxed">
-                    <span className="text-gray-500">你的答案：</span>
+                    <span className="text-gray-500">{translate('你的答案：', lang)}</span>
                     <span
                       className={
                         b.isCorrect
@@ -178,7 +181,7 @@ export default async function MockExamResultsPage({
                     </span>
                     {!b.isCorrect && (
                       <>
-                        <span className="text-gray-500 ml-2">正確答案：</span>
+                        <span className="text-gray-500 ml-2">{translate('正確答案：', lang)}</span>
                         <span className="text-[#1D9E75] font-semibold break-words">{b.correct}</span>
                       </>
                     )}
@@ -192,10 +195,10 @@ export default async function MockExamResultsPage({
 
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5">
         <p className="text-sm font-semibold text-amber-800 mb-1">
-          ⏱ 仲有 {paper.lq_count} 題長答題未做（{formatMarks(lqMarksAvailable)} 分）
+          {lang === 'en' ? `⏱ ${paper.lq_count} long-answer questions remaining (${formatMarks(lqMarksAvailable)} marks)` : `⏱ 仲有 ${paper.lq_count} 題長答題未做（${formatMarks(lqMarksAvailable)} 分）`}
         </p>
         <p className="text-xs text-amber-700 leading-relaxed">
-          按下方按鈕後計時將繼續，請喺已下載的試卷上完成所有長答題。完成後家長幫手影相上載畀老師批改。
+          {translate('按下方按鈕後計時將繼續，請喺已下載的試卷上完成所有長答題。完成後家長幫手影相上載畀老師批改。', lang)}
         </p>
       </div>
 
@@ -207,7 +210,7 @@ export default async function MockExamResultsPage({
           target="_blank"
           className="text-sm text-gray-500 underline"
         >
-          重新下載長答題試卷
+          {translate('重新下載長答題試卷', lang)}
         </Link>
       </div>
     </main>

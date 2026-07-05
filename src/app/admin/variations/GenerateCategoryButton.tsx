@@ -2,9 +2,11 @@
 
 import { useState, useTransition } from 'react'
 import { generateForCategory } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function GenerateCategoryButton({ categoryId }: { categoryId: string }) {
   const [isPending, startTransition] = useTransition()
+  const { t, lang } = useLang()
   const [result, setResult] = useState<{ success?: boolean; generated?: number; error?: string } | null>(null)
 
   function handleGenerate() {
@@ -29,15 +31,16 @@ export default function GenerateCategoryButton({ categoryId }: { categoryId: str
         {isPending ? (
           <>
             <span className="inline-block w-3 h-3 border-2 border-[#4A90E2]/40 border-t-[#4A90E2] rounded-full animate-spin" />
-            生成中…
+            {t('生成中…')}
           </>
         ) : (
-          '✨ 用 AI 生成新題目'
+          `✨ ${t('用 AI 生成新題目')}`
         )}
       </button>
       {result && (
         <span className={`text-xs ${result.error ? 'text-red-500' : 'text-green-600'}`}>
-          {result.error ?? `已生成 ${result.generated} 條題目`}
+          {result.error ??
+            (lang === 'en' ? `Generated ${result.generated} questions` : `已生成 ${result.generated} 條題目`)}
         </span>
       )}
     </div>

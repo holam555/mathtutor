@@ -3,9 +3,12 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import ReviewForm from './ReviewForm'
 import type { ExtractedQuestion } from '@/lib/gemini'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function PastPaperReviewPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -72,13 +75,13 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
         <Link href="/admin/past-papers" className="text-gray-400 hover:text-gray-600">←</Link>
         <div>
           <h1 className="text-xl font-bold">
-            {upload.school_name ?? '未知學校'}
-            {upload.grade ? ` · 小${{ 3: '三', 4: '四', 5: '五', 6: '六' }[upload.grade as 3|4|5|6] ?? upload.grade}` : ''}
+            {upload.school_name ?? translate('未知學校', lang)}
+            {upload.grade ? ` · ${translate(`小${{ 3: '三', 4: '四', 5: '五', 6: '六' }[upload.grade as 3|4|5|6] ?? upload.grade}`, lang)}` : ''}
             {upload.exam_type ? ` · ${upload.exam_type}` : ''}
           </h1>
           <p className="text-sm text-gray-400">
             {upload.exam_year ? `${upload.exam_year} · ` : ''}
-            {extractedQuestions.length} 條 AI 提取題目 ·{' '}
+            {extractedQuestions.length} {translate('條 AI 提取題目', lang)} ·{' '}
             {new Date(upload.created_at).toLocaleDateString('zh-HK')}
           </p>
         </div>
@@ -88,7 +91,7 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
               ? 'bg-green-100 text-green-700'
               : 'bg-gray-100 text-gray-500'
           }`}>
-            {upload.review_status === 'approved' ? '已批准' : '已拒絕'}
+            {translate(upload.review_status === 'approved' ? '已批准' : '已拒絕', lang)}
           </span>
         )}
       </div>

@@ -53,6 +53,9 @@ _crops:/
 # LQ extraction input — screenshots / PDFs stay local; never push past-paper content
 /_lq_input/**/*
 !/_lq_input/**/.gitkeep
+# Same content in the colon-suffixed variant dir (created by a path typo);
+# without this line `git add -A` stages 350+ copyrighted exam screenshots.
+_lq_input:/
 
 # Supabase CLI temp
 supabase/.temp/
@@ -62,3 +65,4 @@ supabase/.temp/
 # Ignore /scripts/* by default but track the ones other contributors need
 /scripts/*
 !/scripts/upload_lq_images.ts
+!/scripts/check_i18n.mjs

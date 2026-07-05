@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import ToggleActiveButton from './ToggleActiveButton'
 import ToggleLongActive from '../long-questions/ToggleLongActive'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 const GRADE_LABEL: Record<number, string> = { 3: 'P3', 4: 'P4', 5: 'P5', 6: 'P6' }
 const TIER_LABEL: Record<string, string> = {
@@ -52,6 +54,7 @@ export default async function QuestionsPage({
   searchParams: { grade?: string; unit_id?: string; active?: string; cat?: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -197,8 +200,8 @@ export default async function QuestionsPage({
           <Link href="/admin" className="text-gray-400 hover:text-gray-600">
             ←
           </Link>
-          <h1 className="text-xl font-bold">題目管理</h1>
-          <span className="text-sm text-gray-400">({totalCount} 題)</span>
+          <h1 className="text-xl font-bold">{translate('題目管理', lang)}</h1>
+          <span className="text-sm text-gray-400">({totalCount} {translate('題', lang)})</span>
         </div>
         <Link
           href={
@@ -208,7 +211,9 @@ export default async function QuestionsPage({
           }
           className="px-4 py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-xl hover:bg-[#3a80d2] transition"
         >
-          + 新增{catFilter === 'lq' ? '長答題' : '題目'}
+          {lang === 'en'
+            ? `+ Add ${catFilter === 'lq' ? 'Long-Answer Question' : 'Question'}`
+            : `+ 新增${catFilter === 'lq' ? '長答題' : '題目'}`}
         </Link>
       </div>
 
@@ -234,7 +239,7 @@ export default async function QuestionsPage({
           }`}
           className="self-center text-xs text-gray-400 underline pb-2"
         >
-          {showInactive ? '只顯示啟用' : '顯示全部（含停用）'}
+          {translate(showInactive ? '只顯示啟用' : '顯示全部（含停用）', lang)}
         </Link>
       </div>
 
@@ -248,7 +253,7 @@ export default async function QuestionsPage({
               : 'bg-white text-gray-600 border border-gray-200'
           }`}
         >
-          全部題型
+          {translate('全部題型', lang)}
         </Link>
         {CAT_ORDER.map((c) => (
           <Link
@@ -260,7 +265,7 @@ export default async function QuestionsPage({
                 : 'bg-white text-gray-600 border border-gray-200'
             }`}
           >
-            {CAT_LABEL[c]}
+            {translate(CAT_LABEL[c], lang)}
           </Link>
         ))}
       </div>
@@ -277,7 +282,7 @@ export default async function QuestionsPage({
               : 'bg-white text-gray-600 border border-gray-200'
           }`}
         >
-          全部單元
+          {translate('全部單元', lang)}
         </Link>
         {(units ?? []).map((u) => (
           <Link
@@ -299,12 +304,12 @@ export default async function QuestionsPage({
       {/* Questions grouped by unit → topic → category */}
       {totalCount === 0 ? (
         <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm">
-          <p>此{selectedUnitId ? '單元' : '年級'}暫時沒有題目</p>
+          <p>{translate('此', lang)}{translate(selectedUnitId ? '單元' : '年級', lang)}{translate('暫時沒有題目', lang)}</p>
           <Link
             href={`/admin/questions/new?grade=${validGrade}`}
             className="mt-3 inline-block text-sm text-[#4A90E2] underline"
           >
-            新增第一條題目
+            {translate('新增第一條題目', lang)}
           </Link>
         </div>
       ) : (
@@ -321,7 +326,7 @@ export default async function QuestionsPage({
                   </span>
                   <h2 className="font-semibold text-gray-800">{unit.name}</h2>
                   <span className="text-xs text-gray-400 ml-1">
-                    {unit.semester === 'A' ? '上學期' : '下學期'}
+                    {translate(unit.semester === 'A' ? '上學期' : '下學期', lang)}
                   </span>
                 </div>
 
@@ -338,7 +343,7 @@ export default async function QuestionsPage({
                       <div key={topic.id}>
                         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
                           {topic.lesson_number}. {topic.name}
-                          <span className="ml-2 font-normal normal-case">（{topicTotal} 題）</span>
+                          <span className="ml-2 font-normal normal-case">（{topicTotal} {translate('題', lang)}）</span>
                         </p>
                         <div className="space-y-4">
                           {CAT_ORDER.map((cat) => {
@@ -356,10 +361,10 @@ export default async function QuestionsPage({
                                           : 'bg-orange-100 text-orange-700'
                                     }`}
                                   >
-                                    {CAT_LABEL[cat]}
+                                    {translate(CAT_LABEL[cat], lang)}
                                   </span>
                                   <span className="text-[11px] text-gray-400">
-                                    {rows.length} 題
+                                    {rows.length} {translate('題', lang)}
                                   </span>
                                 </div>
                                 <div className="space-y-2">
@@ -387,7 +392,7 @@ export default async function QuestionsPage({
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                               src={q.image_url}
-                                              alt="題目圖片"
+                                              alt={translate('題目圖片', lang)}
                                               className="max-h-40 rounded-lg border border-gray-100 object-contain"
                                             />
                                           </div>
@@ -407,17 +412,17 @@ export default async function QuestionsPage({
                                                     'bg-gray-100 text-gray-500'
                                                   }`}
                                                 >
-                                                  {TIER_LABEL[q.difficulty_tier]}
+                                                  {translate(TIER_LABEL[q.difficulty_tier], lang)}
                                                 </span>
                                               )}
                                               {!q.is_active && (
                                                 <span className="text-xs text-gray-400 italic">
-                                                  已停用
+                                                  {translate('已停用', lang)}
                                                 </span>
                                               )}
                                               {!isGroupMember && q.image_url && (
                                                 <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">
-                                                  🖼 圖
+                                                  🖼 {translate('圖', lang)}
                                                 </span>
                                               )}
                                             </div>
@@ -426,7 +431,7 @@ export default async function QuestionsPage({
                                             </p>
                                             {q.correct_answer && (
                                               <p className="text-xs text-gray-500 mt-0.5">
-                                                答案：{q.correct_answer}
+                                                {translate('答案', lang)}：{q.correct_answer}
                                               </p>
                                             )}
                                           </div>
@@ -435,7 +440,7 @@ export default async function QuestionsPage({
                                               href={editHref}
                                               className="text-xs text-[#4A90E2] underline"
                                             >
-                                              編輯
+                                              {translate('編輯', lang)}
                                             </Link>
                                             {q.kind === 'lq' ? (
                                               <ToggleLongActive
@@ -456,7 +461,7 @@ export default async function QuestionsPage({
                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                             <img
                                               src={q.image_url}
-                                              alt="題目圖片"
+                                              alt={translate('題目圖片', lang)}
                                               className="max-h-48 rounded-lg border border-gray-100 object-contain"
                                             />
                                           </div>

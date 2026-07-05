@@ -1,6 +1,8 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { MARKS, formatMarks } from '@/lib/mockExamMarks'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 const GRADE_LABEL: Record<number, string> = { 3: '小三', 4: '小四', 5: '小五', 6: '小六' }
 
@@ -12,6 +14,7 @@ export default async function LqPaperPage({
   searchParams: { view?: 'question' | 'answer' }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -182,7 +185,7 @@ export default async function LqPaperPage({
       />
       <div className="lq-print-bar">
         <button className="lq-print-btn" id="lq-print-btn" type="button">
-          🖨 列印 / 儲存成 PDF
+          🖨 {translate('列印 / 儲存成 PDF', lang)}
         </button>
       </div>
       <PrintButtonScript />

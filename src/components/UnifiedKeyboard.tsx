@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import FractionDisplay from './FractionDisplay'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 // One keyboard for all answer types in the assessment flow.
 // Modes:
@@ -22,6 +23,7 @@ type Props = {
 }
 
 export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }: Props) {
+  const { t } = useLang()
   const [mode, setMode] = useState<Mode>('number')
   const [fracInt, setFracInt] = useState('')
   const [fracNum, setFracNum] = useState('')
@@ -74,7 +76,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
         <div className="flex-1 text-2xl font-medium text-gray-800 break-all">
           {value
             ? <FractionDisplay value={value} />
-            : <span className="text-gray-300 text-base">輸入答案⋯</span>}
+            : <span className="text-gray-300 text-base">{t('輸入答案⋯')}</span>}
         </div>
         {value && (
           <button
@@ -82,7 +84,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
             disabled={disabled}
             className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1"
           >
-            清除
+            {t('清除')}
           </button>
         )}
       </div>
@@ -91,10 +93,10 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
       <div className="grid grid-cols-4 gap-1.5">
         {(['number', 'fraction', 'symbol', 'text'] as Mode[]).map((m) => {
           const labels: Record<Mode, string> = {
-            number: '數字',
-            fraction: '分數',
-            symbol: '符號',
-            text: '文字',
+            number: t('數字'),
+            fraction: t('分數'),
+            symbol: t('符號'),
+            text: t('文字'),
           }
           const active = mode === m
           return (
@@ -124,7 +126,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
           {['4', '5', '6'].map((d) => (
             <button key={d} onClick={() => append(d)} disabled={disabled} className={`${numBtn} h-14 text-xl col-span-1`}>{d}</button>
           ))}
-          <button onClick={() => append(' ')} disabled={disabled} className={`${utilBtn} h-14 text-sm`}>空格</button>
+          <button onClick={() => append(' ')} disabled={disabled} className={`${utilBtn} h-14 text-sm`}>{t('空格')}</button>
           {['1', '2', '3'].map((d) => (
             <button key={d} onClick={() => append(d)} disabled={disabled} className={`${numBtn} h-14 text-xl col-span-1`}>{d}</button>
           ))}
@@ -139,7 +141,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
         <div className="space-y-3">
           {/* Builder */}
           <div className="bg-teal-50 rounded-xl border-2 border-teal-200 p-3">
-            <p className="text-xs text-teal-700 font-medium mb-2">點選格仔，再按下面數字</p>
+            <p className="text-xs text-teal-700 font-medium mb-2">{t('點選格仔，再按下面數字')}</p>
             <div className="flex items-center justify-center gap-3">
               <button
                 onClick={() => setFracFocus('int')}
@@ -147,7 +149,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
                   fracFocus === 'int' ? 'border-teal-500 bg-white' : 'border-gray-200 bg-gray-50 text-gray-400'
                 }`}
               >
-                {fracInt || <span className="text-gray-300 text-sm">整數</span>}
+                {fracInt || <span className="text-gray-300 text-sm">{t('整數')}</span>}
               </button>
               <div className="flex flex-col items-center">
                 <button
@@ -156,7 +158,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
                     fracFocus === 'num' ? 'border-teal-500 bg-white' : 'border-gray-200 bg-gray-50 text-gray-400'
                   }`}
                 >
-                  {fracNum || <span className="text-gray-300 text-sm">分子</span>}
+                  {fracNum || <span className="text-gray-300 text-sm">{t('分子')}</span>}
                 </button>
                 <div className="w-12 h-0.5 bg-gray-700 my-1" />
                 <button
@@ -165,7 +167,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
                     fracFocus === 'den' ? 'border-teal-500 bg-white' : 'border-gray-200 bg-gray-50 text-gray-400'
                   }`}
                 >
-                  {fracDen || <span className="text-gray-300 text-sm">分母</span>}
+                  {fracDen || <span className="text-gray-300 text-sm">{t('分母')}</span>}
                 </button>
               </div>
             </div>
@@ -178,7 +180,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
             {['4', '5', '6'].map((d) => (
               <button key={d} onClick={() => setFracField(d)} disabled={disabled} className={`${numBtn} h-12 text-lg`}>{d}</button>
             ))}
-            <button onClick={() => setFracField('CLEAR')} disabled={disabled} className={`${utilBtn} h-12 text-xs`}>全清</button>
+            <button onClick={() => setFracField('CLEAR')} disabled={disabled} className={`${utilBtn} h-12 text-xs`}>{t('全清')}</button>
             {['1', '2', '3'].map((d) => (
               <button key={d} onClick={() => setFracField(d)} disabled={disabled} className={`${numBtn} h-12 text-lg`}>{d}</button>
             ))}
@@ -187,7 +189,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
               disabled={disabled || !fracNum || !fracDen}
               className={`${baseBtn} h-12 text-sm bg-teal-500 text-white disabled:opacity-40`}
             >
-              插入
+              {t('插入')}
             </button>
             <button onClick={() => setFracField('0')} disabled={disabled} className={`${numBtn} h-12 text-lg col-span-4`}>0</button>
           </div>
@@ -222,13 +224,13 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && value.trim() && !disabled) onSubmit() }}
             disabled={disabled}
-            placeholder="用裝置鍵盤打字（中/英文）"
+            placeholder={t('用裝置鍵盤打字（中/英文）')}
             className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-base focus:outline-none focus:border-teal-400 disabled:bg-gray-50"
             inputMode="text"
             autoFocus
           />
           <p className="text-xs text-gray-400 text-center">
-            手機會自動彈出鍵盤；想用計算機按鈕請揀「數字」
+            {t('手機會自動彈出鍵盤；想用計算機按鈕請揀「數字」')}
           </p>
         </div>
       )}
@@ -240,7 +242,7 @@ export default function UnifiedKeyboard({ value, onChange, onSubmit, disabled }:
         className="w-full py-4 rounded-xl text-white font-semibold text-base disabled:opacity-40 transition-all"
         style={{ backgroundColor: '#1D9E75' }}
       >
-        確認
+        {t('確認')}
       </button>
     </div>
   )

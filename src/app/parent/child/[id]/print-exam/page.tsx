@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { fetchExamPaper } from '@/lib/examPaper'
 import ExamPaperSheet from '@/components/ExamPaperSheet'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function ParentPrintExamPage({
   params,
@@ -10,6 +12,7 @@ export default async function ParentPrintExamPage({
   params: { id: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -43,12 +46,12 @@ export default async function ParentPrintExamPage({
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
         <p className="text-2xl">📋</p>
-        <p className="font-semibold text-gray-700">尚未設定考試範圍，無法生成練習卷</p>
+        <p className="font-semibold text-gray-700">{translate('尚未設定考試範圍，無法生成練習卷', lang)}</p>
         <Link
           href={`/parent/child/${params.id}?tab=scope`}
           className="text-sm text-[#1D9E75] underline"
         >
-          設定考試範圍
+          {translate('設定考試範圍', lang)}
         </Link>
       </main>
     )
@@ -58,12 +61,12 @@ export default async function ParentPrintExamPage({
     return (
       <main className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
         <p className="text-2xl">📋</p>
-        <p className="font-semibold text-gray-700">此考試範圍暫時沒有題目</p>
+        <p className="font-semibold text-gray-700">{translate('此考試範圍暫時沒有題目', lang)}</p>
         <Link
           href={`/parent/child/${params.id}?tab=scope`}
           className="text-sm text-[#1D9E75] underline"
         >
-          返回
+          {translate('返回', lang)}
         </Link>
       </main>
     )
@@ -77,7 +80,7 @@ export default async function ParentPrintExamPage({
           href={`/parent/child/${params.id}?tab=scope`}
           className="text-sm text-gray-400 hover:text-gray-600"
         >
-          ← 返回考試範圍
+          ← {translate('返回考試範圍', lang)}
         </Link>
       </div>
       <ExamPaperSheet studentName={profile.name} paper={paper} />

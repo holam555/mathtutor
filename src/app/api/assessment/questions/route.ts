@@ -9,6 +9,7 @@ import {
 } from '@/lib/assessmentSelection'
 import type { AssessmentQuestion, DifficultyTier } from '@/types/assessment'
 import { TIER_QUOTA } from '@/types/assessment'
+import { rateLimit, clientIp } from '@/lib/rateLimit'
 
 // GET /api/assessment/questions
 //   DB-backed mode (P3, P5): ?grade=3&unit_ids=uuid,uuid (or topic_ids=uuid,uuid)
@@ -16,6 +17,18 @@ import { TIER_QUOTA } from '@/types/assessment'
 const DB_BACKED_GRADES = new Set([3, 4, 5, 6])
 
 export async function GET(request: NextRequest) {
+  // Public endpoint hitting the question bank — generous limit, blocks scraping loops.
+  const { allowed, retryAfterSeconds } = rateLimit(`assess-questions:${clientIp(request)}`, {
+    limit: 30,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!allowed) {
+    return NextResponse.json(
+      { error: '請求太頻繁，請稍後再試' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
+    )
+  }
+
   const { searchParams } = new URL(request.url)
   const grade = parseInt(searchParams.get('grade') ?? '', 10)
 

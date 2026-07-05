@@ -5,6 +5,8 @@ import { fetchStudentReport } from '@/lib/fetchStudentReport'
 import StudentReport from '@/components/StudentReport'
 import AssignmentTab from './AssignmentTab'
 import type { TimeRange } from '@/lib/studentReport'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function AdminStudentDetail({
   params,
@@ -14,6 +16,7 @@ export default async function AdminStudentDetail({
   searchParams: { tab?: string; range?: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -98,11 +101,11 @@ export default async function AdminStudentDetail({
       <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/admin/students" className="text-gray-400 hover:text-gray-600 text-sm">← 返回</Link>
+          <Link href="/admin/students" className="text-gray-400 hover:text-gray-600 text-sm">← {translate('返回', lang)}</Link>
           <div>
             <h1 className="text-xl font-bold">{profile.name}</h1>
             {profile.grade && (
-              <p className="text-xs text-gray-400">小{GRADE_LABEL[profile.grade] ?? profile.grade}</p>
+              <p className="text-xs text-gray-400">{translate(`小${GRADE_LABEL[profile.grade] ?? profile.grade}`, lang)}</p>
             )}
           </div>
         </div>
@@ -119,7 +122,7 @@ export default async function AdminStudentDetail({
                   : 'border-transparent text-gray-500'
               }`}
             >
-              {t.label}
+              {translate(t.label, lang)}
             </Link>
           ))}
         </div>
@@ -145,7 +148,7 @@ export default async function AdminStudentDetail({
           href={`${basePath}?tab=assign&range=${range}`}
           className="inline-block float-right text-xs text-[#4A90E2] underline mb-1"
         >
-          指定練習 →
+          {translate('指定練習', lang)} →
         </Link>
       </div>
       <StudentReport

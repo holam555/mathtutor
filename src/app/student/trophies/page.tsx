@@ -2,9 +2,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { TROPHIES, type StudentStats } from '@/lib/trophies'
+import { getLang } from '@/lib/i18n/getLang'
+import { t } from '@/lib/i18n/translate'
 
 export default async function TrophiesPage() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -44,14 +47,14 @@ export default async function TrophiesPage() {
     sessionCount: sessionCount ?? 0,
   }
 
-  const items = TROPHIES.map((t) => ({ def: t, status: t.check(stats) }))
+  const items = TROPHIES.map((trophy) => ({ def: trophy, status: trophy.check(stats) }))
   const unlockedCount = items.filter((i) => i.status.unlocked).length
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-[#F7FBF9] to-white">
       <div className="flex items-center gap-3 mb-6">
-        <Link href="/student" className="text-gray-400 text-sm">← 返回</Link>
-        <h1 className="text-xl font-bold">我的獎杯</h1>
+        <Link href="/student" className="text-gray-400 text-sm">← {t('返回', lang)}</Link>
+        <h1 className="text-xl font-bold">{t('我的獎杯', lang)}</h1>
         <span className="ml-auto text-sm text-gray-400">
           {unlockedCount} / {TROPHIES.length}
         </span>
@@ -77,9 +80,9 @@ export default async function TrophiesPage() {
                 status.unlocked ? 'text-gray-800' : 'text-gray-500'
               }`}
             >
-              {def.title}
+              {t(def.title, lang)}
             </p>
-            <p className="text-xs text-gray-500 mt-0.5">{def.description}</p>
+            <p className="text-xs text-gray-500 mt-0.5">{t(def.description, lang)}</p>
             {!status.unlocked && (
               <>
                 <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -92,7 +95,7 @@ export default async function TrophiesPage() {
               </>
             )}
             {status.unlocked && (
-              <p className="text-xs text-[#C87E10] mt-2 font-semibold">✓ 已解鎖</p>
+              <p className="text-xs text-[#C87E10] mt-2 font-semibold">✓ {t('已解鎖', lang)}</p>
             )}
           </div>
         ))}

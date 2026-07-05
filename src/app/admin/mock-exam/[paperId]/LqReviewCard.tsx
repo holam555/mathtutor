@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { MARKS, formatMarks } from '@/lib/mockExamMarks'
 import { saveLqReview } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function LqReviewCard({
   paperId,
@@ -31,6 +32,7 @@ export default function LqReviewCard({
   isReviewed: boolean
 }) {
   const router = useRouter()
+  const { t } = useLang()
   const [corrected, setCorrected] = useState(initialCorrectedAnswer ?? aiExtractedAnswer ?? '')
   const [comment, setComment] = useState(initialComment ?? '')
   const [pending, startTransition] = useTransition()
@@ -38,7 +40,7 @@ export default function LqReviewCard({
 
   function handleSave() {
     if (!submissionId) {
-      setFeedback('未上載答卷，無法批改')
+      setFeedback(t('未上載答卷，無法批改'))
       return
     }
     const form = new FormData()
@@ -49,7 +51,7 @@ export default function LqReviewCard({
       if (res && 'error' in res && res.error) {
         setFeedback(res.error)
       } else {
-        setFeedback('已儲存 ✓')
+        setFeedback(`${t('已儲存')} ✓`)
         router.refresh()
       }
     })
@@ -59,10 +61,10 @@ export default function LqReviewCard({
     <div className="bg-white rounded-2xl p-5 shadow-sm">
       <div className="flex items-baseline gap-2 mb-2">
         <span className="font-bold">{index}.</span>
-        <span className="text-xs text-gray-400">（{formatMarks(MARKS.lq)} 分）</span>
+        <span className="text-xs text-gray-400">（{formatMarks(MARKS.lq)} {t('分')}）</span>
         {isReviewed && (
           <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-            已批改
+            {t('已批改')}
           </span>
         )}
       </div>
@@ -73,13 +75,13 @@ export default function LqReviewCard({
       )}
 
       <div className="bg-amber-50 rounded-lg p-3 mb-3">
-        <p className="text-xs font-semibold text-amber-800 mb-1">模範答案</p>
+        <p className="text-xs font-semibold text-amber-800 mb-1">{t('模範答案')}</p>
         <p className="text-xs text-gray-700 whitespace-pre-wrap">{modelAnswer}</p>
       </div>
 
       {submissionImageUrls.length > 0 ? (
         <div className="mb-3">
-          <p className="text-xs font-semibold text-gray-500 mb-2">學生答卷</p>
+          <p className="text-xs font-semibold text-gray-500 mb-2">{t('學生答卷')}</p>
           <div className="flex gap-2 overflow-x-auto">
             {submissionImageUrls.map((url, i) => (
               // eslint-disable-next-line @next/next/no-img-element
@@ -90,21 +92,21 @@ export default function LqReviewCard({
           </div>
         </div>
       ) : (
-        <p className="text-xs text-gray-400 italic mb-3">學生答卷未上載</p>
+        <p className="text-xs text-gray-400 italic mb-3">{t('學生答卷未上載')}</p>
       )}
 
       <label className="block text-xs font-semibold text-gray-700 mb-1">
-        AI 辨識答案（可編輯）
+        {t('AI 辨識答案（可編輯）')}
       </label>
       <textarea
         value={corrected}
         onChange={(e) => setCorrected(e.target.value)}
         rows={4}
-        placeholder={aiExtractedAnswer ? '' : 'AI 未辨識到內容，請手動輸入'}
+        placeholder={aiExtractedAnswer ? '' : t('AI 未辨識到內容，請手動輸入')}
         className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm font-mono focus:border-[#4A90E2] outline-none resize-y mb-3"
       />
 
-      <label className="block text-xs font-semibold text-gray-700 mb-1">老師評語（選填）</label>
+      <label className="block text-xs font-semibold text-gray-700 mb-1">{t('老師評語（選填）')}</label>
       <textarea
         value={comment}
         onChange={(e) => setComment(e.target.value)}
@@ -117,7 +119,7 @@ export default function LqReviewCard({
         disabled={pending || !submissionId}
         className="w-full h-11 rounded-xl bg-[#4A90E2] text-white text-sm font-semibold disabled:opacity-60 transition"
       >
-        {pending ? '儲存中…' : '儲存批改'}
+        {pending ? t('儲存中…') : t('儲存批改')}
       </button>
 
       {feedback && (
