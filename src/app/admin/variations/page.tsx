@@ -93,6 +93,33 @@ export default async function VariationsPage({
 
   const totalPending = questions.length
 
+  // Units + topics for the per-card topic picker (approval writes into
+  // assessment_questions, which is topic-keyed).
+  const [{ data: unitRows }, { data: topicRows }] = await Promise.all([
+    service
+      .from('curriculum_units')
+      .select('id, grade, unit_number, name, display_order')
+      .neq('unit_number', 999)
+      .order('grade')
+      .order('display_order'),
+    service
+      .from('curriculum_topics')
+      .select('id, unit_id, lesson_number, name, display_order')
+      .order('display_order'),
+  ])
+  const units = (unitRows ?? []).map((u) => ({
+    id: u.id,
+    grade: u.grade,
+    unit_number: u.unit_number,
+    name: u.name,
+  }))
+  const topicList = (topicRows ?? []).map((tp) => ({
+    id: tp.id,
+    unit_id: tp.unit_id,
+    lesson_number: tp.lesson_number,
+    name: tp.name,
+  }))
+
   return (
     <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto">
       {/* Header */}
@@ -199,7 +226,7 @@ export default async function VariationsPage({
           ) : (
             <div className="space-y-4">
               {questions.map((q) => (
-                <VariationCard key={q.id} q={q} />
+                <VariationCard key={q.id} q={q} units={units} topics={topicList} />
               ))}
             </div>
           )}

@@ -69,6 +69,9 @@ export type ExtractedQuestion = {
   has_image: boolean
   image_region?: ImageRegion | null  // bounding box of the image region, if has_image
   image_url?: string | null          // filled in after crop + storage upload
+  // Raw storage path in the past-papers bucket. image_url above may be a
+  // short-lived signed URL for display; ONLY image_path is safe to persist.
+  image_path?: string | null
   page_number: number
 }
 

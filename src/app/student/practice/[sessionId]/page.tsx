@@ -1,5 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { signQuestionImage } from '@/lib/storage'
 import PracticeFlow from './PracticeFlow'
 import MockExamTimer from '@/components/MockExamTimer'
 import type { Question } from '@/types/database'
@@ -73,7 +74,7 @@ export default async function PracticePage({
       id: q.id,
       category_id: '',
       question_text: q.question_text,
-      question_image_url: q.image_url,
+      question_image_url: await signQuestionImage(service, q.image_url),
       image_alt_text: q.image_alt_text,
       question_type: q.question_type,
       options: (q.options as string[] | null) ?? null,

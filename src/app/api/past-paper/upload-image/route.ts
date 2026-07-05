@@ -49,5 +49,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: signedData } = await service.storage.from('past-papers').createSignedUrl(storagePath, 7200)
-  return NextResponse.json({ url: signedData?.signedUrl ?? '' })
+  // url = signed, for immediate display; path = raw, for persistence
+  // (signed URLs expire, so only the path may be written to the DB).
+  return NextResponse.json({ url: signedData?.signedUrl ?? '', path: storagePath })
 }

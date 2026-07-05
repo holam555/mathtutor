@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { intToTier } from '@/lib/difficulty'
 
 async function assertTeacher() {
   const supabase = createClient()
@@ -19,11 +20,13 @@ export type ApprovedQuestion = {
   question_type: 'multiple_choice' | 'fill_in' | 'calculation'
   options: string[] | null
   correct_answer: string
-  category_id: string
+  topic_id: string
   difficulty: number
   school_name: string | null
   exam_year: number | null
-  image_url: string | null
+  /** Raw storage path in the past-papers bucket (never a signed URL). */
+  image_path: string | null
+  source_question: string
 }
 
 export async function approveUpload(uploadId: string, questions: ApprovedQuestion[]) {
@@ -31,21 +34,24 @@ export async function approveUpload(uploadId: string, questions: ApprovedQuestio
   const service = createServiceClient()
 
   if (questions.length > 0) {
+    // Approved questions join the live bank (assessment_questions) so they
+    // are actually served — the old insert into the legacy `questions`
+    // table was a dead end nothing reads from anymore.
     const rows = questions.map((q) => ({
-      category_id: q.category_id,
+      topic_id: q.topic_id,
       question_text: q.question_text,
       question_type: q.question_type,
       options: q.options && q.options.length > 0 ? q.options : null,
       correct_answer: q.correct_answer,
-      difficulty: q.difficulty,
-      source: 'past_paper' as const,
-      school_name: q.school_name,
-      exam_year: q.exam_year,
-      question_image_url: q.image_url ?? null,
+      difficulty_tier: intToTier(q.difficulty),
+      source_paper: 'parent_upload',
+      source_question: q.source_question,
+      notes: [q.school_name, q.exam_year].filter(Boolean).join(' ') || null,
+      image_url: q.image_path,
       is_active: true,
     }))
 
-    const { error } = await service.from('questions').insert(rows)
+    const { error } = await service.from('assessment_questions').insert(rows)
     if (error) return { error: error.message }
   }
 
