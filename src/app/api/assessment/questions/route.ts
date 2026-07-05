@@ -10,6 +10,7 @@ import {
 import type { AssessmentQuestion, DifficultyTier } from '@/types/assessment'
 import { TIER_QUOTA } from '@/types/assessment'
 import { rateLimit, clientIp } from '@/lib/rateLimit'
+import { signQuestionImage } from '@/lib/storage'
 
 // GET /api/assessment/questions
 //   DB-backed mode (P3, P5): ?grade=3&unit_ids=uuid,uuid (or topic_ids=uuid,uuid)
@@ -277,7 +278,7 @@ export async function GET(request: NextRequest) {
   }
   // ────────────────────────────────────────────────────────────────────────
 
-  const questions: AssessmentQuestion[] = orderedFull.map((q) => {
+  const questions: AssessmentQuestion[] = await Promise.all(orderedFull.map(async (q) => {
     const topic = topicMap.get(q.topic_id)
     const unitData = topic?.curriculum_units
     const unit = Array.isArray(unitData) ? unitData[0] : unitData
@@ -285,7 +286,7 @@ export async function GET(request: NextRequest) {
       id: q.id,
       category_id: '',
       question_text: q.question_text,
-      question_image_url: q.image_url ?? null,
+      question_image_url: await signQuestionImage(supabase, q.image_url),
       question_type: q.question_type as AssessmentQuestion['question_type'],
       options: (q.options as string[] | null) ?? null,
       // SECURITY: never send correct_answer to the client — server grades on submit.
@@ -305,7 +306,7 @@ export async function GET(request: NextRequest) {
       sub_order: q.sub_order ?? 1,
       image_alt_text: q.image_alt_text ?? null,
     }
-  })
+  }))
 
   const modules = Array.from(new Set(questions.map((q) => q.module_name).filter(Boolean)))
 

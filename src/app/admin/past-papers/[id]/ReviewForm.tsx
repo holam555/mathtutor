@@ -5,12 +5,19 @@ import { approveUpload, rejectUpload, type ApprovedQuestion } from '../actions'
 import type { ExtractedQuestion } from '@/lib/gemini'
 import { useLang } from '@/lib/i18n/LanguageProvider'
 
-type Category = {
+type Unit = {
   id: string
-  name: string
-  code: string
   grade: number
-  semester: string
+  unit_number: number
+  name: string
+  semester: 'A' | 'B'
+}
+
+type Topic = {
+  id: string
+  unit_id: string
+  lesson_number: number
+  name: string
 }
 
 type QuestionState = {
@@ -19,9 +26,11 @@ type QuestionState = {
   question_type: 'multiple_choice' | 'fill_in' | 'calculation'
   options: string[]
   correct_answer: string
-  category_id: string
+  unit_id: string
+  topic_id: string
   difficulty: number
-  image_url: string | null
+  image_url: string | null   // display only (may be a short-lived signed URL)
+  image_path: string | null  // raw storage path — the only value we persist
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -30,23 +39,23 @@ const TYPE_LABEL: Record<string, string> = {
   calculation: '計算題',
 }
 
-function findCategoryId(code: string, categories: Category[]): string {
-  return categories.find((c) => c.code === code)?.id ?? ''
-}
-
 export default function ReviewForm({
   uploadId,
   uploadStatus,
   signedUrls,
   extractedQuestions,
-  categories,
+  units,
+  topics,
+  defaultGrade,
   uploadMeta,
 }: {
   uploadId: string
   uploadStatus: string
   signedUrls: string[]
   extractedQuestions: ExtractedQuestion[]
-  categories: Category[]
+  units: Unit[]
+  topics: Topic[]
+  defaultGrade: number | null
   uploadMeta: { school_name: string | null; exam_year: number | null }
 }) {
   const { t, lang } = useLang()
@@ -63,11 +72,17 @@ export default function ReviewForm({
       question_type: q.question_type,
       options: q.options ?? [],
       correct_answer: q.suggested_answer,
-      category_id: findCategoryId(q.suggested_category_code, categories),
+      unit_id: '',
+      topic_id: '',
       difficulty: 1,
       image_url: q.image_url ?? null,
+      image_path: q.image_path ?? null,
     }))
   )
+
+  // If the upload declared a grade, only show that grade's units by default.
+  const visibleUnits = defaultGrade ? units.filter((u) => u.grade === defaultGrade) : units
+  const gradeGroups = Array.from(new Set(visibleUnits.map((u) => u.grade))).sort()
 
   function updateQuestion(idx: number, patch: Partial<QuestionState>) {
     setQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, ...patch } : q)))
@@ -82,8 +97,8 @@ export default function ReviewForm({
     fd.append('image', file)
     try {
       const res = await fetch('/api/past-paper/upload-image', { method: 'POST', body: fd })
-      const data: { url?: string; error?: string } = await res.json().catch(() => ({}))
-      if (data.url) updateQuestion(idx, { image_url: data.url })
+      const data: { url?: string; path?: string; error?: string } = await res.json().catch(() => ({}))
+      if (data.url) updateQuestion(idx, { image_url: data.url, image_path: data.path ?? null })
     } catch {
       // Keep the object URL on failure; approval will submit it as-is (non-persistent)
     }
@@ -91,17 +106,19 @@ export default function ReviewForm({
 
   function handleApprove() {
     const selected: ApprovedQuestion[] = questions
-      .filter((q) => q.included && q.category_id)
-      .map((q) => ({
+      .filter((q) => q.included && q.topic_id)
+      .map((q, i) => ({
         question_text: q.question_text,
         question_type: q.question_type,
         options: q.question_type === 'multiple_choice' ? q.options : null,
         correct_answer: q.correct_answer,
-        category_id: q.category_id,
+        topic_id: q.topic_id,
         difficulty: q.difficulty,
         school_name: uploadMeta.school_name,
         exam_year: uploadMeta.exam_year,
-        image_url: q.image_url ?? null,
+        // Never persist image_url here — it may be a signed/blob URL.
+        image_path: q.image_path,
+        source_question: `upload:${uploadId.slice(0, 8)}#${i + 1}`,
       }))
 
     startTransition(async () => {
@@ -123,6 +140,8 @@ export default function ReviewForm({
   }
 
   const includedCount = questions.filter((q) => q.included).length
+  // Only rows with a topic can be written to assessment_questions.
+  const approvableCount = questions.filter((q) => q.included && q.topic_id).length
 
   if (done === 'approved') {
     return (
@@ -268,21 +287,46 @@ export default function ReviewForm({
                 }</span>
               </div>
 
-              {/* Category */}
-              <select
-                value={q.category_id}
-                onChange={(e) => updateQuestion(idx, { category_id: e.target.value })}
-                className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white mb-2 ${
-                  !q.category_id ? 'border-red-300' : 'border-gray-200'
-                }`}
-              >
-                <option value="">{t('— 選擇分類 —')}</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} {c.name}
-                  </option>
-                ))}
-              </select>
+              {/* Unit → Topic (question lands in assessment_questions) */}
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <select
+                  value={q.unit_id}
+                  onChange={(e) => updateQuestion(idx, { unit_id: e.target.value, topic_id: '' })}
+                  className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white ${
+                    !q.unit_id ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                >
+                  <option value="">{t('請選擇大單元')}</option>
+                  {gradeGroups.map((g) => (
+                    <optgroup key={g} label={`P${g}`}>
+                      {visibleUnits
+                        .filter((u) => u.grade === g)
+                        .map((u) => (
+                          <option key={u.id} value={u.id}>
+                            U{u.unit_number} {u.name}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))}
+                </select>
+                <select
+                  value={q.topic_id}
+                  onChange={(e) => updateQuestion(idx, { topic_id: e.target.value })}
+                  disabled={!q.unit_id}
+                  className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white disabled:opacity-50 ${
+                    q.unit_id && !q.topic_id ? 'border-red-300' : 'border-gray-200'
+                  }`}
+                >
+                  <option value="">{t(q.unit_id ? '請選擇小單元' : '先選大單元')}</option>
+                  {topics
+                    .filter((tp) => tp.unit_id === q.unit_id)
+                    .map((tp) => (
+                      <option key={tp.id} value={tp.id}>
+                        {tp.lesson_number}. {tp.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
 
               {/* Question text */}
               <textarea
@@ -350,18 +394,25 @@ export default function ReviewForm({
         </div>
 
         {/* Action buttons */}
+        {uploadStatus === 'pending' && includedCount > approvableCount && (
+          <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+            {lang === 'en'
+              ? `${includedCount - approvableCount} selected question(s) have no topic yet and will be skipped`
+              : `${includedCount - approvableCount} 題已選取但未揀小單元，批准時將略過`}
+          </p>
+        )}
         {uploadStatus === 'pending' && (
           <div className="flex gap-2 pt-2">
             <button
               onClick={handleApprove}
-              disabled={isPending || includedCount === 0}
+              disabled={isPending || approvableCount === 0}
               className="flex-1 h-11 rounded-xl bg-[#4CAF50] text-white text-sm font-medium disabled:opacity-50 active:scale-[0.98] transition"
             >
               {isPending
                 ? '…'
                 : lang === 'en'
-                  ? `✓ Approve ${includedCount} questions & add to bank`
-                  : `✓ 批准 ${includedCount} 題並加入題庫`}
+                  ? `✓ Approve ${approvableCount} questions & add to bank`
+                  : `✓ 批准 ${approvableCount} 題並加入題庫`}
             </button>
             <button
               onClick={handleReject}

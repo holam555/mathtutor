@@ -4,6 +4,7 @@ import Link from 'next/link'
 import ToggleActiveButton from './ToggleActiveButton'
 import ToggleLongActive from '../long-questions/ToggleLongActive'
 import { getLang } from '@/lib/i18n/getLang'
+import { signQuestionImage } from '@/lib/storage'
 import { t as translate } from '@/lib/i18n/translate'
 
 const GRADE_LABEL: Record<number, string> = { 3: 'P3', 4: 'P4', 5: 'P5', 6: 'P6' }
@@ -168,6 +169,13 @@ export default async function QuestionsPage({
       image_url: q.image_url,
     })
   }
+
+  // Sign storage-path images for display (raw paths are what's persisted).
+  await Promise.all(
+    allRows.map(async (r) => {
+      r.image_url = await signQuestionImage(service, r.image_url)
+    })
+  )
 
   const filtered = catFilter ? allRows.filter((r) => r.kind === catFilter) : allRows
 

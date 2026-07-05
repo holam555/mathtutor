@@ -460,9 +460,11 @@ API：
 
 ## 資料庫 Schema（Supabase）
 
-> ⚠️ **雙表並存**：以下 `questions` + `question_categories` 係**舊** Sprint 1-3 schema（仲存在但已 deprecated for assessment）。
-> **學前評估**用嘅係 newer schema：`curriculum_units` + `curriculum_topics` + `assessment_questions`（見 `0014_p3_curriculum_assessment.sql`）。
-> 詳見上方「🎯 學前評估系統」章節對 `assessment_questions` 嘅 columns。
+> ⚠️ **雙表並存（2026-07 更新）**：`questions` + `question_categories` 係**舊** Sprint 1-3 schema。
+> **所有寫入已遷移**：past-paper 批准同 AI variation 批准而家寫入 `assessment_questions`（topic-keyed）。
+> 剩低嘅 legacy 引用全部係 read-only 向後兼容（舊 wrong-bank rows），read 空 table 唔會出錯。
+> Retirement 步驟同完整分析：**`docs/legacy_consolidation.md`**。
+> 學前評估用 newer schema：`curriculum_units` + `curriculum_topics` + `assessment_questions`（見 `0014_p3_curriculum_assessment.sql`）。
 
 ### Assessment schema (current — for the prelesson assessment)
 

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { intToTier } from '@/lib/difficulty'
 
 async function assertTeacher() {
   const supabase = createClient()
@@ -14,6 +15,7 @@ async function assertTeacher() {
 
 export async function approveVariation(
   id: string,
+  topicId: string,
   overrides?: {
     question_text?: string
     correct_answer?: string
@@ -24,6 +26,8 @@ export async function approveVariation(
   const user = await assertTeacher()
   const service = createServiceClient()
 
+  if (!topicId) return { error: '請先選擇小單元' }
+
   // Load the generated question
   const { data: gq } = await service
     .from('generated_questions')
@@ -33,15 +37,18 @@ export async function approveVariation(
 
   if (!gq) return { error: '找不到題目' }
 
-  // Copy to questions table
-  const { error: insertError } = await service.from('questions').insert({
-    category_id: gq.category_id,
+  // Approved variations join the live bank (assessment_questions). The old
+  // insert into the legacy `questions` table was a dead end — nothing has
+  // served that table since practice moved to assessment_questions.
+  const { error: insertError } = await service.from('assessment_questions').insert({
+    topic_id: topicId,
     question_text: overrides?.question_text ?? gq.question_text,
     question_type: gq.question_type,
     options: overrides?.options !== undefined ? overrides.options : gq.options,
     correct_answer: overrides?.correct_answer ?? gq.correct_answer,
-    difficulty: overrides?.difficulty ?? gq.difficulty,
-    source: 'ai_generated',
+    difficulty_tier: intToTier(overrides?.difficulty ?? gq.difficulty ?? 2),
+    source_paper: 'ai_variation',
+    source_question: `gq:${id.slice(0, 8)}`,
     is_active: true,
   })
 

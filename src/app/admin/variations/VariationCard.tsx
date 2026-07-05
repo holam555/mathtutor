@@ -14,9 +14,22 @@ type GeneratedQ = {
   category: { name: string; code: string } | null
 }
 
-export default function VariationCard({ q }: { q: GeneratedQ }) {
+type Unit = { id: string; grade: number; unit_number: number; name: string }
+type Topic = { id: string; unit_id: string; lesson_number: number; name: string }
+
+export default function VariationCard({
+  q,
+  units,
+  topics,
+}: {
+  q: GeneratedQ
+  units: Unit[]
+  topics: Topic[]
+}) {
   const [isPending, startTransition] = useTransition()
   const { t } = useLang()
+  const [unitId, setUnitId] = useState('')
+  const [topicId, setTopicId] = useState('')
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(q.question_text)
   const [answer, setAnswer] = useState(q.correct_answer)
@@ -41,8 +54,13 @@ export default function VariationCard({ q }: { q: GeneratedQ }) {
   const isMultipleChoice = q.question_type === 'multiple_choice'
 
   function handleApprove() {
+    if (!topicId) return
     startTransition(async () => {
-      const res = await approveVariation(q.id, editing ? { question_text: text, correct_answer: answer, options: isMultipleChoice ? opts : null } : undefined)
+      const res = await approveVariation(
+        q.id,
+        topicId,
+        editing ? { question_text: text, correct_answer: answer, options: isMultipleChoice ? opts : null } : undefined
+      )
       if (!res.error) setDone('approved')
     })
   }
@@ -128,11 +146,40 @@ export default function VariationCard({ q }: { q: GeneratedQ }) {
         )}
       </div>
 
+      {/* Destination topic — approval writes into assessment_questions */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <select
+          value={unitId}
+          onChange={(e) => { setUnitId(e.target.value); setTopicId('') }}
+          className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white ${!unitId ? 'border-red-300' : 'border-gray-200'}`}
+        >
+          <option value="">{t('請選擇大單元')}</option>
+          {Array.from(new Set(units.map((u) => u.grade))).sort().map((g) => (
+            <optgroup key={g} label={`P${g}`}>
+              {units.filter((u) => u.grade === g).map((u) => (
+                <option key={u.id} value={u.id}>U{u.unit_number} {u.name}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <select
+          value={topicId}
+          onChange={(e) => setTopicId(e.target.value)}
+          disabled={!unitId}
+          className={`w-full text-xs border rounded-lg px-2 py-1.5 bg-white disabled:opacity-50 ${unitId && !topicId ? 'border-red-300' : 'border-gray-200'}`}
+        >
+          <option value="">{t(unitId ? '請選擇小單元' : '先選大單元')}</option>
+          {topics.filter((tp) => tp.unit_id === unitId).map((tp) => (
+            <option key={tp.id} value={tp.id}>{tp.lesson_number}. {tp.name}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Actions */}
       <div className="flex gap-2">
         <button
           onClick={handleApprove}
-          disabled={isPending}
+          disabled={isPending || !topicId}
           className="flex-1 h-10 rounded-xl bg-[#4CAF50] text-white text-sm font-medium disabled:opacity-50 active:scale-[0.98] transition"
         >
           {isPending ? '…' : editing ? t('修改並批准') : `✓ ${t('批准')}`}

@@ -38,11 +38,21 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
     if (data?.signedUrl) signedUrls.push(data.signedUrl)
   }
 
-  // Load categories for dropdown
-  const { data: categories } = await service
-    .from('question_categories')
-    .select('id, name, code, grade, semester')
-    .order('code')
+  // Load curriculum units + topics for the per-question topic picker.
+  // (Approved questions now land in assessment_questions, which is keyed by
+  // topic_id — the legacy question_categories dropdown is gone.)
+  const [{ data: units }, { data: topics }] = await Promise.all([
+    service
+      .from('curriculum_units')
+      .select('id, grade, unit_number, name, semester, display_order')
+      .neq('unit_number', 999)
+      .order('grade')
+      .order('display_order'),
+    service
+      .from('curriculum_topics')
+      .select('id, unit_id, lesson_number, name, display_order')
+      .order('display_order'),
+  ])
 
   const extractedQuestions = (upload.ai_extracted_questions ?? []) as ExtractedQuestion[]
 
@@ -61,11 +71,15 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
     extractedQuestions.map(async (q) => {
       if (!q.image_url) return q
       const path = toCropPath(q.image_url)
-      if (!path) return q
+      if (!path) {
+        // Already a signed URL — recover the raw path from the object key if possible.
+        return { ...q, image_path: null }
+      }
       const { data } = await service.storage
         .from('past-papers')
         .createSignedUrl(path, 3600)
-      return { ...q, image_url: data?.signedUrl ?? null }
+      // image_url: signed, display only. image_path: raw, safe to persist.
+      return { ...q, image_url: data?.signedUrl ?? null, image_path: path }
     })
   )
 
@@ -101,13 +115,20 @@ export default async function PastPaperReviewPage({ params }: { params: { id: st
         uploadStatus={upload.review_status}
         signedUrls={signedUrls}
         extractedQuestions={signedExtractedQuestions}
-        categories={(categories ?? []).map((c) => ({
-          id: c.id,
-          name: c.name,
-          code: c.code,
-          grade: c.grade,
-          semester: c.semester,
+        units={(units ?? []).map((u) => ({
+          id: u.id,
+          grade: u.grade,
+          unit_number: u.unit_number,
+          name: u.name,
+          semester: u.semester as 'A' | 'B',
         }))}
+        topics={(topics ?? []).map((tp) => ({
+          id: tp.id,
+          unit_id: tp.unit_id,
+          lesson_number: tp.lesson_number,
+          name: tp.name,
+        }))}
+        defaultGrade={typeof upload.grade === 'number' ? upload.grade : null}
         uploadMeta={{
           school_name: upload.school_name,
           exam_year: upload.exam_year,
