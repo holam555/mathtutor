@@ -34,13 +34,13 @@ export default function SignupForm({
   const [state, formAction] = useFormState(action, initialState)
   const { t, lang } = useLang()
 
-  if (state.confirmEmail) {
+  if (state.goToLogin) {
     return (
       <div className="text-center py-4">
-        <p className="text-4xl mb-3">📬</p>
-        <p className="font-semibold text-gray-800 mb-1">{t('請確認你的電郵')}</p>
+        <p className="text-4xl mb-3">🎉</p>
+        <p className="font-semibold text-gray-800 mb-1">{t('帳戶已建立！')}</p>
         <p className="text-sm text-gray-500 leading-relaxed">
-          {t('我們已發送確認連結到你的電郵，點擊連結後即可登入。')}
+          {t('請用你剛設定的電郵和密碼登入。')}
         </p>
         <Link
           href={`/login/${role}`}
@@ -132,7 +132,7 @@ export default function SignupForm({
       </div>
 
       {state.error && (
-        <p className="text-sm text-[#F44336] bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
+        <p className="text-sm text-[#F44336] bg-red-50 rounded-lg px-3 py-2">{t(state.error)}</p>
       )}
 
       <SubmitButton color={color} />

@@ -54,7 +54,7 @@ export default function LoginForm({
         />
       </div>
       {state.error && (
-        <p className="text-sm text-[#F44336] bg-red-50 rounded-lg px-3 py-2">{state.error}</p>
+        <p className="text-sm text-[#F44336] bg-red-50 rounded-lg px-3 py-2">{t(state.error)}</p>
       )}
       <SubmitButton color={color} />
     </form>

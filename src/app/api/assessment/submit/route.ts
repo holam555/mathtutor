@@ -14,6 +14,7 @@ import { computeDiagnosticTier } from '@/types/assessment'
 import type { AssessmentAnswer } from '@/types/assessment'
 import { isAnswerCorrect } from '@/lib/answerUtils'
 import { getAssessmentPaper } from '@/data/assessmentQuestions'
+import { rateLimit, clientIp } from '@/lib/rateLimit'
 
 // Gemini report generation can take 20–40 s; 60 s keeps us under Vercel Pro limit.
 export const maxDuration = 60
@@ -36,6 +37,18 @@ type SubmitBody = {
 }
 
 export async function POST(request: NextRequest) {
+  // Public endpoint that triggers a Gemini call — throttle per IP.
+  const { allowed, retryAfterSeconds } = rateLimit(`assess-submit:${clientIp(request)}`, {
+    limit: 5,
+    windowMs: 60 * 60 * 1000,
+  })
+  if (!allowed) {
+    return NextResponse.json(
+      { error: '提交太頻繁，請稍後再試' },
+      { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
+    )
+  }
+
   let body: SubmitBody
   try {
     body = await request.json()

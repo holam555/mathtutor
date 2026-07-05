@@ -35,5 +35,8 @@ jobs:
       - name: i18n consistency (dict keys + t() coverage)
         run: node scripts/check_i18n.mjs
 
+      - name: Unit tests
+        run: npm test
+
       - name: Build
         run: npx next build
