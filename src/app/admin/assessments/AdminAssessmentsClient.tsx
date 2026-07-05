@@ -219,7 +219,7 @@ function ExpandedDetail({ s }: { s: AssessmentRow }) {
       {wrong.length > 0 && (
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            {t('答錯題目')}（{t('共')} {wrong.length} {t('題')}）
+            {t('答錯題目')}（{wrong.length} {t('題')}）
           </p>
           <div className="space-y-3">
             {Array.from(wrongByUnit.entries()).map(([unit, qs]) => (

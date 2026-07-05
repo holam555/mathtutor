@@ -211,7 +211,9 @@ export default async function QuestionsPage({
           }
           className="px-4 py-2 bg-[#4A90E2] text-white text-sm font-medium rounded-xl hover:bg-[#3a80d2] transition"
         >
-          + {translate('新增', lang)}{translate(catFilter === 'lq' ? '長答題' : '題目', lang)}
+          {lang === 'en'
+            ? `+ Add ${catFilter === 'lq' ? 'Long-Answer Question' : 'Question'}`
+            : `+ 新增${catFilter === 'lq' ? '長答題' : '題目'}`}
         </Link>
       </div>
 

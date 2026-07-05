@@ -5,7 +5,7 @@
  */
 export const dict: Record<string, string> = {
   // Landing page
-  '小學數學升分專家': 'Primary Math Score Booster',
+  '小學數學升分專家': 'Making primary math click',
   '請選擇你的身份': 'Please select your role',
   '學生': 'Student',
   '開始數學練習': 'Start practicing math',
@@ -358,7 +358,6 @@ export const dict: Record<string, string> = {
   '考試日期（選填）': 'Exam Date (optional)',
   '選擇考試單元': 'Select Exam Units',
   '已選': 'Selected',
-  '個': '',
   '找不到該年級的課程單元，請聯絡老師': 'No curriculum units found for this grade — please contact the teacher',
   '儲存中…': 'Saving…',
 
@@ -408,7 +407,6 @@ export const dict: Record<string, string> = {
   '需加強範疇': 'Areas to Strengthen',
   '急需加強': 'Urgent',
   '答錯題目': 'Wrong Answers',
-  '共': '',
   '答：': 'Answered: ',
   '（未答）': '(no answer)',
   '建議學習計劃': 'Suggested Learning Plan',
@@ -646,4 +644,22 @@ export const dict: Record<string, string> = {
   '根據評估結果，建議按以下優先順序進行學習：': 'Based on the results, we suggest studying in this priority order:',
   '答錯題目詳情': 'Wrong Answer Details',
   '免費練習資源（家長可自行使用）': 'Free Practice Resources (for parents)',
+// Signup + refreshed landing
+  '首次使用？': 'New here?',
+  '免費註冊': 'Sign up free',
+  '學生及家長可自行註冊 · 老師帳戶請聯絡管理員': 'Students and parents can sign up directly · teacher accounts are set up by the academy',
+  '還沒有帳戶？': "Don't have an account?",
+  '學生註冊': 'Student Sign-up',
+  '家長註冊': 'Parent Sign-up',
+  '建立帳戶，即刻開始練習': 'Create an account and start practicing right away',
+  '建立帳戶後，聯絡老師連結子女': 'Create an account, then contact the teacher to link your child',
+  '註冊中…': 'Signing up…',
+  '建立帳戶': 'Create Account',
+  '請確認你的電郵': 'Confirm your email',
+  '我們已發送確認連結到你的電郵，點擊連結後即可登入。': "We've sent a confirmation link to your email — click it, then log in.",
+  '前往登入': 'Go to Log In',
+  '家長姓名': "Parent's Name",
+  '聯絡電話（選填）': 'Phone (optional)',
+  '最少 6 個字元': 'At least 6 characters',
+  '已有帳戶？': 'Already have an account?',
 }

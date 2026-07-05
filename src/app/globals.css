@@ -7,17 +7,15 @@
   --foreground: #171717;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* The app is light-only: cards and portals are designed on white.
+   (A prefers-color-scheme override here used to flip text to light
+   grey on white cards for dark-mode users.) */
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-nunito), 'PingFang TC', 'Noto Sans TC',
+    'Microsoft JhengHei', 'Heiti TC', sans-serif;
 }
 
 @layer utilities {

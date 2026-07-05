@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import LoginForm from '../LoginForm'
-import { signInParent } from '../actions'
+import SignupForm from '../SignupForm'
+import { signUpParent } from '../actions'
 import { getLang } from '@/lib/i18n/getLang'
-import { t } from '@/lib/i18n/translate'
+import { t as translate } from '@/lib/i18n/translate'
 
-export default async function ParentLoginPage() {
+export default async function ParentSignupPage() {
   const supabase = createClient()
   const lang = getLang()
   const {
@@ -23,22 +23,17 @@ export default async function ParentLoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center px-5 py-10 bg-gradient-to-br from-[#FDF7EA] to-[#FCEDD0]">
       <div className="w-full max-w-sm">
-        <Link href="/" className="inline-block text-sm text-gray-400 mb-6">← {t('返回', lang)}</Link>
+        <Link href="/" className="inline-block text-sm text-gray-400 mb-6">← {translate('返回', lang)}</Link>
         <div className="text-center mb-8">
           <div className="w-20 h-20 rounded-3xl bg-[#EF9F27]/10 flex items-center justify-center text-4xl mx-auto mb-3">
             👨‍👩‍👧
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">{t('家長登入', lang)}</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{translate('家長註冊', lang)}</h1>
+          <p className="text-sm text-gray-500 mt-1">{translate('建立帳戶後，聯絡老師連結子女', lang)}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-sm p-6">
-          <LoginForm action={signInParent} color="#EF9F27" />
+          <SignupForm role="parent" action={signUpParent} color="#EF9F27" />
         </div>
-        <p className="text-center text-sm text-gray-500 mt-5">
-          {t('還沒有帳戶？', lang)}{' '}
-          <Link href="/signup/parent" className="font-semibold text-[#EF9F27] underline">
-            {t('免費註冊', lang)}
-          </Link>
-        </p>
       </div>
     </main>
   )

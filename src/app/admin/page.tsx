@@ -16,10 +16,19 @@ export default async function AdminHome() {
     redirect('/login')
   }
 
-  const { count: questionCount } = await supabase
-    .from('questions')
-    .select('*', { count: 'exact', head: true })
-    .eq('is_active', true)
+  // The question bank lives in assessment_questions + long_questions now
+  // (the legacy `questions` table is empty, which made this card show 0).
+  const [{ count: aqCount }, { count: lqCount }] = await Promise.all([
+    supabase
+      .from('assessment_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true),
+    supabase
+      .from('long_questions')
+      .select('*', { count: 'exact', head: true })
+      .eq('is_active', true),
+  ])
+  const questionCount = (aqCount ?? 0) + (lqCount ?? 0)
 
   const { count: pendingVariations } = await supabase
     .from('generated_questions')

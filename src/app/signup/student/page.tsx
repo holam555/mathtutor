@@ -1,12 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import LoginForm from '../LoginForm'
-import { signInStudent } from '../actions'
+import SignupForm from '../SignupForm'
+import { signUpStudent } from '../actions'
 import { getLang } from '@/lib/i18n/getLang'
-import { t } from '@/lib/i18n/translate'
+import { t as translate } from '@/lib/i18n/translate'
 
-export default async function StudentLoginPage() {
+export default async function StudentSignupPage() {
   const supabase = createClient()
   const lang = getLang()
   const {
@@ -23,22 +23,17 @@ export default async function StudentLoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center px-5 py-10 bg-gradient-to-br from-[#F5FBF8] to-[#E6F4EE]">
       <div className="w-full max-w-sm">
-        <Link href="/" className="inline-block text-sm text-gray-400 mb-6">← {t('返回', lang)}</Link>
+        <Link href="/" className="inline-block text-sm text-gray-400 mb-6">← {translate('返回', lang)}</Link>
         <div className="text-center mb-8">
           <div className="w-20 h-20 rounded-3xl bg-[#1D9E75]/10 flex items-center justify-center text-4xl mx-auto mb-3">
             🎒
           </div>
-          <h1 className="text-2xl font-bold text-gray-800">{t('學生登入', lang)}</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{translate('學生註冊', lang)}</h1>
+          <p className="text-sm text-gray-500 mt-1">{translate('建立帳戶，即刻開始練習', lang)}</p>
         </div>
         <div className="bg-white rounded-2xl shadow-sm p-6">
-          <LoginForm action={signInStudent} color="#1D9E75" />
+          <SignupForm role="student" action={signUpStudent} color="#1D9E75" />
         </div>
-        <p className="text-center text-sm text-gray-500 mt-5">
-          {t('還沒有帳戶？', lang)}{' '}
-          <Link href="/signup/student" className="font-semibold text-[#1D9E75] underline">
-            {t('免費註冊', lang)}
-          </Link>
-        </p>
       </div>
     </main>
   )

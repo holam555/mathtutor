@@ -263,7 +263,7 @@ mock_exam_papers (
   timer_started_at timestamptz,
   timer_paused_at timestamptz,
   timer_elapsed_seconds int,
-  timer_status text,                -- 'idle' | 'running' | 'paused_for_lq' | 'completed'
+  timer_status text,                -- 'not_started' | 'running' | 'paused_for_lq' | 'finished'
   created_at timestamptz
 )
 ```
@@ -318,7 +318,7 @@ API:
 
 - `timer_status = 'running'`：MC + SQ 答題期間，倒數計時
 - `timer_status = 'paused_for_lq'`：學生開始 LQ 期間，timer freeze
-- `timer_status = 'completed'`：學生 finish LQ
+- `timer_status = 'finished'`：學生 finish LQ
 - `MockExamTimer` 只喺 `running` 時 tick（每秒），避免 paused 狀態 drift
 
 #### 6. LQ PDF 列印

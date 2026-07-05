@@ -18,6 +18,10 @@ export async function POST(request: NextRequest) {
   if (!user) {
     return NextResponse.json({ error: '未登入' }, { status: 401 })
   }
+  // Uploads award credits to the uploader's linked child — parent-only.
+  if (user.user_metadata?.role !== 'parent') {
+    return NextResponse.json({ error: '只有家長可以上載 Past Paper' }, { status: 403 })
+  }
 
   let formData: FormData
   try {

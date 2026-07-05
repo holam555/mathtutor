@@ -271,7 +271,7 @@ export default function ExamScopePickerForm({
           </p>
           {selectedUnitIds.size > 0 && (
             <p className="text-xs text-[#1D9E75] font-medium">
-              {t('已選')} {selectedUnitIds.size} {t('個')}
+              {lang === 'en' ? `${selectedUnitIds.size} selected` : `已選 ${selectedUnitIds.size} 個`}
             </p>
           )}
         </div>
