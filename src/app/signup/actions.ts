@@ -37,6 +37,7 @@ export async function signUpStudent(
   })
 
   if (error) {
+    console.error('signUp error', { status: error.status, code: error.code, message: error.message })
     if (error.message.toLowerCase().includes('already registered')) {
       return { error: '此電郵已註冊，請直接登入' }
     }
@@ -52,7 +53,12 @@ export async function signUpStudent(
     .from('student_profiles')
     .upsert({ id: data.user.id, name, grade }, { onConflict: 'id' })
   if (profileError) {
-    console.error('signUpStudent: profile insert failed', profileError)
+    console.error('signUpStudent: profile insert failed', {
+      message: profileError.message,
+      code: profileError.code,
+      details: profileError.details,
+      hint: profileError.hint,
+    })
     return { error: '帳戶已建立，但學生資料儲存失敗，請聯絡老師' }
   }
 
@@ -84,6 +90,7 @@ export async function signUpParent(
   })
 
   if (error) {
+    console.error('signUp error', { status: error.status, code: error.code, message: error.message })
     if (error.message.toLowerCase().includes('already registered')) {
       return { error: '此電郵已註冊，請直接登入' }
     }
@@ -96,7 +103,12 @@ export async function signUpParent(
     .from('parent_profiles')
     .upsert({ id: data.user.id, name, phone: phone || null }, { onConflict: 'id' })
   if (profileError) {
-    console.error('signUpParent: profile insert failed', profileError)
+    console.error('signUpParent: profile insert failed', {
+      message: profileError.message,
+      code: profileError.code,
+      details: profileError.details,
+      hint: profileError.hint,
+    })
     return { error: '帳戶已建立，但家長資料儲存失敗，請聯絡老師' }
   }
 
