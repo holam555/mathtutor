@@ -5,7 +5,7 @@
  */
 export const dict: Record<string, string> = {
   // Landing page
-  '小學數學升分專家': 'Making primary math click',
+  '小學數學升分專家': 'Smarter elementary math practice, powered by AI',
   '請選擇你的身份': 'Please select your role',
   '學生': 'Student',
   '開始數學練習': 'Start practicing math',
