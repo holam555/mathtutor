@@ -97,7 +97,7 @@ export default async function Home() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-gray-800">{r.title}</p>
-                  <p className="text-xs text-gray-400 mt-0.5 truncate">{r.desc}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{r.desc}</p>
                 </div>
                 <span
                   className="text-lg font-bold opacity-30 group-hover:opacity-100 group-hover:translate-x-0.5 transition"
