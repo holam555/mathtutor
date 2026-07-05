@@ -18,6 +18,7 @@ import {
   TROPHIES,
   nextTrophyToUnlock,
   getGreeting,
+  translateProgressText,
   type StudentStats,
 } from '@/lib/trophies'
 
@@ -228,7 +229,7 @@ export default async function StudentHome() {
                   ? 'bg-gradient-to-br from-[#FFE7B5] to-[#FFCC66]'
                   : 'bg-gray-100 opacity-50 grayscale'
               }`}
-              title={`${t(def.title, lang)} — ${status.progressText}`}
+              title={`${t(def.title, lang)} — ${translateProgressText(status.progressText, lang)}`}
             >
               {def.emoji}
             </div>
@@ -251,7 +252,7 @@ export default async function StudentHome() {
               style={{ width: `${next.status.progressPct}%` }}
             />
           </div>
-          <p className="text-xs text-gray-400 mt-1.5">{next.status.progressText}</p>
+          <p className="text-xs text-gray-400 mt-1.5">{translateProgressText(next.status.progressText, lang)}</p>
         </div>
       )}
 

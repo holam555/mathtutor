@@ -387,7 +387,7 @@ function QuestionCard({
   onAnswer: (answer: string, isCorrect: boolean) => void
   timeLeft: number
 }) {
-  const { t: translate } = useLang()
+  const { t: translate, lang } = useLang()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [fillValue, setFillValue] = useState('')
   const [feedback, setFeedback] = useState<FeedbackState>(null)
@@ -478,6 +478,11 @@ function QuestionCard({
           <div className="text-base text-gray-800 leading-relaxed font-medium">
             <QuestionContent text={question.question_text} />
           </div>
+          {lang === 'en' && (
+            <p className="text-xs text-gray-400 italic mt-1">
+              {translate('English ver coming soon!')}
+            </p>
+          )}
           {question.question_image_url && (
             <img
               src={question.question_image_url}

@@ -42,7 +42,7 @@ export default function UnitPracticeClient({
       disabled={loading}
       className="shrink-0 px-4 py-2 rounded-xl bg-[#1D9E75] text-white text-sm font-medium disabled:opacity-40 active:scale-[0.97] transition"
     >
-      {loading ? '…' : t('練習')}
+      {loading ? '…' : t('開始練習')}
     </button>
   )
 }

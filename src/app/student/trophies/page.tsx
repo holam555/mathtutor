@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { TROPHIES, type StudentStats } from '@/lib/trophies'
+import { TROPHIES, translateProgressText, type StudentStats } from '@/lib/trophies'
 import { getLang } from '@/lib/i18n/getLang'
 import { t } from '@/lib/i18n/translate'
 
@@ -91,7 +91,7 @@ export default async function TrophiesPage() {
                     style={{ width: `${status.progressPct}%` }}
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">{status.progressText}</p>
+                <p className="text-xs text-gray-400 mt-1">{translateProgressText(status.progressText, lang)}</p>
               </>
             )}
             {status.unlocked && (
