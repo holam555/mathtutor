@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { saveTopicAssignments } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type Topic = {
   id: string
@@ -26,6 +27,7 @@ export default function AssignmentTab({
   units: Unit[]
   activeTopicIds: string[]
 }) {
+  const { t, lang } = useLang()
   const [selected, setSelected] = useState<Set<string>>(new Set(activeTopicIds))
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
@@ -67,26 +69,30 @@ export default function AssignmentTab({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          勾選後，學生按「開始練習」時只會做指定小單元的題目。
+          {t('勾選後，學生按「開始練習」時只會做指定小單元的題目。')}
           <br />
-          <span className="text-xs text-gray-400">清除所有勾選等於回復自動選題。</span>
+          <span className="text-xs text-gray-400">{t('清除所有勾選等於回復自動選題。')}</span>
         </p>
         <div className="flex items-center gap-3 shrink-0 ml-4">
-          {saved && <span className="text-xs text-[#1D9E75] font-medium">✓ 已儲存</span>}
+          {saved && <span className="text-xs text-[#1D9E75] font-medium">✓ {t('已儲存')}</span>}
           {errorMsg && <span className="text-xs text-red-500">{errorMsg}</span>}
           <button
             onClick={handleSave}
             disabled={isPending}
             className="h-9 px-4 rounded-xl bg-[#4A90E2] text-white text-sm font-medium disabled:opacity-50 active:scale-[0.98] transition"
           >
-            {isPending ? '儲存中…' : `儲存（${selected.size} 個小單元）`}
+            {isPending
+              ? t('儲存中…')
+              : lang === 'en'
+                ? `Save (${selected.size} lessons)`
+                : `儲存（${selected.size} 個小單元）`}
           </button>
         </div>
       </div>
 
       {Array.from(semesterGroups.entries()).map(([sem, semUnits]) => (
         <div key={sem}>
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{sem}</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t(sem)}</p>
           <div className="space-y-2">
             {semUnits.map((unit) => (
               <div key={unit.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">

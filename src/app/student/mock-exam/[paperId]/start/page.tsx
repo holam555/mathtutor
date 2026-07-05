@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { MARKS, formatMarks, totalPossibleMarks } from '@/lib/mockExamMarks'
 import StartMockExamButton from './StartMockExamButton'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function MockExamStartPage({
   params,
@@ -10,6 +12,7 @@ export default async function MockExamStartPage({
   params: { paperId: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -60,33 +63,33 @@ export default async function MockExamStartPage({
         <Link href="/student" className="text-gray-400 hover:text-gray-600 text-lg">
           ←
         </Link>
-        <h1 className="text-xl font-bold">📝 模擬考試試卷</h1>
+        <h1 className="text-xl font-bold">📝 {translate('模擬考試試卷', lang)}</h1>
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
         <div className="flex items-baseline justify-between mb-3">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">試卷組成</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{translate('試卷組成', lang)}</p>
           <p className="text-xs text-gray-500">
-            滿分 <strong className="text-gray-700">{formatMarks(totalMarks)}</strong> 分
+            {translate('滿分', lang)} <strong className="text-gray-700">{formatMarks(totalMarks)}</strong> {translate('分', lang)}
           </p>
         </div>
         <p className="text-sm text-gray-700">
-          全卷共 <strong>{totalCount}</strong> 題：
+          {translate('全卷共', lang)} <strong>{totalCount}</strong> {translate('題：', lang)}
         </p>
         <ul className="text-sm text-gray-700 mt-2 space-y-1">
-          <li>· 多項選擇題 {mcCount} 題（每題 {formatMarks(MARKS.mc)} 分）</li>
-          <li>· 短答題 {sqCount} 題（每題 {formatMarks(MARKS.sq)} 分）</li>
-          <li>· 長答題 {paper.lq_count} 題（每題 {formatMarks(MARKS.lq)} 分）</li>
+          <li>· {translate('多項選擇題', lang)} × {mcCount}（{formatMarks(MARKS.mc)} {translate('分', lang)}/{translate('題', lang)}）</li>
+          <li>· {translate('短答題', lang)} × {sqCount}（{formatMarks(MARKS.sq)} {translate('分', lang)}/{translate('題', lang)}）</li>
+          <li>· {translate('長答題', lang)} × {paper.lq_count}（{formatMarks(MARKS.lq)} {translate('分', lang)}/{translate('題', lang)}）</li>
         </ul>
         <p className="text-xs text-gray-400 mt-3">
-          限時 50 分鐘。完成 App 內題目後計時會暫停，等你開始長答題再繼續。
+          {translate('限時 50 分鐘。完成 App 內題目後計時會暫停，等你開始長答題再繼續。', lang)}
         </p>
       </div>
 
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-        <p className="text-sm font-semibold text-gray-700 mb-2">📄 下載長答題試卷</p>
+        <p className="text-sm font-semibold text-gray-700 mb-2">📄 {translate('下載長答題試卷', lang)}</p>
         <p className="text-xs text-gray-500 mb-3">
-          建議開始作答前先下載並列印，或在 iPad 上開啟。
+          {translate('建議開始作答前先下載並列印，或在 iPad 上開啟。', lang)}
         </p>
         <div className="flex gap-2">
           <Link
@@ -94,14 +97,14 @@ export default async function MockExamStartPage({
             target="_blank"
             className="flex-1 text-center py-2.5 rounded-xl bg-[#4A90E2] text-white text-sm font-medium hover:bg-[#3a80d2] transition"
           >
-            試卷
+            {translate('試卷', lang)}
           </Link>
           <Link
             href={`/student/mock-exam/${paper.id}/lq?view=answer`}
             target="_blank"
             className="flex-1 text-center py-2.5 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition"
           >
-            答案
+            {translate('答案', lang)}
           </Link>
         </div>
       </div>
@@ -109,7 +112,7 @@ export default async function MockExamStartPage({
       <StartMockExamButton paperId={paper.id} sessionId={paper.mc_sq_session_id ?? ''} />
 
       <p className="text-center text-xs text-gray-400 mt-4">
-        按下「開始作答」即時開始 50 分鐘計時
+        {translate('按下「開始作答」即時開始 50 分鐘計時', lang)}
       </p>
     </main>
   )

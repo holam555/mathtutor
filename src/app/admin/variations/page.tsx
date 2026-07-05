@@ -4,6 +4,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import VariationCard from './VariationCard'
 import GenerateCategoryButton from './GenerateCategoryButton'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 type PendingQuestion = {
   id: string
@@ -21,6 +23,7 @@ export default async function VariationsPage({
   searchParams: { category?: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -94,11 +97,11 @@ export default async function VariationsPage({
     <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <a href="/admin" className="text-gray-400 hover:text-gray-600 text-sm">← 返回</a>
-        <h1 className="text-xl font-bold">AI 題目生成及審核</h1>
+        <a href="/admin" className="text-gray-400 hover:text-gray-600 text-sm">← {translate('返回', lang)}</a>
+        <h1 className="text-xl font-bold">{translate('AI 題目生成及審核', lang)}</h1>
         {totalPending > 0 && (
           <span className="ml-auto bg-[#4A90E2] text-white text-xs font-bold px-2.5 py-1 rounded-full">
-            {totalPending} 待審核
+            {totalPending} {translate('待審核', lang)}
           </span>
         )}
       </div>
@@ -106,7 +109,7 @@ export default async function VariationsPage({
       <div className="flex gap-4">
         {/* Sidebar: category filter */}
         <aside className="hidden sm:block w-44 shrink-0">
-          <p className="text-xs text-gray-400 font-medium mb-2 px-1">分類篩選</p>
+          <p className="text-xs text-gray-400 font-medium mb-2 px-1">{translate('分類篩選', lang)}</p>
           <div className="space-y-1">
             <a
               href="/admin/variations"
@@ -116,7 +119,7 @@ export default async function VariationsPage({
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
-              <span>全部</span>
+              <span>{translate('全部', lang)}</span>
               {Object.values(countMap).reduce((a, b) => a + b, 0) > 0 && (
                 <span className={`text-xs font-bold ${!searchParams.category ? 'text-white/80' : 'text-[#4A90E2]'}`}>
                   {Object.values(countMap).reduce((a, b) => a + b, 0)}
@@ -155,7 +158,7 @@ export default async function VariationsPage({
                   !searchParams.category ? 'bg-[#4A90E2] text-white' : 'bg-gray-100 text-gray-600'
                 }`}
               >
-                全部
+                {translate('全部', lang)}
               </a>
               {categoryList.map((cat) => (
                 <a
@@ -185,7 +188,7 @@ export default async function VariationsPage({
           {questions.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
               <p className="text-gray-400 text-sm">
-                {searchParams.category ? '此分類暫無待審核題目' : '暫無待審核題目'}
+                {translate(searchParams.category ? '此分類暫無待審核題目' : '暫無待審核題目', lang)}
               </p>
               {searchParams.category && (
                 <div className="mt-4">

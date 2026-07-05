@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type State =
   | { status: 'idle' }
@@ -24,6 +25,7 @@ export default function LqUploadForm({
   existingPageUrls: string[]
 }) {
   const router = useRouter()
+  const { t, lang } = useLang()
   const [files, setFiles] = useState<File[]>([])
   const [previews, setPreviews] = useState<string[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
@@ -65,7 +67,10 @@ export default function LqUploadForm({
 
   async function handleUpload() {
     if (!files.length) return
-    setState({ status: 'uploading', progress: `上載 ${files.length} 張圖片中…` })
+    setState({
+      status: 'uploading',
+      progress: lang === 'en' ? `Uploading ${files.length} photos…` : `上載 ${files.length} 張圖片中…`,
+    })
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -94,7 +99,7 @@ export default function LqUploadForm({
         paths.push(path)
       }
 
-      setState({ status: 'uploading', progress: '儲存中…' })
+      setState({ status: 'uploading', progress: t('儲存中…') })
 
       const res = await fetch(`/api/mock-exam/${paperId}/submit-lq-photos`, {
         method: 'POST',
@@ -127,7 +132,9 @@ export default function LqUploadForm({
       {done && existingPageUrls.length > 0 && files.length === 0 && (
         <div className="mb-4">
           <p className="text-xs font-semibold text-green-700 mb-2">
-            ✓ 已上載 {existingPageUrls.length} 張答卷
+            {lang === 'en'
+              ? `✓ ${existingPageUrls.length} answer sheets uploaded`
+              : `✓ 已上載 ${existingPageUrls.length} 張答卷`}
           </p>
           <div className="flex gap-2 overflow-x-auto">
             {existingPageUrls.map((url, i) => (
@@ -147,7 +154,9 @@ export default function LqUploadForm({
       {/* New file previews */}
       {previews.length > 0 && (
         <div className="mb-3">
-          <p className="text-xs text-gray-500 mb-2">即將上載（{previews.length} 張）</p>
+          <p className="text-xs text-gray-500 mb-2">
+            {lang === 'en' ? `Ready to upload (${previews.length})` : `即將上載（${previews.length} 張）`}
+          </p>
           <div className="flex gap-2 overflow-x-auto">
             {previews.map((src, i) => (
               <div key={i} className="relative shrink-0">
@@ -180,7 +189,7 @@ export default function LqUploadForm({
             className="block w-full text-xs text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[#4A90E2]/10 file:text-[#4A90E2] mb-3"
           />
           <p className="text-xs text-gray-400 mb-3">
-            可揀多張圖片 · 最多 10 張 · 一張相包含多題都 OK
+            {t('可揀多張圖片 · 最多 10 張 · 一張相包含多題都 OK')}
           </p>
         </>
       )}
@@ -192,7 +201,11 @@ export default function LqUploadForm({
           type="button"
           className="w-full h-12 rounded-xl bg-[#4A90E2] text-white text-base font-semibold disabled:opacity-60 transition"
         >
-          {uploading ? state.progress : `上載 ${files.length} 張答卷`}
+          {uploading
+            ? state.progress
+            : lang === 'en'
+              ? `Upload ${files.length} answer sheets`
+              : `上載 ${files.length} 張答卷`}
         </button>
       )}
 
@@ -205,7 +218,7 @@ export default function LqUploadForm({
           type="button"
           className="mt-2 text-sm text-[#4A90E2] underline"
         >
-          重新上載 / 補充頁數
+          {t('重新上載 / 補充頁數')}
         </button>
       )}
 

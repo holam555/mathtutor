@@ -2,6 +2,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import LqReviewCard from './LqReviewCard'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function MockExamReviewPage({
   params,
@@ -9,6 +11,7 @@ export default async function MockExamReviewPage({
   params: { paperId: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -93,20 +96,20 @@ export default async function MockExamReviewPage({
         <Link href="/admin/mock-exam" className="text-gray-400 hover:text-gray-600">
           ←
         </Link>
-        <h1 className="text-xl font-bold">批改長答題</h1>
+        <h1 className="text-xl font-bold">{translate('批改長答題', lang)}</h1>
       </div>
 
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-5">
         <p className="text-sm">
           <strong>{student?.name ?? ''}</strong>
           <span className="text-xs text-gray-500 ml-2">
-            小{['', '', '', '三', '四', '五', '六'][student?.grade ?? 0]} · 試卷日期{' '}
+            {translate(`小${['', '', '', '三', '四', '五', '六'][student?.grade ?? 0]}`, lang)} · {translate('試卷日期', lang)}{' '}
             {new Date(paper.created_at).toLocaleDateString('zh-Hant-HK')}
           </span>
         </p>
         {paper.ai_comment && (
           <p className="text-xs text-gray-500 mt-2 whitespace-pre-wrap">
-            <span className="font-semibold">AI 評語：</span>
+            <span className="font-semibold">{translate('AI 評語：', lang)}</span>
             {paper.ai_comment}
           </p>
         )}
@@ -135,7 +138,7 @@ export default async function MockExamReviewPage({
       </div>
 
       {ordered.length === 0 && (
-        <p className="text-sm text-gray-500 text-center py-8">此試卷沒有長答題</p>
+        <p className="text-sm text-gray-500 text-center py-8">{translate('此試卷沒有長答題', lang)}</p>
       )}
     </main>
   )

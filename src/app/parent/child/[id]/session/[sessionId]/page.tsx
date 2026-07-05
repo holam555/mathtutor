@@ -1,6 +1,8 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function SessionDetailPage({
   params,
@@ -8,6 +10,7 @@ export default async function SessionDetailPage({
   params: { id: string; sessionId: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -103,16 +106,18 @@ export default async function SessionDetailPage({
           href={`/parent/child/${params.id}?tab=history`}
           className="text-gray-400 hover:text-gray-600 text-sm"
         >
-          ← 返回
+          ← {translate('返回', lang)}
         </Link>
         <div>
           <h1 className="text-xl font-bold">
-            {profile?.name ?? '學生'} 的練習詳情
+            {lang === 'en'
+              ? `${profile?.name ?? 'Student'}'s Session Details`
+              : `${profile?.name ?? '學生'} 的練習詳情`}
           </h1>
           <p className="text-xs text-gray-400">
             {date} {time}
-            {isSprint && ' · 模擬考試'}
-            {duration > 0 && ` · ${duration} 分鐘`}
+            {isSprint && ` · ${translate('模擬考試', lang)}`}
+            {duration > 0 && (lang === 'en' ? ` · ${duration} min` : ` · ${duration} 分鐘`)}
           </p>
         </div>
       </div>
@@ -121,26 +126,26 @@ export default async function SessionDetailPage({
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-5 flex items-center justify-around text-center">
         <div>
           <p className="text-2xl font-bold text-[#4CAF50]">{correctCount}</p>
-          <p className="text-xs text-gray-400 mt-0.5">答對</p>
+          <p className="text-xs text-gray-400 mt-0.5">{translate('答對', lang)}</p>
         </div>
         <div className="w-px h-10 bg-gray-100" />
         <div>
           <p className="text-2xl font-bold text-red-400">{totalQ - correctCount}</p>
-          <p className="text-xs text-gray-400 mt-0.5">答錯</p>
+          <p className="text-xs text-gray-400 mt-0.5">{translate('答錯', lang)}</p>
         </div>
         <div className="w-px h-10 bg-gray-100" />
         <div>
           <p className="text-2xl font-bold text-gray-700">
             {totalQ > 0 ? `${Math.round((correctCount / totalQ) * 100)}%` : '—'}
           </p>
-          <p className="text-xs text-gray-400 mt-0.5">正確率</p>
+          <p className="text-xs text-gray-400 mt-0.5">{translate('正確率', lang)}</p>
         </div>
       </div>
 
       {/* Question list */}
       <div className="space-y-3">
         {records.map((r, idx) => {
-          const qText = questionTextMap.get(r.question_id) ?? '(題目已刪除)'
+          const qText = questionTextMap.get(r.question_id) ?? translate('(題目已刪除)', lang)
           const correctAns = questionAnswerMap.get(r.question_id) ?? ''
           return (
             <div
@@ -161,16 +166,16 @@ export default async function SessionDetailPage({
                   <p className="text-sm text-gray-800 leading-relaxed">{qText}</p>
                   <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs">
                     <span className={r.is_correct ? 'text-[#1D9E75] font-medium' : 'text-[#EF9F27]'}>
-                      {r.is_correct ? '✓ ' : '✗ '}學生答：
-                      <span className="font-semibold">{r.student_answer ?? '(未作答)'}</span>
+                      {r.is_correct ? '✓ ' : '✗ '}{translate('學生答：', lang)}
+                      <span className="font-semibold">{r.student_answer ?? translate('(未作答)', lang)}</span>
                     </span>
                     {!r.is_correct && correctAns && (
                       <span className="text-gray-500">
-                        正確答案：<span className="font-semibold text-gray-700">{correctAns}</span>
+                        {translate('正確答案：', lang)}<span className="font-semibold text-gray-700">{correctAns}</span>
                       </span>
                     )}
                     {r.time_spent_seconds != null && (
-                      <span className="text-gray-400">{r.time_spent_seconds}秒</span>
+                      <span className="text-gray-400">{r.time_spent_seconds}{lang === 'en' ? 's' : '秒'}</span>
                     )}
                   </div>
                 </div>

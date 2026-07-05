@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { computeAccuracy } from '@/lib/statsUtils'
 import { statusBadge, getInitial } from '@/lib/studentReport'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 type StudentRow = {
   student_id: string
@@ -24,6 +26,7 @@ type WeakCategory = {
 
 export default async function AdminStudentsPage() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -63,23 +66,23 @@ export default async function AdminStudentsPage() {
     <main className="min-h-screen px-4 py-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/admin" className="text-gray-400 hover:text-gray-600">←</Link>
-        <h1 className="text-xl font-bold">班級總覽</h1>
-        <span className="text-sm text-gray-400">({students.length} 位學生)</span>
+        <h1 className="text-xl font-bold">{translate('班級總覽', lang)}</h1>
+        <span className="text-sm text-gray-400">({students.length} {translate('位學生', lang)})</span>
       </div>
 
       {/* Class metrics */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
           <p className="text-2xl font-bold text-[#4A90E2]">{classAvgAccuracy}%</p>
-          <p className="text-xs text-gray-400 mt-1">全班平均正確率</p>
+          <p className="text-xs text-gray-400 mt-1">{translate('全班平均正確率', lang)}</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
           <p className="text-2xl font-bold text-amber-600">{needFollowUp}</p>
-          <p className="text-xs text-gray-400 mt-1">需跟進學生</p>
+          <p className="text-xs text-gray-400 mt-1">{translate('需跟進學生', lang)}</p>
         </div>
         <div className="bg-white rounded-2xl p-4 shadow-sm text-center">
           <p className="text-2xl font-bold text-gray-800">{students.length}</p>
-          <p className="text-xs text-gray-400 mt-1">總學生數</p>
+          <p className="text-xs text-gray-400 mt-1">{translate('總學生數', lang)}</p>
         </div>
       </div>
 
@@ -87,7 +90,7 @@ export default async function AdminStudentsPage() {
       {weakCategories.length > 0 && (
         <div className="bg-white rounded-2xl p-4 shadow-sm mb-5">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            本週最弱題型 Top 3
+            {translate('本週最弱題型 Top 3', lang)}
           </p>
           <div className="space-y-2">
             {weakCategories.map((w) => (
@@ -108,7 +111,7 @@ export default async function AdminStudentsPage() {
       {/* Student list */}
       {students.length === 0 ? (
         <div className="bg-white rounded-2xl p-8 text-center shadow-sm text-gray-400">
-          暫時沒有學生數據
+          {translate('暫時沒有學生數據', lang)}
         </div>
       ) : (
         <div className="space-y-2">
@@ -131,19 +134,19 @@ export default async function AdminStudentsPage() {
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="text-sm font-semibold text-gray-800 truncate">{s.student_name}</p>
                     <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full shrink-0">
-                      小{s.grade === 5 ? '五' : s.grade === 6 ? '六' : '—'}
+                      {translate(s.grade === 5 ? '小五' : s.grade === 6 ? '小六' : '小—', lang)}
                     </span>
                   </div>
                   <div className="flex gap-3 flex-wrap">
                     <span className="text-xs text-gray-500">
-                      {s.session_count} 次練習
+                      {s.session_count} {translate('次練習', lang)}
                     </span>
                     <span className="text-xs text-gray-500">
-                      {s.total_answers} 題
+                      {s.total_answers} {translate('題', lang)}
                     </span>
                     {s.total_answers > 0 && (
                       <span className="text-xs text-gray-500">
-                        正確 {accuracy}%
+                        {translate('正確', lang)} {accuracy}%
                       </span>
                     )}
                   </div>
@@ -151,7 +154,7 @@ export default async function AdminStudentsPage() {
 
                 {/* Status badge */}
                 <span className={`text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${badge.color}`}>
-                  {badge.label}
+                  {translate(badge.label, lang)}
                 </span>
               </Link>
             )

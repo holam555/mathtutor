@@ -2,6 +2,8 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import EditQuestionForm from './EditQuestionForm'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function EditQuestionPage({
   params,
@@ -79,7 +81,7 @@ export default async function EditQuestionPage({
         <Link href={`/admin/questions?grade=${backGrade}`} className="text-gray-400 hover:text-gray-600">
           ←
         </Link>
-        <h1 className="text-xl font-bold">編輯題目</h1>
+        <h1 className="text-xl font-bold">{translate('編輯題目', getLang())}</h1>
         {unit && (
           <span className="text-sm text-gray-400">
             P{unit.grade} · U{unit.unit_number} {unit.name}

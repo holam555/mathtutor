@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { approveVariation, rejectVariation } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type GeneratedQ = {
   id: string
@@ -15,6 +16,7 @@ type GeneratedQ = {
 
 export default function VariationCard({ q }: { q: GeneratedQ }) {
   const [isPending, startTransition] = useTransition()
+  const { t } = useLang()
   const [editing, setEditing] = useState(false)
   const [text, setText] = useState(q.question_text)
   const [answer, setAnswer] = useState(q.correct_answer)
@@ -24,14 +26,14 @@ export default function VariationCard({ q }: { q: GeneratedQ }) {
   if (done === 'approved') {
     return (
       <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-sm text-green-700">
-        ✓ 已批准並加入題目庫
+        ✓ {t('已批准並加入題目庫')}
       </div>
     )
   }
   if (done === 'rejected') {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-sm text-gray-400">
-        ✗ 已拒絕
+        ✗ {t('已拒絕')}
       </div>
     )
   }
@@ -66,13 +68,13 @@ export default function VariationCard({ q }: { q: GeneratedQ }) {
         <span className="text-xs font-medium text-[#4A90E2] bg-[#4A90E2]/10 px-2 py-0.5 rounded-full">
           {q.category?.code} {q.category?.name}
         </span>
-        <span className="text-xs text-gray-400">{typeLabel[q.question_type]}</span>
-        <span className="text-xs text-gray-400">難度：{diffLabel}</span>
+        <span className="text-xs text-gray-400">{t(typeLabel[q.question_type])}</span>
+        <span className="text-xs text-gray-400">{t('難度：')}{t(diffLabel)}</span>
         <button
           onClick={() => setEditing((e) => !e)}
           className="ml-auto text-xs text-gray-400 underline"
         >
-          {editing ? '取消修改' : '✏️ 修改'}
+          {editing ? t('取消修改') : `✏️ ${t('修改')}`}
         </button>
       </div>
 
@@ -114,7 +116,7 @@ export default function VariationCard({ q }: { q: GeneratedQ }) {
 
       {/* Correct answer */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-xs text-gray-500">正確答案：</span>
+        <span className="text-xs text-gray-500">{t('正確答案：')}</span>
         {editing ? (
           <input
             value={answer}
@@ -133,14 +135,14 @@ export default function VariationCard({ q }: { q: GeneratedQ }) {
           disabled={isPending}
           className="flex-1 h-10 rounded-xl bg-[#4CAF50] text-white text-sm font-medium disabled:opacity-50 active:scale-[0.98] transition"
         >
-          {isPending ? '…' : editing ? '修改並批准' : '✓ 批准'}
+          {isPending ? '…' : editing ? t('修改並批准') : `✓ ${t('批准')}`}
         </button>
         <button
           onClick={handleReject}
           disabled={isPending}
           className="h-10 px-4 rounded-xl bg-gray-100 text-gray-600 text-sm font-medium disabled:opacity-50 active:scale-[0.98] transition"
         >
-          ✗ 拒絕
+          ✗ {t('拒絕')}
         </button>
       </div>
     </div>

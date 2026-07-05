@@ -81,7 +81,7 @@ export default async function WrongBankPage() {
       if (!unit) continue
       const key = `unit:${unit.id}`
       const existing = buckets.get(key)
-      const label = `單元 ${unit.unit_number}：${unit.name}`
+      const label = `${translate('單元', lang)} ${unit.unit_number}：${unit.name}`
       if (existing) existing.wrongCount += r.wrong_count
       else
         buckets.set(key, {

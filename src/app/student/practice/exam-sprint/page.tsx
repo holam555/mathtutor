@@ -2,9 +2,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import ExamSprintClient from './ExamSprintClient'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function ExamSprintPage() {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -68,27 +71,27 @@ export default async function ExamSprintPage() {
         <Link href="/student" className="text-gray-400 hover:text-gray-600 text-lg">
           ←
         </Link>
-        <h1 className="text-xl font-bold">🔥 考試衝刺練習</h1>
+        <h1 className="text-xl font-bold">🔥 {translate('考試衝刺練習', lang)}</h1>
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-          考試範圍
+          {translate('考試範圍', lang)}
         </p>
         {scope.exam_name && (
           <p className="text-base font-semibold text-gray-800 mb-1">{scope.exam_name}</p>
         )}
         {scope.exam_date && (
-          <p className="text-xs text-gray-400 mb-2">考試日期：{scope.exam_date}</p>
+          <p className="text-xs text-gray-400 mb-2">{translate('考試日期：', lang)}{scope.exam_date}</p>
         )}
         <p className="text-xs text-gray-500">
-          共 {units?.length ?? 0} 個單元 · {totalQuestions} 條題目可練
+          {lang === 'en' ? `${units?.length ?? 0} units · ${totalQuestions} questions available` : `共 ${units?.length ?? 0} 個單元 · ${totalQuestions} 條題目可練`}
         </p>
       </div>
 
       <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-          範圍單元
+          {translate('範圍單元', lang)}
         </p>
         <div className="space-y-2">
           {(units ?? []).map((u) => (
@@ -97,9 +100,9 @@ export default async function ExamSprintPage() {
               className="flex items-center justify-between border-b last:border-b-0 border-gray-50 py-2"
             >
               <p className="text-sm text-gray-800">
-                單元 {u.unit_number}：{u.name}
+                {translate('單元', lang)} {u.unit_number}：{u.name}
               </p>
-              <span className="text-xs text-gray-400">{countByUnit.get(u.id) ?? 0} 題</span>
+              <span className="text-xs text-gray-400">{countByUnit.get(u.id) ?? 0} {translate('題', lang)}</span>
             </div>
           ))}
         </div>
@@ -108,7 +111,7 @@ export default async function ExamSprintPage() {
       <ExamSprintClient studentId={user.id} />
 
       <p className="text-center text-xs text-gray-400 mt-4">
-        每次抽 15 題，涵蓋上面所有範圍
+        {translate('每次抽 15 題，涵蓋上面所有範圍', lang)}
       </p>
 
       <div className="mt-5 text-center">
@@ -116,7 +119,7 @@ export default async function ExamSprintPage() {
           href="/student/practice/exam-sprint/print"
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2"
         >
-          🖨 列印練習卷
+          🖨 {translate('列印練習卷', lang)}
         </Link>
       </div>
     </main>

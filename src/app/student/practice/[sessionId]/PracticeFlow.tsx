@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { Question } from '@/types/database'
 import { QuestionContent } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 // Practice mode shows immediate green/orange feedback after each answer
 // (the Duolingo-style loop). Mock-exam mode hides correct/wrong entirely
@@ -27,6 +28,7 @@ export default function PracticeFlow({
   questions: SessionQuestion[]
   mode?: 'practice' | 'mock_exam'
 }) {
+  const { t } = useLang()
   const instantFeedback = mode === 'practice'
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -171,7 +173,7 @@ export default function PracticeFlow({
         <button
           onClick={() => router.push('/student')}
           className="text-gray-400 hover:text-gray-600 text-xl leading-none"
-          aria-label="退出練習"
+          aria-label={t('退出練習')}
         >
           ✕
         </button>
@@ -210,7 +212,7 @@ export default function PracticeFlow({
             value={fillInput}
             onChange={(e) => feedback === 'idle' && setFillInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submitAnswer(fillInput)}
-            placeholder="輸入答案"
+            placeholder={t('輸入答案')}
             disabled={feedback !== 'idle'}
             className={`mt-4 w-full h-14 rounded-xl text-center text-xl font-semibold border-2 outline-none transition-colors ${
               feedback === 'correct'
@@ -228,7 +230,7 @@ export default function PracticeFlow({
         {/* Hint for calculation */}
         {qType === 'calculation' && (
           <p className="mt-2 text-xs text-gray-400 text-center">
-            請先在草稿紙上列式計算，然後輸入最終答案
+            {t('請先在草稿紙上列式計算，然後輸入最終答案')}
           </p>
         )}
       </div>
@@ -258,7 +260,7 @@ export default function PracticeFlow({
             disabled={feedback !== 'idle' || !fillInput.trim()}
             className="w-full h-14 rounded-xl bg-[#1D9E75] text-white text-base font-semibold disabled:opacity-40 active:scale-[0.98] transition"
           >
-            確認
+            {t('確認')}
           </button>
         )}
 
@@ -284,7 +286,7 @@ export default function PracticeFlow({
         >
           <div className="flex items-center justify-between">
             <span className="text-base font-bold">
-              {feedback === 'correct' ? '答對了！+1 ⭐' : '再試一次！💪'}
+              {t(feedback === 'correct' ? '答對了！+1 ⭐' : '再試一次！💪')}
             </span>
             <span className="text-2xl">{feedback === 'correct' ? '🎉' : '✨'}</span>
           </div>
@@ -292,17 +294,17 @@ export default function PracticeFlow({
             <div className="mt-1">
               {revealedAnswer && (
                 <p className="text-sm font-semibold text-white flex items-center gap-1 flex-wrap">
-                  正確答案：{revealedAnswer}
+                  {t('正確答案：')}{revealedAnswer}
                 </p>
               )}
-              <p className="text-xs text-white/70 mt-0.5">已加入挑戰題，下次再戰！</p>
+              <p className="text-xs text-white/70 mt-0.5">{t('已加入挑戰題，下次再戰！')}</p>
             </div>
           )}
         </div>
       )}
       {feedback === 'recorded' && (
         <div className="fixed bottom-0 left-0 right-0 px-6 py-3 bg-gray-100 border-t border-gray-200 text-center">
-          <span className="text-sm font-medium text-gray-600">已記錄，繼續下一題…</span>
+          <span className="text-sm font-medium text-gray-600">{t('已記錄，繼續下一題…')}</span>
         </div>
       )}
     </div>

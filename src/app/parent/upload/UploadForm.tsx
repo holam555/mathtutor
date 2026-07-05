@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type UploadState =
   | { status: 'idle' }
@@ -9,6 +10,7 @@ type UploadState =
   | { status: 'error'; message: string }
 
 export default function UploadForm() {
+  const { t, lang } = useLang()
   const [state, setState] = useState<UploadState>({ status: 'idle' })
   // Accumulated files and their data-URL previews
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -94,22 +96,26 @@ export default function UploadForm() {
     return (
       <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
         <p className="text-2xl mb-2">✓</p>
-        <p className="font-semibold text-green-700">上載成功！</p>
+        <p className="font-semibold text-green-700">{t('上載成功！')}</p>
         <p className="text-sm text-green-600 mt-1">
-          AI 共提取了 <strong>{state.extracted}</strong> 條題目，等待老師審核後加入題庫。
+          {lang === 'en' ? (
+            <>AI extracted <strong>{state.extracted}</strong> questions — pending teacher review before joining the bank.</>
+          ) : (
+            <>AI 共提取了 <strong>{state.extracted}</strong> 條題目，等待老師審核後加入題庫。</>
+          )}
         </p>
         <div className="flex gap-3 mt-5 justify-center">
           <button
             onClick={reset}
             className="px-5 py-2.5 bg-[#4A90E2] text-white rounded-xl text-sm font-medium"
           >
-            再上載一份
+            {t('再上載一份')}
           </button>
           <a
             href="/parent"
             className="px-5 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium"
           >
-            返回主頁
+            {t('返回主頁')}
           </a>
         </div>
       </div>
@@ -124,9 +130,13 @@ export default function UploadForm() {
       {/* Image picker */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          試卷圖片{' '}
+          {t('試卷圖片')}{' '}
           <span className="text-gray-400 font-normal">
-            （{selectedFiles.length > 0 ? `已選 ${selectedFiles.length} / 10 頁` : '最多10頁'}）
+            （{selectedFiles.length > 0
+              ? lang === 'en'
+                ? `${selectedFiles.length} / 10 pages selected`
+                : `已選 ${selectedFiles.length} / 10 頁`
+              : t('最多10頁')}）
           </span>
         </label>
 
@@ -150,9 +160,9 @@ export default function UploadForm() {
           >
             <span className="text-2xl mb-1">📷</span>
             <span className="text-sm text-gray-500">
-              {selectedFiles.length === 0 ? '點擊選擇圖片' : '繼續添加圖片'}
+              {t(selectedFiles.length === 0 ? '點擊選擇圖片' : '繼續添加圖片')}
             </span>
-            <span className="text-xs text-gray-400 mt-0.5">支援 JPG、PNG、WEBP</span>
+            <span className="text-xs text-gray-400 mt-0.5">{t('支援 JPG、PNG、WEBP')}</span>
           </label>
         )}
 
@@ -186,35 +196,35 @@ export default function UploadForm() {
 
       {/* Metadata */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">學校名稱</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('學校名稱')}</label>
         <input
           name="school_name"
           type="text"
-          placeholder="例如：香港小學"
+          placeholder={t('例如：香港小學')}
           className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#4A90E2] outline-none"
         />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">年級</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('年級')}</label>
           <select
             name="grade"
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:border-[#4A90E2] outline-none"
           >
-            <option value="">選擇年級</option>
-            <option value="3">小三</option>
-            <option value="4">小四</option>
-            <option value="5">小五</option>
-            <option value="6">小六</option>
+            <option value="">{t('選擇年級')}</option>
+            <option value="3">{t('小三')}</option>
+            <option value="4">{t('小四')}</option>
+            <option value="5">{t('小五')}</option>
+            <option value="6">{t('小六')}</option>
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">考試年份</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('考試年份')}</label>
           <input
             name="exam_year"
             type="number"
-            placeholder="例如：2024"
+            placeholder={t('例如：2024')}
             min="2010"
             max="2030"
             className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#4A90E2] outline-none"
@@ -223,11 +233,11 @@ export default function UploadForm() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">考試類型</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">{t('考試類型')}</label>
         <input
           name="exam_type"
           type="text"
-          placeholder="例如：第一段考、期末考"
+          placeholder={t('例如：第一段考、期末考')}
           className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:border-[#4A90E2] outline-none"
         />
       </div>
@@ -246,6 +256,8 @@ export default function UploadForm() {
             <span className="inline-block w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
             {state.progress}
           </span>
+        ) : lang === 'en' ? (
+          `Upload & Analyze (${selectedFiles.length} pages)`
         ) : (
           `上載並分析（${selectedFiles.length} 頁）`
         )}

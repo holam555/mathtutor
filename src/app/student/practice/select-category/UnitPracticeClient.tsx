@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function UnitPracticeClient({
   unitId,
@@ -12,6 +13,7 @@ export default function UnitPracticeClient({
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
 
   async function handleStart() {
     setLoading(true)
@@ -40,7 +42,7 @@ export default function UnitPracticeClient({
       disabled={loading}
       className="shrink-0 px-4 py-2 rounded-xl bg-[#1D9E75] text-white text-sm font-medium disabled:opacity-40 active:scale-[0.97] transition"
     >
-      {loading ? '…' : '練習'}
+      {loading ? '…' : t('練習')}
     </button>
   )
 }

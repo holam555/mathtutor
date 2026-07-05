@@ -27,12 +27,12 @@ export default function StudentHomeClient({
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? '請稍後再試')
+        setError(data.error ?? t('請稍後再試'))
         return
       }
       router.push(`/student/practice/${data.session_id}`)
     } catch {
-      setError('網絡錯誤，請重試')
+      setError(t('網絡錯誤，請重試'))
     } finally {
       setLoading(null)
     }

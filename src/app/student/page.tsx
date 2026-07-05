@@ -21,7 +21,8 @@ import {
   type StudentStats,
 } from '@/lib/trophies'
 
-const WEEKDAY_LABELS = ['一', '二', '三', '四', '五', '六', '日']
+const WEEKDAY_LABELS_ZH = ['一', '二', '三', '四', '五', '六', '日']
+const WEEKDAY_LABELS_EN = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
 export default async function StudentHome() {
   const supabase = createClient()
@@ -169,8 +170,8 @@ export default async function StudentHome() {
           </div>
           <p className={`mt-4 text-base font-semibold ${dailyDone ? 'text-[#1D9E75]' : 'text-gray-700'}`}>
             {dailyDone
-              ? '🎉 今日任務完成！'
-              : `再做 ${DAILY_GOAL - todayAnswered} 題完成今日目標！`}
+              ? `🎉 ${t('今日任務完成！', lang)}`
+              : `${t('再做', lang)} ${DAILY_GOAL - todayAnswered} ${t('題完成今日目標！', lang)}`}
           </p>
         </div>
       </div>
@@ -185,7 +186,7 @@ export default async function StudentHome() {
           </p>
         </div>
         <div className="flex justify-between">
-          {WEEKDAY_LABELS.map((label, i) => {
+          {(lang === 'en' ? WEEKDAY_LABELS_EN : WEEKDAY_LABELS_ZH).map((label, i) => {
             const done = weekDotsArr.find((d) => d.day_offset === i)?.has_practice ?? false
             const isToday = i === todayIdx
             const bg = done

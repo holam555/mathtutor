@@ -6,6 +6,8 @@ import type { ReportData, Rating, AssessmentAnswer } from '@/types/assessment'
 import { DIAGNOSTIC_TIER_LABELS } from '@/types/assessment'
 import PrintButton from './PrintButton'
 import { QuestionContent } from '@/components/FractionDisplay'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 type AssessmentSession = {
   id: string
@@ -28,6 +30,7 @@ export default async function AssessmentReportPage({
 }: {
   params: { sessionId: string }
 }) {
+  const lang = getLang()
   const supabase = createServiceClient()
 
   const { data: session, error } = await supabase
@@ -47,7 +50,7 @@ export default async function AssessmentReportPage({
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="text-center">
-          <p className="text-gray-500">報告正在生成中，請稍後重新載入頁面。</p>
+          <p className="text-gray-500">{translate('報告正在生成中，請稍後重新載入頁面。', lang)}</p>
         </div>
       </div>
     )
@@ -112,9 +115,9 @@ export default async function AssessmentReportPage({
             />
           </div>
           <p className="text-gray-400 text-xs tracking-widest uppercase mb-1">霖楓學苑 · 學習評估報告</p>
-          <h1 className="text-2xl font-bold text-gray-800">數學學習評估</h1>
+          <h1 className="text-2xl font-bold text-gray-800">{translate('數學學習評估', lang)}</h1>
           <p className="text-gray-500 text-sm mt-1">
-            學生：{s.student_name} ｜ {s.grade_level} ｜ {dateStr}
+            {translate('學生：', lang)}{s.student_name} ｜ {s.grade_level} ｜ {dateStr}
           </p>
         </div>
 
@@ -144,8 +147,8 @@ export default async function AssessmentReportPage({
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
             <div className="text-4xl font-bold" style={{ color: '#1D9E75' }}>{score}</div>
-            <div className="text-xs text-gray-500 mt-1">評估總分</div>
-            <div className="text-xs text-gray-400">滿分100</div>
+            <div className="text-xs text-gray-500 mt-1">{translate('評估總分', lang)}</div>
+            <div className="text-xs text-gray-400">{translate('滿分100', lang)}</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
             <div className="text-2xl font-bold mt-1 leading-tight" style={{ color: bandColor }}>
@@ -162,7 +165,7 @@ export default async function AssessmentReportPage({
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 text-center">
             <div className="text-4xl font-bold" style={{ color: '#1D9E75' }}>{strongAreas.length}個</div>
-            <div className="text-xs text-gray-500 mt-1">強項範疇</div>
+            <div className="text-xs text-gray-500 mt-1">{translate('強項範疇', lang)}</div>
             <div className="text-xs text-gray-400 leading-tight truncate">
               {strongAreas.map((a) => a.title.replace(/^[^一-龥a-zA-Z]+/, '')).join('、') || '—'}
             </div>
@@ -174,7 +177,7 @@ export default async function AssessmentReportPage({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <span className="text-lg">✅</span>
-              <h2 className="font-bold text-gray-800 text-base">{s.student_name}的強項</h2>
+              <h2 className="font-bold text-gray-800 text-base">{lang === 'en' ? `${s.student_name}\u2019s Strengths` : `${s.student_name}的強項`}</h2>
             </div>
             <div className="divide-y divide-gray-50">
               {strongAreas.map((area, i) => (
@@ -200,7 +203,7 @@ export default async function AssessmentReportPage({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <span className="text-lg">⚠️</span>
-              <h2 className="font-bold text-gray-800 text-base">需要加強的範疇</h2>
+              <h2 className="font-bold text-gray-800 text-base">{translate('需要加強的範疇', lang)}</h2>
             </div>
             <div className="divide-y divide-gray-50">
               {weakAreas.map((area, i) => {
@@ -224,9 +227,9 @@ export default async function AssessmentReportPage({
                     <div className="mb-4">
                       <div className="flex items-center gap-1.5 mb-2">
                         <span className="text-sm">📋</span>
-                        <p className="text-xs font-semibold text-gray-600">問題分析</p>
+                        <p className="text-xs font-semibold text-gray-600">{translate('問題分析', lang)}</p>
                       </div>
-                      <p className="text-xs font-semibold text-gray-700 mb-1.5">錯誤類型：</p>
+                      <p className="text-xs font-semibold text-gray-700 mb-1.5">{translate('錯誤類型：', lang)}</p>
                       <div className="space-y-1 mb-3 ml-1">
                         {area.errorTypes.map((e, j) => (
                           <div key={j} className="flex items-start gap-2">
@@ -236,13 +239,13 @@ export default async function AssessmentReportPage({
                         ))}
                       </div>
                       <p className="text-xs text-gray-700 leading-relaxed">
-                        <span className="font-semibold">根本原因：</span>{area.rootCause}
+                        <span className="font-semibold">{translate('根本原因：', lang)}</span>{area.rootCause}
                       </p>
                     </div>
 
                     {/* 解決方案 */}
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">針對訓練方案</p>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2.5">{translate('針對訓練方案', lang)}</p>
                       <div className="space-y-2.5">
                         {area.solutions.map((sol, j) => (
                           <div key={j} className="flex gap-3 bg-gray-50 rounded-xl px-3 py-2.5">
@@ -272,7 +275,7 @@ export default async function AssessmentReportPage({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <span className="text-lg">📊</span>
-              <h2 className="font-bold text-gray-800 text-base">大單元掌握度</h2>
+              <h2 className="font-bold text-gray-800 text-base">{translate('大單元掌握度', lang)}</h2>
             </div>
             <div className="px-5 py-5 grid grid-cols-2 gap-x-6 gap-y-5">
               {unitMastery.map((m) => {
@@ -295,7 +298,7 @@ export default async function AssessmentReportPage({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <span className="text-lg">📊</span>
-              <h2 className="font-bold text-gray-800 text-base">各範疇掌握度分析</h2>
+              <h2 className="font-bold text-gray-800 text-base">{translate('各範疇掌握度分析', lang)}</h2>
             </div>
             <div className="px-5 py-5 grid grid-cols-2 gap-x-6 gap-y-5">
               {report.modules.map((mod) => {
@@ -322,7 +325,7 @@ export default async function AssessmentReportPage({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <span className="text-lg">🔍</span>
-              <h2 className="font-bold text-gray-800 text-base">小單元掌握度</h2>
+              <h2 className="font-bold text-gray-800 text-base">{translate('小單元掌握度', lang)}</h2>
             </div>
             <div className="divide-y divide-gray-50">
               {topicMastery.map((m) => {
@@ -346,10 +349,10 @@ export default async function AssessmentReportPage({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
               <span className="text-lg">📋</span>
-              <h2 className="font-bold text-gray-800 text-base">建議學習計劃</h2>
+              <h2 className="font-bold text-gray-800 text-base">{translate('建議學習計劃', lang)}</h2>
             </div>
             <div className="px-5 py-4">
-              <p className="text-xs text-gray-500 mb-3">根據評估結果，建議按以下優先順序進行學習：</p>
+              <p className="text-xs text-gray-500 mb-3">{translate('根據評估結果，建議按以下優先順序進行學習：', lang)}</p>
               <div className="divide-y divide-gray-100">
                 {learningPlan.map((item, i) => {
                   const priorityColor = i === 0 ? '#EF4444' : i === 1 ? '#F59E0B' : i === 2 ? '#0E7CBF' : '#1D9E75'
@@ -377,8 +380,8 @@ export default async function AssessmentReportPage({
         {wrongAnswers.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100">
-              <h2 className="font-bold text-gray-800 text-base">答錯題目詳情</h2>
-              <p className="text-xs text-gray-400 mt-0.5">共答錯 {wrongAnswers.length} 題</p>
+              <h2 className="font-bold text-gray-800 text-base">{translate('答錯題目詳情', lang)}</h2>
+              <p className="text-xs text-gray-400 mt-0.5">{lang === 'en' ? `${wrongAnswers.length} wrong answers in total` : `共答錯 ${wrongAnswers.length} 題`}</p>
             </div>
             <div className="divide-y divide-gray-50">
               {Array.from(wrongByModule.entries()).map(([moduleName, qs]) => (
@@ -392,11 +395,11 @@ export default async function AssessmentReportPage({
                         </div>
                         <div className="flex items-center gap-4 text-xs flex-wrap">
                           <span className="flex items-center gap-1 text-amber-600">
-                            <span className="font-medium">答：</span>
+                            <span className="font-medium">{translate('答：', lang)}</span>
                             <span className="line-through opacity-80">{a.student_answer}</span>
                           </span>
                           <span className="flex items-center gap-1 text-teal-600">
-                            <span className="font-medium">正確：</span>
+                            <span className="font-medium">{translate('正確：', lang)}</span>
                             <span className="font-semibold">{a.correct_answer}</span>
                           </span>
                         </div>
@@ -413,7 +416,7 @@ export default async function AssessmentReportPage({
         <div className="bg-white rounded-2xl shadow-sm px-5 py-5">
           <div className="flex items-center gap-2 mb-3">
             <span className="text-lg">📚</span>
-            <h2 className="font-bold text-gray-800 text-base">免費練習資源（家長可自行使用）</h2>
+            <h2 className="font-bold text-gray-800 text-base">{translate('免費練習資源（家長可自行使用）', lang)}</h2>
           </div>
           <ul className="space-y-2">
             {[

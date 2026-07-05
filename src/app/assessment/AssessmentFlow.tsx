@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { QuestionContent } from '@/components/FractionDisplay'
 import UnifiedKeyboard from '@/components/UnifiedKeyboard'
 import type { AssessmentQuestion, AssessmentAnswer, CurriculumUnit } from '@/types/assessment'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -79,20 +80,21 @@ const GRADE_OPTIONS: GradeOption[] = [
 
 function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
   const [selected, setSelected] = useState<GradeOption | null>(null)
+  const { t } = useLang()
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">📝</div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">學前數學評估</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">{t('學前數學評估')}</h1>
           <p className="text-gray-500 text-sm leading-relaxed">
-            根據學生已學的單元，即時獲取個人化診斷報告。
+            {t('根據學生已學的單元，即時獲取個人化診斷報告。')}
           </p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-          <p className="text-sm font-medium text-gray-700 mb-3">請選擇學生目前就讀年級</p>
+          <p className="text-sm font-medium text-gray-700 mb-3">{t('請選擇學生目前就讀年級')}</p>
           <div className="space-y-2">
             {GRADE_OPTIONS.map((opt) => (
               <button
@@ -107,7 +109,7 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
                       : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
                 }`}
               >
-                {opt.label}
+                {t(opt.label)}
               </button>
             ))}
           </div>
@@ -119,11 +121,11 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
           className="w-full py-4 rounded-2xl text-white font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ backgroundColor: selected ? '#1D9E75' : '#9CA3AF' }}
         >
-          下一步
+          {t('下一步')}
         </button>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          免費 · 無需登入 · 約 10 至 15 分鐘
+          {t('免費 · 無需登入 · 約 10 至 15 分鐘')}
         </p>
       </div>
     </div>
@@ -150,6 +152,7 @@ function UnitSelect({
   allowDrillDown: boolean
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set(initialSelected))
+  const { t } = useLang()
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -168,24 +171,24 @@ function UnitSelect({
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
       <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
-        <button onClick={onBack} className="text-sm text-gray-400 mb-2">← 返回</button>
-        <h2 className="text-lg font-bold text-gray-800">選擇學生已學單元</h2>
-        <p className="text-xs text-gray-500 mt-1">可選多個單元。越多單元，題目覆蓋範圍越大。</p>
+        <button onClick={onBack} className="text-sm text-gray-400 mb-2">← {t('返回')}</button>
+        <h2 className="text-lg font-bold text-gray-800">{t('選擇學生已學單元')}</h2>
+        <p className="text-xs text-gray-500 mt-1">{t('可選多個單元。越多單元，題目覆蓋範圍越大。')}</p>
       </div>
 
       <div className="p-5 space-y-6">
         {semA.length > 0 && (
-          <Section title={`${grade}A 上學期`} units={semA} selected={selected} onToggle={toggle} />
+          <Section title={`${grade}A ${t('上學期')}`} units={semA} selected={selected} onToggle={toggle} />
         )}
         {semB.length > 0 && (
-          <Section title={`${grade}B 下學期`} units={semB} selected={selected} onToggle={toggle} />
+          <Section title={`${grade}B ${t('下學期')}`} units={semB} selected={selected} onToggle={toggle} />
         )}
       </div>
 
       {/* Sticky bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex flex-col gap-2 shadow-lg">
         <p className="text-center text-xs text-gray-500">
-          已揀 <span className="font-semibold text-teal-600">{selectedCount}</span> 個大單元
+          {t('已揀')} <span className="font-semibold text-teal-600">{selectedCount}</span> {t('個大單元')}
         </p>
         <div className="flex gap-2">
           {allowDrillDown && (
@@ -194,7 +197,7 @@ function UnitSelect({
               disabled={selectedCount === 0}
               className="flex-1 py-3 rounded-xl border-2 border-teal-500 text-teal-600 text-sm font-medium disabled:opacity-40"
             >
-              想再精準啲？揀小單元
+              {t('想再精準啲？揀小單元')}
             </button>
           )}
           <button
@@ -203,7 +206,7 @@ function UnitSelect({
             className="flex-1 py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40"
             style={{ backgroundColor: selectedCount > 0 ? '#1D9E75' : '#9CA3AF' }}
           >
-            開始評估 →
+            {t('開始評估')} →
           </button>
         </div>
       </div>
@@ -222,6 +225,7 @@ function Section({
   selected: Set<string>
   onToggle: (id: string) => void
 }) {
+  const { t } = useLang()
   return (
     <div>
       <h3 className="text-sm font-semibold text-gray-600 mb-2 px-1">{title}</h3>
@@ -246,7 +250,7 @@ function Section({
                 {u.name}
               </p>
               <p className="text-xs text-gray-400 mt-0.5">
-                {u.topics.length} 個小單元
+                {u.topics.length} {t('個小單元')}
               </p>
             </div>
           </button>
@@ -271,6 +275,7 @@ function TopicSelect({
   onProceed: (topicIds: string[]) => void
   onBack: () => void
 }) {
+  const { t: translate, lang } = useLang()
   const visibleUnits = units.filter((u) => selectedUnitIds.includes(u.id))
   const allTopicIds = visibleUnits.flatMap((u) => u.topics.map((t) => t.id))
 
@@ -303,9 +308,9 @@ function TopicSelect({
   return (
     <div className="min-h-screen bg-gray-50 pb-32">
       <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
-        <button onClick={onBack} className="text-sm text-gray-400 mb-2">← 返回大單元</button>
-        <h2 className="text-lg font-bold text-gray-800">細揀學生已學的小單元</h2>
-        <p className="text-xs text-gray-500 mt-1">每個小單元 = 一堂課的內容。</p>
+        <button onClick={onBack} className="text-sm text-gray-400 mb-2">← {translate('返回大單元')}</button>
+        <h2 className="text-lg font-bold text-gray-800">{translate('細揀學生已學的小單元')}</h2>
+        <p className="text-xs text-gray-500 mt-1">{translate('每個小單元 = 一堂課的內容。')}</p>
       </div>
 
       <div className="p-5 space-y-5">
@@ -317,7 +322,7 @@ function TopicSelect({
                 onClick={() => toggleAllInUnit(unit)}
                 className="text-xs text-teal-600 font-medium"
               >
-                全選 / 全清
+                {translate('全選 / 全清')}
               </button>
             </div>
             <div className="space-y-2">
@@ -337,7 +342,7 @@ function TopicSelect({
                     {selected.has(t.id) && <span className="text-white text-[10px]">✓</span>}
                   </div>
                   <p className={`text-sm ${selected.has(t.id) ? 'text-teal-700 font-medium' : 'text-gray-600'}`}>
-                    第 {t.lesson_number} 堂 · {t.name}
+                    {lang === 'en' ? `Lesson ${t.lesson_number}` : `第 ${t.lesson_number} 堂`} · {t.name}
                   </p>
                 </button>
               ))}
@@ -348,7 +353,7 @@ function TopicSelect({
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 flex flex-col gap-2 shadow-lg">
         <p className="text-center text-xs text-gray-500">
-          已揀 <span className="font-semibold text-teal-600">{selected.size}</span> 個小單元
+          {translate('已揀')} <span className="font-semibold text-teal-600">{selected.size}</span> {translate('個小單元')}
         </p>
         <button
           onClick={() => selected.size > 0 && onProceed(Array.from(selected))}
@@ -356,7 +361,7 @@ function TopicSelect({
           className="w-full py-3 rounded-xl text-white text-sm font-semibold disabled:opacity-40"
           style={{ backgroundColor: selected.size > 0 ? '#1D9E75' : '#9CA3AF' }}
         >
-          開始評估 →
+          {translate('開始評估')} →
         </button>
       </div>
     </div>
@@ -382,6 +387,7 @@ function QuestionCard({
   onAnswer: (answer: string, isCorrect: boolean) => void
   timeLeft: number
 }) {
+  const { t: translate } = useLang()
   const [selectedOption, setSelectedOption] = useState<string | null>(null)
   const [fillValue, setFillValue] = useState('')
   const [feedback, setFeedback] = useState<FeedbackState>(null)
@@ -423,11 +429,11 @@ function QuestionCard({
 
   // Tier badge
   const tierBadge = question.difficulty_tier === 'basic'
-    ? { text: '基礎', cls: 'bg-teal-50 text-teal-600' }
+    ? { text: translate('基礎'), cls: 'bg-teal-50 text-teal-600' }
     : question.difficulty_tier === 'enhancement'
-      ? { text: '能力提升', cls: 'bg-amber-50 text-amber-600' }
+      ? { text: translate('能力提升'), cls: 'bg-amber-50 text-amber-600' }
       : question.difficulty_tier === 'advanced'
-        ? { text: '拔尖', cls: 'bg-orange-100 text-orange-600' }
+        ? { text: translate('拔尖'), cls: 'bg-orange-100 text-orange-600' }
         : null
 
   return (
@@ -458,7 +464,7 @@ function QuestionCard({
             className={`ml-auto inline-flex items-center gap-1 text-xs font-mono font-semibold tabular-nums ${
               timeLeft <= 60 ? 'text-orange-600' : 'text-gray-500'
             }`}
-            aria-label="剩餘時間"
+            aria-label={translate('剩餘時間')}
           >
             <span aria-hidden>⏱</span>
             {formatTime(timeLeft)}
@@ -475,7 +481,7 @@ function QuestionCard({
           {question.question_image_url && (
             <img
               src={question.question_image_url}
-              alt={question.image_alt_text ?? '題目附圖'}
+              alt={question.image_alt_text ?? translate('題目附圖')}
               className="mt-4 max-w-full rounded-lg border border-gray-100"
             />
           )}
@@ -534,9 +540,9 @@ function QuestionCard({
         <div className="fixed bottom-0 left-0 right-0 px-5 py-4 bg-teal-500 text-white flex items-center justify-between">
           <span className="font-semibold text-sm flex items-center gap-2">
             <span className="text-lg leading-none">✓</span>
-            已記錄
+            {translate('已記錄')}
           </span>
-          <span className="text-xs opacity-80">下一題…</span>
+          <span className="text-xs opacity-80">{translate('下一題…')}</span>
         </div>
       )}
     </div>
@@ -560,6 +566,7 @@ function ContactForm({
   onSubmit: (info: ContactInfo) => void
   gradeLabel: string
 }) {
+  const { t: translate } = useLang()
   const [form, setForm] = useState<ContactInfo>({
     student_name: '',
     school_name: '',
@@ -575,35 +582,35 @@ function ContactForm({
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <div className="text-5xl mb-3">🎉</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-1">評估完成！</h2>
-          <p className="text-gray-500 text-sm">請填寫資料以查看個人化診斷報告</p>
+          <h2 className="text-xl font-bold text-gray-800 mb-1">{translate('評估完成！')}</h2>
+          <p className="text-gray-500 text-sm">{translate('請填寫資料以查看個人化診斷報告')}</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              學生姓名 <span className="text-red-400">*</span>
+              {translate('學生姓名')} <span className="text-red-400">*</span>
             </label>
             <input
               type="text"
               value={form.student_name}
               onChange={(e) => setForm((f) => ({ ...f, student_name: e.target.value }))}
-              placeholder="請輸入學生姓名"
+              placeholder={translate('請輸入學生姓名')}
               className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-teal-400"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">就讀學校</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{translate('就讀學校')}</label>
             <input
               type="text"
               value={form.school_name}
               onChange={(e) => setForm((f) => ({ ...f, school_name: e.target.value }))}
-              placeholder="請輸入學校名稱"
+              placeholder={translate('請輸入學校名稱')}
               className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-teal-400"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">就讀年級</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{translate('就讀年級')}</label>
             <input
               type="text"
               value={form.grade_display}
@@ -613,23 +620,23 @@ function ContactForm({
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">
-              家長電話 <span className="text-red-400">*</span>
+              {translate('家長電話')} <span className="text-red-400">*</span>
             </label>
             <input
               type="tel"
               value={form.parent_phone}
               onChange={(e) => setForm((f) => ({ ...f, parent_phone: e.target.value }))}
-              placeholder="請輸入聯絡電話"
+              placeholder={translate('請輸入聯絡電話')}
               className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-teal-400"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">家長電郵</label>
+            <label className="block text-xs font-medium text-gray-600 mb-1">{translate('家長電郵')}</label>
             <input
               type="email"
               value={form.parent_email}
               onChange={(e) => setForm((f) => ({ ...f, parent_email: e.target.value }))}
-              placeholder="請輸入電郵地址"
+              placeholder={translate('請輸入電郵地址')}
               className="w-full px-3 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-teal-400"
             />
           </div>
@@ -641,11 +648,11 @@ function ContactForm({
           className="w-full mt-5 py-4 rounded-2xl text-white font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           style={{ backgroundColor: isValid ? '#1D9E75' : '#9CA3AF' }}
         >
-          查看診斷報告
+          {translate('查看診斷報告')}
         </button>
 
         <p className="text-center text-xs text-gray-400 mt-3">
-          您的資料僅用於發送報告，不會外傳
+          {translate('您的資料僅用於發送報告，不會外傳')}
         </p>
       </div>
     </div>
@@ -655,6 +662,7 @@ function ContactForm({
 // ── Generating Loader ──────────────────────────────────────────────────────
 
 function GeneratingScreen() {
+  const { t: translate } = useLang()
   const dots = ['·', '·', '·']
   const [count, setCount] = useState(1)
   useEffect(() => {
@@ -666,13 +674,13 @@ function GeneratingScreen() {
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
       <div className="text-center max-w-md">
         <div className="w-16 h-16 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin mx-auto mb-6" />
-        <h2 className="text-lg font-bold text-gray-800 mb-2">正在生成診斷報告</h2>
-        <p className="text-gray-500 text-sm">請稍候{dots.slice(0, count).join('')}</p>
+        <h2 className="text-lg font-bold text-gray-800 mb-2">{translate('正在生成診斷報告')}</h2>
+        <p className="text-gray-500 text-sm">{translate('請稍候')}{dots.slice(0, count).join('')}</p>
         <p className="text-gray-400 text-xs mt-3 leading-relaxed break-keep px-2">
-          AI 正在分析作答情況，可能需時數分鐘。
+          {translate('AI 正在分析作答情況，可能需時數分鐘。')}
         </p>
         <p className="text-gray-400 text-xs leading-relaxed break-keep px-2">
-          請耐心等候，切勿關閉此頁面。
+          {translate('請耐心等候，切勿關閉此頁面。')}
         </p>
       </div>
     </div>
@@ -682,17 +690,18 @@ function GeneratingScreen() {
 // ── Empty State ────────────────────────────────────────────────────────────
 
 function EmptyState({ message, onBack }: { message: string; onBack: () => void }) {
+  const { t: translate } = useLang()
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
       <div className="text-center max-w-sm">
         <div className="text-5xl mb-4">🔧</div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">題庫準備中</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">{translate('題庫準備中')}</h2>
         <p className="text-gray-500 text-sm mb-6">{message}</p>
         <button
           onClick={onBack}
           className="px-6 py-3 rounded-xl border-2 border-teal-500 text-teal-600 font-medium text-sm"
         >
-          返回重新揀
+          {translate('返回重新揀')}
         </button>
       </div>
     </div>
@@ -703,6 +712,7 @@ function EmptyState({ message, onBack }: { message: string; onBack: () => void }
 
 export default function AssessmentFlow() {
   const router = useRouter()
+  const { t: translate } = useLang()
   const [step, setStep] = useState<Step>('grade_select')
   const [selectedGrade, setSelectedGrade] = useState<GradeOption | null>(null)
   const [units, setUnits] = useState<CurriculumUnit[]>([])
@@ -859,7 +869,7 @@ export default function AssessmentFlow() {
       <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 text-sm">{step === 'loading_curriculum' ? '正在載入課程⋯' : '正在抽題⋯'}</p>
+          <p className="text-gray-500 text-sm">{translate(step === 'loading_curriculum' ? '正在載入課程⋯' : '正在抽題⋯')}</p>
         </div>
       </div>
     )
@@ -922,9 +932,9 @@ export default function AssessmentFlow() {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex flex-col items-center justify-center p-6">
         <div className="text-center max-w-sm">
           <div className="text-5xl mb-4">⏰</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">時間到</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">{translate('時間到')}</h2>
           <p className="text-gray-600 text-sm mb-6 leading-relaxed">
-            每題大約 1 分鐘，超出限時表示題目可能太多，請重新嘗試。
+            {translate('每題大約 1 分鐘，超出限時表示題目可能太多，請重新嘗試。')}
           </p>
           <button
             onClick={() => {
@@ -937,7 +947,7 @@ export default function AssessmentFlow() {
             className="px-6 py-3 rounded-xl text-white font-medium text-sm"
             style={{ backgroundColor: '#1D9E75' }}
           >
-            重新開始
+            {translate('重新開始')}
           </button>
         </div>
       </div>
@@ -962,7 +972,7 @@ export default function AssessmentFlow() {
       <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
         <div className="text-center max-w-sm">
           <div className="text-5xl mb-4">😔</div>
-          <h2 className="text-xl font-bold text-gray-800 mb-2">出現問題</h2>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">{translate('出現問題')}</h2>
           <p className="text-gray-500 text-sm mb-6 leading-relaxed">{errorMsg}</p>
           {lastContactInfo ? (
             <div className="space-y-3">
@@ -971,13 +981,13 @@ export default function AssessmentFlow() {
                 className="w-full px-6 py-3 rounded-xl text-white font-medium text-sm"
                 style={{ backgroundColor: '#1D9E75' }}
               >
-                重試
+                {translate('重試')}
               </button>
               <button
                 onClick={() => setStep('grade_select')}
                 className="w-full px-6 py-3 rounded-xl border border-gray-300 text-gray-600 font-medium text-sm bg-white"
               >
-                重新開始
+                {translate('重新開始')}
               </button>
             </div>
           ) : (
@@ -986,7 +996,7 @@ export default function AssessmentFlow() {
               className="px-6 py-3 rounded-xl text-white font-medium text-sm"
               style={{ backgroundColor: '#1D9E75' }}
             >
-              重新開始
+              {translate('重新開始')}
             </button>
           )}
         </div>

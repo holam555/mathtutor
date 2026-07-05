@@ -17,12 +17,12 @@ export default function MockExamLauncher() {
       const res = await fetch('/api/mock-exam/start', { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? '請稍後再試')
+        setError(data.error ?? t('請稍後再試'))
         return
       }
       router.push(`/student/mock-exam/${data.paper_id}/start`)
     } catch {
-      setError('網絡錯誤，請重試')
+      setError(t('網絡錯誤，請重試'))
     } finally {
       setLoading(false)
     }

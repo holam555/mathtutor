@@ -2,6 +2,8 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import LqUploadForm from './LqUploadForm'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function ParentLqUploadPage({
   params,
@@ -9,6 +11,7 @@ export default async function ParentLqUploadPage({
   params: { paperId: string }
 }) {
   const supabase = createClient()
+  const lang = getLang()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -73,16 +76,20 @@ export default async function ParentLqUploadPage({
         <Link href="/parent" className="text-gray-400 hover:text-gray-600 text-xl">
           ←
         </Link>
-        <h1 className="text-xl font-bold">📝 上載長答題答卷</h1>
+        <h1 className="text-xl font-bold">📝 {translate('上載長答題答卷', lang)}</h1>
       </div>
 
       <div className="bg-blue-50 rounded-2xl p-4 mb-5">
         <p className="text-sm text-gray-700">
-          學生：<strong>{student?.name ?? ''}</strong>
+          {translate('學生：', lang)}<strong>{student?.name ?? ''}</strong>
         </p>
         <p className="text-xs text-gray-600 mt-2 leading-relaxed">
-          請拍清楚 <strong>所有 {ordered.length} 題長答題</strong> 的作答內容，可以分 1–2
-          張相一次過上載。每張相清晰可辨即可，老師會根據相片批改。
+          {lang === 'en' ? (
+            <>Photograph the answers to <strong>all {ordered.length} long-answer questions</strong> clearly — 1–2 photos uploaded together is fine. As long as each photo is legible, the teacher will grade from it.</>
+          ) : (
+            <>請拍清楚 <strong>所有 {ordered.length} 題長答題</strong> 的作答內容，可以分 1–2
+            張相一次過上載。每張相清晰可辨即可，老師會根據相片批改。</>
+          )}
         </p>
       </div>
 
@@ -91,7 +98,9 @@ export default async function ParentLqUploadPage({
       {ordered.length > 0 && (
         <div className="mt-6">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
-            試卷上的長答題（共 {ordered.length} 題）
+            {lang === 'en'
+              ? `Long-Answer Questions on the Paper (${ordered.length} total)`
+              : `試卷上的長答題（共 ${ordered.length} 題）`}
           </p>
           <ol className="space-y-2 list-decimal list-inside">
             {ordered.map((q: Lq) => (
@@ -106,7 +115,7 @@ export default async function ParentLqUploadPage({
       )}
 
       {ordered.length === 0 && (
-        <p className="text-sm text-gray-500 text-center py-8">此試卷暫無長答題</p>
+        <p className="text-sm text-gray-500 text-center py-8">{translate('此試卷暫無長答題', lang)}</p>
       )}
     </main>
   )

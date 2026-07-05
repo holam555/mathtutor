@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function ExamSprintClient({ studentId }: { studentId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
   const [error, setError] = useState<string | null>(null)
 
   async function handleStart() {
@@ -19,12 +21,12 @@ export default function ExamSprintClient({ studentId }: { studentId: string }) {
       })
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error ?? '請稍後再試')
+        setError(data.error ?? t('請稍後再試'))
         return
       }
       router.push(`/student/practice/${data.session_id}`)
     } catch {
-      setError('網絡錯誤，請重試')
+      setError(t('網絡錯誤，請重試'))
     } finally {
       setLoading(false)
     }
@@ -40,7 +42,7 @@ export default function ExamSprintClient({ studentId }: { studentId: string }) {
         disabled={loading}
         className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#EF9F27] to-[#F8B84E] text-white text-base font-bold disabled:opacity-60 active:scale-[0.98] transition shadow-md"
       >
-        {loading ? '準備題目中…' : '開始衝刺練習 →'}
+        {loading ? t('準備題目中…') : `${t('開始衝刺練習')} →`}
       </button>
     </>
   )

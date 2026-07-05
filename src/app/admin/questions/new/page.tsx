@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import NewQuestionForm from './NewQuestionForm'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 export default async function NewQuestionPage({
   searchParams,
@@ -40,7 +42,7 @@ export default async function NewQuestionPage({
         <Link href={`/admin/questions?grade=${validGrade}`} className="text-gray-400 hover:text-gray-600">
           ←
         </Link>
-        <h1 className="text-xl font-bold">新增題目</h1>
+        <h1 className="text-xl font-bold">{translate('新增題目', getLang())}</h1>
       </div>
       <div className="bg-white rounded-2xl shadow-sm p-6">
         <NewQuestionForm

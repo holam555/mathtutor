@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { approveUpload, rejectUpload, type ApprovedQuestion } from '../actions'
 import type { ExtractedQuestion } from '@/lib/gemini'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 type Category = {
   id: string
@@ -48,6 +49,7 @@ export default function ReviewForm({
   categories: Category[]
   uploadMeta: { school_name: string | null; exam_year: number | null }
 }) {
+  const { t, lang } = useLang()
   const [isPending, startTransition] = useTransition()
   const [done, setDone] = useState<'approved' | 'rejected' | null>(
     uploadStatus !== 'pending' ? (uploadStatus as 'approved' | 'rejected') : null
@@ -105,7 +107,7 @@ export default function ReviewForm({
     startTransition(async () => {
       const res = await approveUpload(uploadId, selected)
       if ('error' in res && res.error) {
-        alert(`批准失敗：${res.error}`)
+        alert(`${t('批准失敗：')}${res.error}`)
         return
       }
       setTokenResult({ awarded: res.tokensAwarded ?? 0, warning: res.tokenWarning ?? null })
@@ -126,15 +128,17 @@ export default function ReviewForm({
     return (
       <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
         <p className="text-2xl mb-2">✓</p>
-        <p className="font-semibold text-green-700">已批准並加入題庫</p>
+        <p className="font-semibold text-green-700">{t('已批准並加入題庫')}</p>
         {tokenResult && tokenResult.awarded > 0 && (
-          <p className="text-sm text-green-600 mt-1">已發放 🪙 {tokenResult.awarded} 代幣</p>
+          <p className="text-sm text-green-600 mt-1">
+            {lang === 'en' ? `Awarded 🪙 ${tokenResult.awarded} credits` : `已發放 🪙 ${tokenResult.awarded} 代幣`}
+          </p>
         )}
         {tokenResult?.warning && (
           <p className="text-sm text-amber-600 mt-1">⚠️ {tokenResult.warning}</p>
         )}
         <a href="/admin/past-papers" className="mt-4 inline-block text-sm text-[#4A90E2] underline">
-          返回列表
+          {t('返回列表')}
         </a>
       </div>
     )
@@ -142,9 +146,9 @@ export default function ReviewForm({
   if (done === 'rejected') {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 text-center">
-        <p className="text-gray-400">已拒絕此 Past Paper</p>
+        <p className="text-gray-400">{t('已拒絕此 Past Paper')}</p>
         <a href="/admin/past-papers" className="mt-4 inline-block text-sm text-[#4A90E2] underline">
-          返回列表
+          {t('返回列表')}
         </a>
       </div>
     )
@@ -154,10 +158,10 @@ export default function ReviewForm({
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Left: images */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-gray-500">原試卷圖片</h2>
+        <h2 className="text-sm font-semibold text-gray-500">{t('原試卷圖片')}</h2>
         {signedUrls.length === 0 ? (
           <div className="bg-gray-100 rounded-2xl h-64 flex items-center justify-center text-gray-400 text-sm">
-            圖片不可用
+            {t('圖片不可用')}
           </div>
         ) : (
           <>
@@ -165,7 +169,7 @@ export default function ReviewForm({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={signedUrls[currentPage]}
-                alt={`第${currentPage + 1}頁`}
+                alt={lang === 'en' ? `Page ${currentPage + 1}` : `第${currentPage + 1}頁`}
                 className="w-full object-contain max-h-[600px]"
               />
             </div>
@@ -176,17 +180,19 @@ export default function ReviewForm({
                   disabled={currentPage === 0}
                   className="px-3 py-1.5 text-sm bg-gray-100 rounded-lg disabled:opacity-40"
                 >
-                  ← 上頁
+                  ← {t('上頁')}
                 </button>
                 <span className="text-sm text-gray-500">
-                  第 {currentPage + 1} / {signedUrls.length} 頁
+                  {lang === 'en'
+                    ? `Page ${currentPage + 1} / ${signedUrls.length}`
+                    : `第 ${currentPage + 1} / ${signedUrls.length} 頁`}
                 </span>
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(signedUrls.length - 1, p + 1))}
                   disabled={currentPage === signedUrls.length - 1}
                   className="px-3 py-1.5 text-sm bg-gray-100 rounded-lg disabled:opacity-40"
                 >
-                  下頁 →
+                  {t('下頁')} →
                 </button>
               </div>
             )}
@@ -198,7 +204,9 @@ export default function ReviewForm({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-500">
-            AI 提取題目（{includedCount} / {questions.length} 已選取）
+            {lang === 'en'
+              ? `AI-Extracted Questions (${includedCount} / ${questions.length} selected)`
+              : `AI 提取題目（${includedCount} / ${questions.length} 已選取）`}
           </h2>
           <button
             onClick={() =>
@@ -208,14 +216,14 @@ export default function ReviewForm({
             }
             className="text-xs text-[#4A90E2] underline"
           >
-            {questions.every((q) => q.included) ? '全部取消' : '全部選取'}
+            {t(questions.every((q) => q.included) ? '全部取消' : '全部選取')}
           </button>
         </div>
 
         <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
           {questions.length === 0 && (
             <div className="bg-gray-50 rounded-2xl p-6 text-center text-gray-400 text-sm">
-              AI 未能提取任何題目
+              {t('AI 未能提取任何題目')}
             </div>
           )}
           {questions.map((q, idx) => (
@@ -243,7 +251,7 @@ export default function ReviewForm({
                   className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
                 >
                   {Object.entries(TYPE_LABEL).map(([v, label]) => (
-                    <option key={v} value={v}>{label}</option>
+                    <option key={v} value={v}>{t(label)}</option>
                   ))}
                 </select>
                 <select
@@ -251,9 +259,9 @@ export default function ReviewForm({
                   onChange={(e) => updateQuestion(idx, { difficulty: parseInt(e.target.value) })}
                   className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white"
                 >
-                  <option value={1}>易</option>
-                  <option value={2}>中</option>
-                  <option value={3}>難</option>
+                  <option value={1}>{t('易')}</option>
+                  <option value={2}>{t('中')}</option>
+                  <option value={3}>{t('難')}</option>
                 </select>
                 <span className="text-xs text-gray-400 ml-auto">P{
                   extractedQuestions[idx]?.page_number ?? idx + 1
@@ -268,7 +276,7 @@ export default function ReviewForm({
                   !q.category_id ? 'border-red-300' : 'border-gray-200'
                 }`}
               >
-                <option value="">— 選擇分類 —</option>
+                <option value="">{t('— 選擇分類 —')}</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.code} {c.name}
@@ -304,7 +312,7 @@ export default function ReviewForm({
 
               {/* Correct answer */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-gray-500 shrink-0">答案：</span>
+                <span className="text-xs text-gray-500 shrink-0">{t('答案：')}</span>
                 <input
                   value={q.correct_answer}
                   onChange={(e) => updateQuestion(idx, { correct_answer: e.target.value })}
@@ -317,7 +325,7 @@ export default function ReviewForm({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={q.image_url}
-                  alt="題目圖片"
+                  alt={t('題目圖片')}
                   className="w-full rounded-lg border border-gray-200 mb-2 object-contain max-h-48"
                 />
               )}
@@ -334,7 +342,7 @@ export default function ReviewForm({
                       if (file) handleImageFile(idx, file)
                     }}
                   />
-                  {q.image_url ? '更換圖片' : '上載題目圖片'}
+                  {t(q.image_url ? '更換圖片' : '上載題目圖片')}
                 </label>
               )}
             </div>
@@ -349,14 +357,18 @@ export default function ReviewForm({
               disabled={isPending || includedCount === 0}
               className="flex-1 h-11 rounded-xl bg-[#4CAF50] text-white text-sm font-medium disabled:opacity-50 active:scale-[0.98] transition"
             >
-              {isPending ? '…' : `✓ 批准 ${includedCount} 題並加入題庫`}
+              {isPending
+                ? '…'
+                : lang === 'en'
+                  ? `✓ Approve ${includedCount} questions & add to bank`
+                  : `✓ 批准 ${includedCount} 題並加入題庫`}
             </button>
             <button
               onClick={handleReject}
               disabled={isPending}
               className="h-11 px-4 rounded-xl bg-gray-100 text-gray-600 text-sm font-medium disabled:opacity-50 active:scale-[0.98] transition"
             >
-              ✗ 拒絕
+              ✗ {t('拒絕')}
             </button>
           </div>
         )}

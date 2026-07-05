@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function WrongBankClient({
   unitId,
@@ -14,6 +15,7 @@ export default function WrongBankClient({
 }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
 
   async function startRetry() {
     setLoading(true)
@@ -46,7 +48,7 @@ export default function WrongBankClient({
       disabled={loading}
       className="text-sm text-[#1D9E75] font-medium disabled:opacity-50"
     >
-      {loading ? '…' : '練習 →'}
+      {loading ? '…' : `${t('練習')} →`}
     </button>
   )
 }

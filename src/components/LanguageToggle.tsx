@@ -9,10 +9,13 @@ export function LanguageToggle() {
     <button
       type="button"
       onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-      className="fixed top-3 right-3 z-50 bg-white/95 backdrop-blur border border-gray-200 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-600 shadow-sm hover:shadow-md active:scale-[0.97] transition"
+      className="fixed top-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 bg-white border border-gray-300 rounded-full pl-3 pr-1 py-1 text-sm font-semibold text-gray-700 shadow-md hover:shadow-lg active:scale-[0.97] transition"
       aria-label="Toggle language / 切換語言"
     >
-      {lang === 'zh' ? 'EN' : '中'}
+      <span>🌐</span>
+      <span className={lang === 'zh' ? 'text-[#1D9E75]' : 'text-gray-300'}>中文</span>
+      <span className="text-gray-300">/</span>
+      <span className={lang === 'en' ? 'text-[#1D9E75]' : 'text-gray-300'}>EN</span>
     </button>
   )
 }

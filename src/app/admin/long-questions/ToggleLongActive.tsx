@@ -3,6 +3,7 @@
 import { useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { toggleLongQuestionActive } from './actions'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function ToggleLongActive({
   questionId,
@@ -13,6 +14,7 @@ export default function ToggleLongActive({
 }) {
   const [isPending, startTransition] = useTransition()
   const router = useRouter()
+  const { t } = useLang()
 
   return (
     <button
@@ -29,7 +31,7 @@ export default function ToggleLongActive({
           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
       } disabled:opacity-50`}
     >
-      {isPending ? '…' : isActive ? '啟用中' : '已停用'}
+      {isPending ? '…' : t(isActive ? '啟用中' : '已停用')}
     </button>
   )
 }

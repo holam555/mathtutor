@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLang } from '@/lib/i18n/LanguageProvider'
 
 export default function RetryWrongButton({ studentId }: { studentId: string }) {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const { t } = useLang()
 
   async function handleRetry() {
     setLoading(true)
@@ -30,7 +32,7 @@ export default function RetryWrongButton({ studentId }: { studentId: string }) {
       disabled={loading}
       className="block w-full h-14 rounded-xl bg-[#F44336] text-white text-base font-semibold text-center active:scale-[0.98] transition disabled:opacity-60"
     >
-      {loading ? '準備中…' : '🔁 重練錯題'}
+      {loading ? t('準備中…') : `🔁 ${t('重練錯題')}`}
     </button>
   )
 }

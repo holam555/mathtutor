@@ -5,6 +5,8 @@
 import Link from 'next/link'
 import { computeAccuracy, type CategoryStat } from '@/lib/statsUtils'
 import { type TimeRange } from '@/lib/studentReport'
+import { getLang } from '@/lib/i18n/getLang'
+import { t as translate } from '@/lib/i18n/translate'
 
 type SessionRow = {
   id: string
@@ -56,6 +58,7 @@ export default function StudentReport({
   activeTab: 'overview' | 'wrong' | 'history'
   sprintTabHref?: string
 }) {
+  const lang = getLang()
   const accuracy = computeAccuracy(stats.correctAnswers, stats.totalAnswers)
 
   const weakCategories = categoryStats.filter((c) => c.accuracy < 50 && c.total_attempts >= 5)
@@ -79,15 +82,19 @@ export default function StudentReport({
           href={mode === 'admin' ? '/admin/students' : '/parent'}
           className="text-gray-400 hover:text-gray-600 text-sm"
         >
-          ← 返回
+          ← {translate('返回', lang)}
         </Link>
         <div>
           <h1 className="text-xl font-bold">
-            {mode === 'parent' ? `${studentName} 的表現` : studentName}
+            {mode === 'parent'
+              ? lang === 'en'
+                ? `${studentName}'s Performance`
+                : `${studentName} 的表現`
+              : studentName}
           </h1>
           {studentGrade && (
             <p className="text-xs text-gray-400">
-              小{studentGrade === 5 ? '五' : '六'}
+              {translate(studentGrade === 5 ? '小五' : '小六', lang)}
             </p>
           )}
         </div>
@@ -103,7 +110,7 @@ export default function StudentReport({
               range === r ? 'bg-[#4A90E2] text-white' : 'bg-white text-gray-500 border border-gray-200'
             }`}
           >
-            {rangeLabel[r]}
+            {translate(rangeLabel[r], lang)}
           </Link>
         ))}
       </div>
@@ -120,7 +127,7 @@ export default function StudentReport({
                 : 'border-transparent text-gray-500'
             }`}
           >
-            {tabLabel[t]}
+            {translate(tabLabel[t], lang)}
           </Link>
         ))}
         {sprintTabHref && (
@@ -128,7 +135,7 @@ export default function StudentReport({
             href={sprintTabHref}
             className="px-4 py-2 text-sm font-medium border-b-2 whitespace-nowrap transition border-transparent text-gray-500 hover:text-gray-700"
           >
-            模擬考試
+            {translate('模擬考試', lang)}
           </Link>
         )}
       </div>
@@ -138,16 +145,26 @@ export default function StudentReport({
         <div className="space-y-4">
           {/* Metric cards */}
           <div className="grid grid-cols-2 gap-3">
-            <MetricCard label="完成題數" value={stats.totalAnswers} />
+            <MetricCard label={translate('完成題數', lang)} value={stats.totalAnswers} />
             <MetricCard
-              label="正確率"
+              label={translate('正確率', lang)}
               value={stats.totalAnswers ? `${accuracy}%` : '—'}
               color={accuracy >= 70 ? 'text-[#4CAF50]' : accuracy >= 50 ? 'text-[#4A90E2]' : 'text-red-500'}
             />
-            <MetricCard label="連續天數" value={`${stats.streak} 天`} color="text-[#EF9F27]" />
             <MetricCard
-              label="平均每題用時"
-              value={avgSecondsPerQuestion > 0 ? `${avgSecondsPerQuestion} 秒` : '—'}
+              label={translate('連續天數', lang)}
+              value={lang === 'en' ? `${stats.streak} days` : `${stats.streak} 天`}
+              color="text-[#EF9F27]"
+            />
+            <MetricCard
+              label={translate('平均每題用時', lang)}
+              value={
+                avgSecondsPerQuestion > 0
+                  ? lang === 'en'
+                    ? `${avgSecondsPerQuestion}s`
+                    : `${avgSecondsPerQuestion} 秒`
+                  : '—'
+              }
             />
           </div>
 
@@ -155,7 +172,7 @@ export default function StudentReport({
           {categoryStats.length > 0 && (
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-                各題型正確率
+                {translate('各題型正確率', lang)}
               </p>
               <div className="space-y-3">
                 {categoryStats.slice(0, 10).map((c) => (
@@ -183,7 +200,7 @@ export default function StudentReport({
                       {c.accuracy}%
                     </span>
                     <span className="text-xs text-gray-400 w-10 text-right shrink-0">
-                      {c.total_attempts} 題
+                      {c.total_attempts} {translate('題', lang)}
                     </span>
                   </div>
                 ))}
@@ -194,11 +211,13 @@ export default function StudentReport({
           {/* Auto notes */}
           {mode === 'admin' && weakCategories.length > 0 && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-              <p className="text-xs font-semibold text-amber-700 mb-2">系統備注</p>
+              <p className="text-xs font-semibold text-amber-700 mb-2">{translate('系統備注', lang)}</p>
               <ul className="space-y-1">
                 {weakCategories.map((c) => (
                   <li key={c.category_id} className="text-xs text-amber-800">
-                    • {c.category_code} {c.category_name} 正確率僅 {c.accuracy}%，建議重點講解
+                    {lang === 'en'
+                      ? `• ${c.category_code} ${c.category_name}: only ${c.accuracy}% accuracy — recommend focused review`
+                      : `• ${c.category_code} ${c.category_name} 正確率僅 ${c.accuracy}%，建議重點講解`}
                   </li>
                 ))}
               </ul>
@@ -206,11 +225,13 @@ export default function StudentReport({
           )}
           {mode === 'parent' && weakCategories.length > 0 && (
             <div className="bg-[#EF9F27]/10 border border-[#EF9F27]/20 rounded-2xl p-4">
-              <p className="text-xs font-semibold text-[#C87E10] mb-2">可以多加練習的題型</p>
+              <p className="text-xs font-semibold text-[#C87E10] mb-2">{translate('可以多加練習的題型', lang)}</p>
               <ul className="space-y-1">
                 {weakCategories.slice(0, 3).map((c) => (
                   <li key={c.category_id} className="text-xs text-[#8A5A0A]">
-                    • {c.category_name} 可以多加練習
+                    {lang === 'en'
+                      ? `• ${c.category_name} could use more practice`
+                      : `• ${c.category_name} 可以多加練習`}
                   </li>
                 ))}
               </ul>
@@ -223,7 +244,7 @@ export default function StudentReport({
         <div className="space-y-3">
           {wrongGroups.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm text-gray-400 text-sm">
-              {mode === 'parent' ? '暫時沒有需要加強的題目 👍' : '此時段暫無錯題記錄'}
+              {translate(mode === 'parent' ? '暫時沒有需要加強的題目 👍' : '此時段暫無錯題記錄', lang)}
             </div>
           ) : (
             wrongGroups.map((g) => (
@@ -233,7 +254,7 @@ export default function StudentReport({
                     {g.category_code}
                   </span>
                   <span className="text-sm font-semibold text-gray-800">{g.category_name}</span>
-                  <span className="ml-auto text-xs text-gray-400">{g.questions.length} 題</span>
+                  <span className="ml-auto text-xs text-gray-400">{g.questions.length} {translate('題', lang)}</span>
                 </div>
                 <div className="space-y-3">
                   {g.questions.map((q) => (
@@ -245,12 +266,12 @@ export default function StudentReport({
                       {q.last_wrong_answer && (
                         <div className="flex items-center gap-3 text-xs flex-wrap">
                           <span className="flex items-center gap-1 text-amber-600">
-                            <span className="font-medium">學生答：</span>
+                            <span className="font-medium">{translate('學生答：', lang)}</span>
                             <span className="line-through opacity-80">{q.last_wrong_answer}</span>
                           </span>
                           {q.correct_answer && (
                             <span className="flex items-center gap-1 text-teal-600">
-                              <span className="font-medium">正確：</span>
+                              <span className="font-medium">{translate('正確：', lang)}</span>
                               <span className="font-semibold">{q.correct_answer}</span>
                             </span>
                           )}
@@ -269,7 +290,7 @@ export default function StudentReport({
         <div className="space-y-2">
           {sessions.length === 0 ? (
             <div className="bg-white rounded-2xl p-8 text-center shadow-sm text-gray-400 text-sm">
-              此時段暫無練習記錄
+              {translate('此時段暫無練習記錄', lang)}
             </div>
           ) : (
             sessions.map((s) => {
@@ -295,12 +316,12 @@ export default function StudentReport({
                         </span>
                       </p>
                       {isSprint && (
-                        <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">模擬考試</span>
+                        <span className="text-xs bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded font-medium">{translate('模擬考試', lang)}</span>
                       )}
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {s.correct_count ?? 0} / {s.total_questions ?? 0} 題
-                      {duration > 0 ? ` · ${duration} 分鐘` : ''}
+                      {s.correct_count ?? 0} / {s.total_questions ?? 0} {translate('題', lang)}
+                      {duration > 0 ? (lang === 'en' ? ` · ${duration} min` : ` · ${duration} 分鐘`) : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
@@ -316,7 +337,7 @@ export default function StudentReport({
                         href={`${basePath}/session/${s.id}`}
                         className="text-xs text-[#4A90E2] underline whitespace-nowrap"
                       >
-                        詳情
+                        {translate('詳情', lang)}
                       </Link>
                     )}
                   </div>
