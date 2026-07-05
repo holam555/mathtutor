@@ -1,3 +1,6 @@
+import { t as translateText } from '@/lib/i18n/translate'
+import type { Lang } from '@/lib/i18n/lang'
+
 export const DAILY_GOAL = 10
 
 export type TrophyDef = {
@@ -127,6 +130,21 @@ export function nextTrophyToUnlock(s: StudentStats): { trophy: TrophyDef; status
     if (!status.unlocked) return { trophy: t, status }
   }
   return null
+}
+
+/**
+ * progressText mixes static Chinese, plain numbers (language-agnostic), and
+ * two templated shapes ("N / N 天" and "已解鎖：X") that need partial
+ * translation. Numbers-only strings pass through the dict lookup unchanged
+ * since they have no dict entry and aren't Chinese.
+ */
+export function translateProgressText(text: string, lang: Lang): string {
+  if (lang === 'zh') return text
+  const daysMatch = text.match(/^(\d+ \/ \d+) 天$/)
+  if (daysMatch) return `${daysMatch[1]} days`
+  const unlockedWithName = text.match(/^已解鎖：(.*)$/)
+  if (unlockedWithName) return `${translateText('已解鎖', lang)}: ${unlockedWithName[1]}`
+  return translateText(text, lang)
 }
 
 export function getGreeting(date = new Date()): string {

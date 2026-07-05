@@ -142,8 +142,10 @@ export default async function Home() {
           </Link>
         </div>
 
-        <p className="text-xs text-gray-400 text-center mt-6">
-          {t('學生及家長可自行註冊 · 老師帳戶請聯絡管理員', lang)}
+        <p className="text-xs text-gray-400 text-center mt-6 leading-relaxed">
+          {t('學生及家長可自行註冊', lang)}
+          <br />
+          {t('老師帳戶請聯絡管理員', lang)}
         </p>
       </div>
     </main>

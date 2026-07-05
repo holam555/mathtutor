@@ -129,6 +129,8 @@ export const dict: Record<string, string> = {
 
   // Trophies page
   '已解鎖': 'Unlocked',
+  '完成 1 次練習': 'Complete 1 practice session',
+  '某題型表現穩定後解鎖': 'Unlocks after consistent performance in a topic',
 
   // Wrong-question bank
   '錯題庫': 'Wrong Question Bank',
@@ -647,7 +649,8 @@ export const dict: Record<string, string> = {
 // Signup + refreshed landing
   '首次使用？': 'New here?',
   '免費註冊': 'Sign up free',
-  '學生及家長可自行註冊 · 老師帳戶請聯絡管理員': 'Students and parents can sign up directly · teacher accounts are set up by the academy',
+  '學生及家長可自行註冊': 'Students and parents can sign up directly',
+  '老師帳戶請聯絡管理員': 'Teacher accounts are set up by the academy',
   '還沒有帳戶？': "Don't have an account?",
   '學生註冊': 'Student Sign-up',
   '家長註冊': 'Parent Sign-up',

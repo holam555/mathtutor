@@ -28,7 +28,7 @@ export default function PracticeFlow({
   questions: SessionQuestion[]
   mode?: 'practice' | 'mock_exam'
 }) {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const instantFeedback = mode === 'practice'
   const router = useRouter()
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -194,6 +194,11 @@ export default function PracticeFlow({
           <div className="text-[18px] text-gray-800" style={{ lineHeight: '1.6' }}>
             <QuestionContent text={currentQuestion.question_text} />
           </div>
+          {lang === 'en' && (
+            <p className="text-xs text-gray-400 italic -mt-2">
+              {t('English ver coming soon!')}
+            </p>
+          )}
           {currentQuestion.question_image_url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
