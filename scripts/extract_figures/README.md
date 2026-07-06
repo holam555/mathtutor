@@ -7,27 +7,39 @@
 ## Path A workflow（自己嘅 past paper 入庫）
 
 ```bash
-# 1. 每版卷一張圖（screenshot / scan / PDF page render），放一個 folder
-node scripts/extract_figures/batch.js <folder> [--out <dir>] [--title <t>]
+# 1. PDF（推薦，自動逐頁轉 150dpi PNG；要 brew install poppler）或
+#    screenshots folder（一頁一張）
+node scripts/extract_figures/batch.js <pdf-or-folder> [--out <dir>] [--title <t>]
 #    → 每頁 candidates.json + crops + annotated.png + questions.json STUB
 #    → contact_sheet.html（暫時只有 crops + bindings）
 
 # 2. 開 Claude Code session：叫 Claude 讀每頁原圖，填晒每個
 #    <out>/<page>/questions.json（transcription：題目文字、type、答案、
-#    unit_number；binding 唔關 Claude 事 — 全部嚟自 detect.js）
+#    unit_number、route；binding 唔關 Claude 事 — 全部嚟自 detect.js）
 
 # 3. 再行一次 batch.js → contact_sheet.html 變成 DB-row preview
 
-# 4. 喺 browser 開 sheet：逐題揀 crop（或「無圖」）→ ⬇︎ Export selection.json
+# 4. 喺 browser 開 sheet：逐題揀 crop（或「無圖」）；crop 唔啱可以
+#    ✂️ 手動調整（canvas 拖拉）→ ⬇︎ Export selection.json
 
 # 5. node scripts/extract_figures/gen_seed.js \
 #      --out-dir <out> --selection selection.json \
 #      --grade 6 --source-paper p6_myschool_2026
-#    → seed_<paper>.sql + upload_manifest.json（validation fail 就唔出 SQL）
+#    → seed_<paper>.sql（assessment_questions）
+#    → seed_<paper>_lq.sql（long_questions，如有 route lq/both）
+#    → upload_manifest.json（validation fail 就乜都唔出）
 
 # 6. 檢查 SQL → Supabase SQL Editor apply → 跑 question-bank-check skill
 #    → 按 manifest 上載 crops（scripts/upload_lq_images.ts）→ UPDATE image_url
 ```
+
+### 每題 route（questions.json）
+
+| route | 去邊 | 用途 |
+|---|---|---|
+| `aq`（default） | `assessment_questions` | app 自動評分練習 |
+| `lq` | `long_questions` | mock paper 長答，`model_answer` 逐字 |
+| `both` | 兩邊各一行 | 列式計算題：app 對淨答案 + mock paper 對步驟（2026-07-06 決定） |
 
 單頁模式：`node detect.js <image>`、`node contact_sheet.js --candidates … --questions … --out …`。
 
@@ -52,6 +64,9 @@ node scripts/extract_figures/batch.js <folder> [--out <dir>] [--title <t>]
 3. **Binding** — figure 中心 y ∈ 邊個 anchor band 就屬邊題；band 內 ≥2 件 →
    加 composite candidate（pictorial 題成套 union）；第一個 anchor 之前嘅圖
    → bind band 1 + `sharedAbove`（題組共用 chart）
+4. **Chart halo** — 大而密（ink ≥6% 或 tint ≥15%）嘅 region 會吸埋周圍嘅
+   標題／軸標籤（上/左/右 6%W，下 3.5%W）；被吸收嘅字唔可以再做 anchor
+   （防止「路程」軸標籤被誤認做題號）。大而空嘅 answer box 唔會觸發 halo。
 
 Default crop pick（contact_sheet.js）：1 件 → 佢（AUTO）；≥3 件 → composite；
 2 件 → 水平 gap <20%W 就 composite 否則大嗰件（一律 REVIEW）。

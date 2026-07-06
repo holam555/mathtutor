@@ -1,4 +1,15 @@
-# Paper Ingestion SOP — 草稿等 review（skill 藍圖）
+# Paper Ingestion SOP — v2（已按 2026-07-06 review 更新，可寫 skill）
+
+> **Review 決定（2026-07-06 第二輪）**：
+> 1. **列式計算題 → dual-route `both`**：同一次 transcription 出兩行 —
+>    `assessment_questions`（淨答案 MC/fill，app 練習用）＋ `long_questions`
+>    （逐字列式 model_answer，mock paper LQ 部分畀學生對卷用）。
+>    gen_seed.js 已實裝（`route: "aq" | "lq" | "both"`）。
+> 2. LQ 同一次 ingestion 一齊入 ✅（出第二份 `seed_<paper>_lq.sql`）
+> 3. 卷上分數標示 `(4%)` 唔要 ✅
+> 4. Crop 唔啱可以喺 contact sheet **手動調整**（✂️ canvas editor，
+>    export 帶 box 座標，gen_seed 用 sharp 重裁）— 已實裝
+> 5. 大 chart 自動吸埋 標題/軸標籤（halo pass）— 已實裝
 
 > 目標：一條龍 — 你放低一份 PDF（或 screenshots folder），最後題目（連圖、連答案）
 > 入晒 `assessment_questions` / `long_questions`。呢份係 SOP 草稿；你 approve 後
@@ -41,13 +52,14 @@ Stage 7  圖片上載＋收尾      按 manifest 上載 crops（upload_lq_images
 
 ## Transcription 規則（Stage 2 核心，skill 會 encode 晒）
 
-### 路由：每題三揀一
+### 路由：每題定一個 `route`
 
-| 特徵 | 去邊 |
-|---|---|
-| MC / 短答（一個數字答案） | `assessment_questions` |
-| 列式計算、多步 working、答案紙有步驟 | `long_questions`（model_answer 逐字保留，跟 `docs/lq_seed_workflow.md`） |
-| 作圖題（補全棒形圖/折線圖）、量度題（用尺）、英文題 | **SKIP**（報告列明原因） |
+| 特徵 | route | 去邊 |
+|---|---|---|
+| MC / 短答（一個數字答案） | `aq` | `assessment_questions` |
+| 列式計算（有 working box + 一個最終答案） | **`both`** | AQ 淨答案版（app 練習）＋ LQ 逐字列式版（mock paper 對卷）— 同一次 transcription，`model_answer` 填埋就得 |
+| 純長答（無法簡化做一個答案） | `lq` | `long_questions` only |
+| 作圖題（補全棒形圖/折線圖）、量度題（用尺）、英文題 | — | **SKIP**（報告列明原因） |
 
 ### question_type 判定（hard rules，gen_seed 會擋）
 
@@ -115,13 +127,10 @@ question-bank-check scanner 重點：exact-string grading — `0.5`≠`1/2`≠`.
 4. 報告格式：題數、路由統計（AQ/LQ/skip+原因）、單元/tier 分佈、
    flags 清單、下一步指令（apply → upload → verify）
 
-## 開放問題（review 時答我）
+## 開放問題 — 已全部解決（2026-07-06）
 
-1. **列式計算短題**（好似 trial PDF Q6「鴨比雞多百分之幾？(4%) 列式計算」）—
-   佢有 marks + working box，但答案係一個數。入 `long_questions`（俾學生寫步驟、
-   老師改）定 `assessment_questions`（淨對答案）？我建議：**跟卷面 section**
-   — 有 working box 嘅入 LQ，冇嘅入 AQ。
-2. **Marks 欄**（`(4%)`）— AQ 冇 marks column（mock exam 用 type 定分數），
-   建議照 skip；LQ 都冇（migration 0021 拆咗）。OK？
-3. 一份卷想**一次過入埋 LQ**定係 LQ 用返現有 `lq_seed_workflow.md` 分開做？
-   我建議一齊做（同一個 contact sheet review），LQ 部分出第二份 seed SQL。
+1. 列式計算短題 → **`route: "both"`**（AQ 淨答案 + LQ 逐字列式），已實裝
+2. Marks 欄 `(4%)` → 唔要，transcription 時剝走
+3. LQ 一齊入 → 係，同一 contact sheet review，出 `seed_<paper>_lq.sql`
+
+**下一步：用 skill-creator 寫成 `.claude/skills/paper-ingestion/`。**

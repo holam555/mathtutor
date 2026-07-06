@@ -315,6 +315,7 @@ async function main() {
   // sit 15-30px off the shape; the frozen-bbox test still prevents text
   // chaining because attachment never extends the tested bbox.
   const ATTACH_GAP = 28
+  const absorbed = new Set()
   const frozen = regions.map(r => ({ minX: r.minX, minY: r.minY, maxX: r.maxX, maxY: r.maxY }))
   for (const c of comps) {
     if (isAnchor.has(c.id) || inNumCol(c) || isBorder(c) ||
@@ -326,6 +327,7 @@ async function main() {
         r.minX = Math.min(r.minX, c.minX); r.minY = Math.min(r.minY, c.minY)
         r.maxX = Math.max(r.maxX, c.maxX); r.maxY = Math.max(r.maxY, c.maxY)
         r.n += c.n; r.pinkN += c.pinkN
+        absorbed.add(c.id)
         break
       }
     }
@@ -356,6 +358,53 @@ async function main() {
     if (r.thick < Math.max(42, W * 0.05)) return false
     return true
   })
+
+  // ── chart halo: pull in title + axis labels around large charts ──────
+  // A chart (region covering >12% of the page) always carries a title
+  // above and axis labels left/below. They sit beyond ATTACH_GAP, so a
+  // second, wider pass absorbs small text CCs around BIG regions only:
+  // generous above/left/right (6% W), tight below (3.5% W — question text
+  // often starts just under the x-axis caption).
+  for (const r of regions) {
+    const area = (r.maxX - r.minX + 1) * (r.maxY - r.minY + 1)
+    if (area < W * H * 0.12) continue
+    // charts are dense — dark grids register as ink (≥6% of bbox), light
+    // gray grids as tint (≥15%). Big but EMPTY regions are answer boxes /
+    // plain frames (ink ~3%, white interior) — halo would swallow the
+    // question number and text sitting level with them.
+    if (r.n / area < 0.06) {
+      let tintN = 0, sampled = 0
+      for (let y = r.minY; y <= r.maxY; y += 2) for (let x = r.minX; x <= r.maxX; x += 2) {
+        sampled++
+        if (tint[y * W + x]) tintN++
+      }
+      if (tintN / sampled < 0.15) continue
+    }
+    const fz = { minX: r.minX, minY: r.minY, maxX: r.maxX, maxY: r.maxY }
+    const SIDE = W * 0.06, BELOW = W * 0.035
+    for (const c of comps) {
+      if (absorbed.has(c.id) || inNumCol(c) || isBorder(c) ||
+          rulePieces.has(c.id) || Math.max(cw(c), chh(c)) >= W * 0.06) continue
+      // directional gaps (negative = overlaps region on that side)
+      const gapLeft = fz.minX - c.maxX
+      const gapRight = c.minX - fz.maxX
+      const gapAbove = fz.minY - c.maxY
+      const gapBelow = c.minY - fz.maxY
+      if (gapLeft <= SIDE && gapRight <= SIDE &&
+          gapAbove <= SIDE && gapBelow <= BELOW) {
+        r.minX = Math.min(r.minX, c.minX); r.minY = Math.min(r.minY, c.minY)
+        r.maxX = Math.max(r.maxX, c.maxX); r.maxY = Math.max(r.maxY, c.maxY)
+        absorbed.add(c.id)
+      }
+    }
+  }
+
+  // anchors that turned out to be part of a figure (e.g. the y-axis label
+  // 「路程」 misread as question numbers) are not question starts — drop
+  // them before banding
+  bands = bands.filter(a => a.members
+    ? !a.members.some(id => absorbed.has(id))
+    : !absorbed.has(a.id))
 
   // ── geometric binding: figure centre y → band ─────────────────────────
   const bandRanges = bands.map((a, i) => ({

@@ -68,7 +68,9 @@ function renderQuestion(page, q) {
     return `<label class="choice"><input type="radio" name="${esc(key)}" value="${f.fid}" ${checked}/>
       <img src="${src}"/><span>${f.fid}${f.composite ? ' (composite)' : ''}${f.sharedAbove ? ' [題組共用?]' : ''}</span></label>`
   }).join('') +
-    `<label class="choice noimg-choice"><input type="radio" name="${esc(key)}" value="" ${pick ? '' : 'checked'}/><span>無圖</span></label>`
+    `<label class="choice noimg-choice"><input type="radio" name="${esc(key)}" value="" ${pick ? '' : 'checked'}/><span>無圖</span></label>` +
+    `<button class="editbtn" onclick='openEditor(${JSON.stringify(key)}, ${JSON.stringify(page.name)}, ${JSON.stringify(pick ? pick.box : { x: 50, y: 50, w: 300, h: 200 })})'>✂️ 手動調整 crop</button>
+     <div class="custom-slot" id="custom-${esc(key)}"></div>`
   const flags = (q.flags || []).map(f => `<li>⚠️ ${esc(f)}</li>`).join('')
   const opts = q.options ? `<tr><td>options</td><td>${esc(JSON.stringify(q.options))}</td></tr>` : ''
   const topic = q.unit_number
@@ -118,6 +120,14 @@ function renderSheet(title, pages) {
       <img src="${b64img(path.join(page.dir, 'annotated.png')) || ''}"/></details>`
   ).join('\n')
 
+  // original page images for the manual crop editor
+  const pageData = {}
+  for (const page of pages) {
+    const src = page.cand.image && fs.existsSync(page.cand.image)
+      ? b64img(page.cand.image) : null
+    if (src) pageData[page.name] = { src, w: page.cand.width, h: page.cand.height }
+  }
+
   return `<!doctype html><meta charset="utf-8"><title>${esc(title)}</title>
 <style>
 body{font-family:-apple-system,'PingFang TC',sans-serif;max-width:1150px;margin:24px auto;padding:0 16px;color:#222}
@@ -138,6 +148,8 @@ h1{font-size:20px} h2{font-size:15px;color:#555;margin-top:32px} .note{color:#66
 .choice:has(input:checked){border-color:#1D9E75;background:#f2fbf7}
 .choice img{max-width:280px;max-height:170px;object-fit:contain}
 .choice span{font-size:11px;color:#777}
+.editbtn{background:#fff;border:1px dashed #4A90E2;color:#4A90E2;border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;align-self:flex-start}
+.custom-slot .choice{border-color:#4A90E2}
 .alts{display:flex;gap:10px;flex-wrap:wrap}
 .alt img{max-height:130px;border:1px solid #eee;border-radius:6px;display:block}
 .alt span{font-size:11px;color:#999}
@@ -153,10 +165,110 @@ details summary{font-size:12px;color:#4A90E2;cursor:pointer;margin-top:8px}
 <p class="note">Binding 全部嚟自 detect.js 幾何計算；default 揀 crop 係規則（見 contact_sheet.js 注釋）。
 AUTO = band 內唯一 candidate；REVIEW = 多 candidate/composite — 入庫前逐題肉眼確認。</p>
 ${body}
+<div id="editor" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:14px;padding:14px;max-width:96vw;max-height:94vh;overflow:auto">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+      <b style="font-size:14px">✂️ 手動調整 crop</b>
+      <span class="note">拖入面移動 · 拖四角改大小 · 喺空白處拖 = 畫新框</span>
+      <span style="flex:1"></span>
+      <button onclick="saveEditor()" style="background:#1D9E75;color:#fff;border:0;border-radius:8px;padding:8px 16px;cursor:pointer">✓ 用呢個 crop</button>
+      <button onclick="closeEditor()" style="background:#eee;border:0;border-radius:8px;padding:8px 16px;cursor:pointer">取消</button>
+    </div>
+    <canvas id="edcanvas" style="cursor:crosshair;border:1px solid #ddd;border-radius:8px"></canvas>
+  </div>
+</div>
 <script>
+const PAGES = ${JSON.stringify(pageData)}
+const CUSTOM = {}
+let edKey = null, edPage = null, edBox = null, edScale = 1, edImg = null
+let drag = null // {mode:'move'|'nw'|'ne'|'sw'|'se'|'new', sx, sy, box0}
+
+function openEditor(key, pageName, initBox){
+  const p = PAGES[pageName]
+  if (!p) { alert('呢頁嘅原圖唔喺 sheet 入面（舊版 sheet？重新行 batch.js）'); return }
+  edKey = key; edPage = pageName
+  edBox = CUSTOM[key] ? { ...CUSTOM[key] } : { ...initBox }
+  const c = document.getElementById('edcanvas')
+  edScale = Math.min(1, Math.min(1000 / p.w, (window.innerHeight * 0.75) / p.h))
+  c.width = Math.round(p.w * edScale); c.height = Math.round(p.h * edScale)
+  edImg = new Image()
+  edImg.onload = () => { document.getElementById('editor').style.display = 'flex'; drawEditor() }
+  edImg.src = p.src
+}
+function drawEditor(){
+  const c = document.getElementById('edcanvas'), g = c.getContext('2d')
+  g.drawImage(edImg, 0, 0, c.width, c.height)
+  g.fillStyle = 'rgba(0,0,0,.35)'
+  const b = scaled(edBox)
+  g.fillRect(0, 0, c.width, b.y)
+  g.fillRect(0, b.y + b.h, c.width, c.height - b.y - b.h)
+  g.fillRect(0, b.y, b.x, b.h)
+  g.fillRect(b.x + b.w, b.y, c.width - b.x - b.w, b.h)
+  g.strokeStyle = '#ee2222'; g.lineWidth = 2
+  g.strokeRect(b.x, b.y, b.w, b.h)
+  g.fillStyle = '#ee2222'
+  for (const [hx, hy] of corners(b)) { g.beginPath(); g.arc(hx, hy, 6, 0, 7); g.fill() }
+}
+function scaled(b){ return { x: b.x * edScale, y: b.y * edScale, w: b.w * edScale, h: b.h * edScale } }
+function corners(b){ return [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]] }
+document.getElementById('edcanvas').addEventListener('mousedown', e => {
+  const r = e.target.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top
+  const b = scaled(edBox)
+  const names = ['nw', 'ne', 'sw', 'se']
+  const cs = corners(b)
+  for (let i = 0; i < 4; i++) {
+    if (Math.hypot(mx - cs[i][0], my - cs[i][1]) < 10) { drag = { mode: names[i], sx: mx, sy: my, box0: { ...edBox } }; return }
+  }
+  if (mx > b.x && mx < b.x + b.w && my > b.y && my < b.y + b.h) {
+    drag = { mode: 'move', sx: mx, sy: my, box0: { ...edBox } }
+  } else {
+    edBox = { x: mx / edScale, y: my / edScale, w: 1, h: 1 }
+    drag = { mode: 'se', sx: mx, sy: my, box0: { ...edBox } }
+  }
+})
+window.addEventListener('mousemove', e => {
+  if (!drag || !edKey) return
+  const c = document.getElementById('edcanvas'), r = c.getBoundingClientRect()
+  const dx = (e.clientX - r.left - drag.sx) / edScale, dy = (e.clientY - r.top - drag.sy) / edScale
+  const b0 = drag.box0, p = PAGES[edPage]
+  let { x, y, w, h } = b0
+  if (drag.mode === 'move') { x = b0.x + dx; y = b0.y + dy }
+  if (drag.mode === 'se') { w = b0.w + dx; h = b0.h + dy }
+  if (drag.mode === 'nw') { x = b0.x + dx; y = b0.y + dy; w = b0.w - dx; h = b0.h - dy }
+  if (drag.mode === 'ne') { y = b0.y + dy; w = b0.w + dx; h = b0.h - dy }
+  if (drag.mode === 'sw') { x = b0.x + dx; w = b0.w - dx; h = b0.h + dy }
+  if (w < 10) w = 10
+  if (h < 10) h = 10
+  x = Math.max(0, Math.min(x, p.w - w)); y = Math.max(0, Math.min(y, p.h - h))
+  edBox = { x, y, w, h }
+  drawEditor()
+})
+window.addEventListener('mouseup', () => { drag = null })
+function closeEditor(){ document.getElementById('editor').style.display = 'none'; edKey = null }
+function saveEditor(){
+  const box = { x: Math.round(edBox.x), y: Math.round(edBox.y), w: Math.round(edBox.w), h: Math.round(edBox.h) }
+  CUSTOM[edKey] = box
+  // preview thumbnail cropped client-side
+  const p = PAGES[edPage]
+  const cnv = document.createElement('canvas')
+  cnv.width = box.w; cnv.height = box.h
+  cnv.getContext('2d').drawImage(edImg, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h)
+  const slot = document.getElementById('custom-' + edKey)
+  slot.innerHTML = ''
+  const label = document.createElement('label')
+  label.className = 'choice'
+  label.innerHTML = '<input type="radio" name="' + edKey + '" value="__custom__" checked/>' +
+    '<img src="' + cnv.toDataURL('image/png') + '"/><span>手動 crop ' + box.w + '×' + box.h + '</span>'
+  slot.appendChild(label)
+  closeEditor()
+}
 function exportSelection(){
   const sel = {}
-  document.querySelectorAll('input[type=radio]:checked').forEach(r => { sel[r.name] = r.value || null })
+  document.querySelectorAll('input[type=radio]:checked').forEach(r => {
+    sel[r.name] = r.value === '__custom__'
+      ? { box: CUSTOM[r.name] }
+      : (r.value || null)
+  })
   const blob = new Blob([JSON.stringify(sel, null, 2)], {type: 'application/json'})
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob); a.download = 'selection.json'; a.click()
