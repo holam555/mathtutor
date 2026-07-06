@@ -39,38 +39,39 @@ async function main() {
     if (gray < INK_THRESHOLD) ink[i] = 1
   }
 
-  // ── rule/border removal ───────────────────────────────────────────────
-  // Scanned papers have a page frame + a vertical rule separating the
-  // question-number column. Long straight ink runs (≥45% of page dim)
-  // are erased before CC analysis so figures don't fuse into one giant
-  // component. The interior vertical rule doubles as the number-column
-  // boundary for plain-number anchors ("31.").
-  const vRuleXs = []
+  // ── page-frame removal ────────────────────────────────────────────────
+  // Scanned papers have a page frame near the edges (possibly skewed).
+  // Erase long ink runs in the outer 5% margins only — interior lines
+  // (trapezoid bases, table borders) are figure content and must survive.
+  // The interior number-column rule is handled later at CC level, which
+  // tolerates skew (a skewed line breaks into per-column runs that length
+  // thresholds miss, but it's still one tall thin connected component).
   for (let x = 0; x < W; x++) {
+    if (!(x < W * 0.05 || x > W * 0.95)) continue
     let run = 0
     for (let y = 0; y <= H; y++) {
       const on = y < H && ink[y * W + x]
       if (on) run++
       else {
-        if (run >= H * 0.3) {
+        if (run >= H * 0.25) {
           for (let yy = y - run; yy < y; yy++)
             for (let dx = -2; dx <= 2; dx++) {
               const nx = x + dx
               if (nx >= 0 && nx < W) ink[yy * W + nx] = 0
             }
-          vRuleXs.push(x)
         }
         run = 0
       }
     }
   }
   for (let y = 0; y < H; y++) {
+    if (!(y < H * 0.05 || y > H * 0.95)) continue
     let run = 0
     for (let x = 0; x <= W; x++) {
       const on = x < W && ink[y * W + x]
       if (on) run++
       else {
-        if (run >= W * 0.3) {
+        if (run >= W * 0.25) {
           for (let xx = x - run; xx < x; xx++)
             for (let dy = -2; dy <= 2; dy++) {
               const ny = y + dy
@@ -81,8 +82,6 @@ async function main() {
       }
     }
   }
-  const interiorRules = vRuleXs.filter(x => x > W * 0.03 && x < W * 0.5)
-  const numColRight = interiorRules.length ? Math.min(...interiorRules) : null
 
   // ── connected components (8-conn, iterative BFS) ─────────────────────
   const label = new Int32Array(W * H).fill(-1)
@@ -119,6 +118,21 @@ async function main() {
   const cw = c => c.maxX - c.minX + 1
   const chh = c => c.maxY - c.minY + 1
 
+  // ── interior vertical rule (question-number column), skew-tolerant ───
+  // A tall thin CC is a rule piece even when scan skew breaks the naive
+  // per-column run test. Pieces are excluded from figures/attach, and the
+  // rightmost piece in the left 40% of the page marks the number-column
+  // boundary used by anchor profile B and crop clipping.
+  const rulePieces = new Set()
+  let numColRight = null
+  for (const c of comps) {
+    if (cw(c) <= 14 && chh(c) >= H * 0.25) {
+      rulePieces.add(c.id)
+      if ((c.minX + c.maxX) / 2 < W * 0.4)
+        numColRight = Math.max(numColRight ?? 0, c.maxX)
+    }
+  }
+
   // ── anchor detection: circled question numbers near left margin ──────
   // square-ish CC, 14-48px, centre within left 9% of page.
   // Distinguish a number-circle (hollow ring, dark ink) from lightbulb
@@ -152,9 +166,9 @@ async function main() {
   const anchorCandidates = comps.filter(c => {
     const w = cw(c), h = chh(c)
     const cx = (c.minX + c.maxX) / 2
-    return w >= 12 && w <= 48 && h >= 12 && h <= 48 &&
+    return w >= 9 && w <= 48 && h >= 9 && h <= 48 &&
       Math.abs(w - h) <= Math.max(w, h) * 0.45 &&
-      cx <= W * 0.10 && c.n >= 22
+      cx <= W * 0.10 && c.n >= 14
   })
   const anchors = anchorCandidates.filter(c => {
     const s = ccStats(c)
@@ -211,13 +225,26 @@ async function main() {
   // ── figure seeds: any large CC that's not an anchor ───────────────────
   const isAnchor = new Set(bands.map(a => a.id))
   const inNumCol = c => numColRight != null && c.maxX < numColRight
-  // border/rule remnants that survived line erasure (skewed scans)
-  const isBorder = c => chh(c) > H * 0.85 || cw(c) > W * 0.85
+  // border/rule remnants that survived line erasure (skewed scans).
+  // Full-span pieces are obvious; broken segments give themselves away by
+  // hugging the outer 2% of the page while being long and extremely
+  // sparse (a zigzag line fills <8% of its own bbox — real figures ≥8%)
+  const isBorder = c => {
+    if (chh(c) > H * 0.85 || cw(c) > W * 0.85) return true
+    const touchesEdge = c.minX < W * 0.02 || c.maxX > W * 0.98 ||
+                        c.minY < H * 0.02 || c.maxY > H * 0.98
+    const long = chh(c) > H * 0.3 || cw(c) > W * 0.3
+    const sparse = c.n / (cw(c) * chh(c)) < 0.08
+    return touchesEdge && long && sparse
+  }
   let regions = comps
     .filter(c => !isAnchor.has(c.id) && !inNumCol(c) && !isBorder(c) &&
-                 Math.max(cw(c), chh(c)) >= 50)
-    .map(c => ({ minX: c.minX, minY: c.minY, maxX: c.maxX, maxY: c.maxY,
-                 n: c.n, pinkN: c.pinkN }))
+                 !rulePieces.has(c.id) && Math.max(cw(c), chh(c)) >= 50)
+    .map(c => {
+      if (process.env.DEBUG) console.error(`seed ${c.minX},${c.minY} ${cw(c)}x${chh(c)} n=${c.n}`)
+      return { minX: c.minX, minY: c.minY, maxX: c.maxX, maxY: c.maxY,
+               n: c.n, pinkN: c.pinkN, thick: Math.min(cw(c), chh(c)) }
+    })
 
   // ── tinted-fill seeds: light colored panels (tables/charts with a
   //    background fill are too light to register as ink) ────────────────
@@ -256,7 +283,7 @@ async function main() {
     // solid panel: many pixels, reasonably filled, not a thin strip
     if (n >= 4000 && w >= 80 && h >= 50 && n / (w * h) > 0.3 &&
         !(w > W * 0.95 && h > H * 0.95)) {
-      regions.push({ minX, minY, maxX, maxY, n, pinkN: 0 })
+      regions.push({ minX, minY, maxX, maxY, n, pinkN: 0, thick: Math.min(w, h) })
     }
   }
 
@@ -272,7 +299,7 @@ async function main() {
             a.minY - GAP <= b.maxY && b.minY - GAP <= a.maxY) {
           a.minX = Math.min(a.minX, b.minX); a.minY = Math.min(a.minY, b.minY)
           a.maxX = Math.max(a.maxX, b.maxX); a.maxY = Math.max(a.maxY, b.maxY)
-          a.n += b.n; a.pinkN += b.pinkN
+          a.n += b.n; a.pinkN += b.pinkN; a.thick = Math.max(a.thick, b.thick)
           regions.splice(j, 1); merged = true; break outer
         }
       }
@@ -284,20 +311,31 @@ async function main() {
   // CCs must touch the figure itself. Growing the test bbox lets text
   // lines chain region→char→char until a whole page fuses (observed on
   // scanned pages with inline pictures).
+  // ATTACH_GAP is wider than the merge GAP: dimension labels ("1.35 米")
+  // sit 15-30px off the shape; the frozen-bbox test still prevents text
+  // chaining because attachment never extends the tested bbox.
+  const ATTACH_GAP = 28
   const frozen = regions.map(r => ({ minX: r.minX, minY: r.minY, maxX: r.maxX, maxY: r.maxY }))
   for (const c of comps) {
     if (isAnchor.has(c.id) || inNumCol(c) || isBorder(c) ||
-        Math.max(cw(c), chh(c)) >= 50) continue
+        rulePieces.has(c.id) || Math.max(cw(c), chh(c)) >= 50) continue
     for (let ri = 0; ri < regions.length; ri++) {
       const fz = frozen[ri], r = regions[ri]
-      if (c.minX - GAP <= fz.maxX && fz.minX - GAP <= c.maxX &&
-          c.minY - GAP <= fz.maxY && fz.minY - GAP <= c.maxY) {
+      if (c.minX - ATTACH_GAP <= fz.maxX && fz.minX - ATTACH_GAP <= c.maxX &&
+          c.minY - ATTACH_GAP <= fz.maxY && fz.minY - ATTACH_GAP <= c.maxY) {
         r.minX = Math.min(r.minX, c.minX); r.minY = Math.min(r.minY, c.minY)
         r.maxX = Math.max(r.maxX, c.maxX); r.maxY = Math.max(r.maxY, c.maxY)
         r.n += c.n; r.pinkN += c.pinkN
         break
       }
     }
+  }
+
+  // clip regions at the number-column boundary so "31." never bleeds
+  // into a crop
+  if (numColRight != null) {
+    for (const r of regions) r.minX = Math.max(r.minX, numColRight + 3)
+    regions = regions.filter(r => r.maxX > r.minX)
   }
 
   // filter tiny leftovers + full-page frames + write-in answer blanks
@@ -309,7 +347,13 @@ async function main() {
     if (w > W * 0.95 && h > H * 0.95) return false
     const pinkRatio = r.pinkN / r.n
     if (h < 55 && w / h > 5) return false          // bare underline strip
-    if (pinkRatio > 0.35 && h < 90) return false   // pink answer on a blank
+    if (pinkRatio > 0.18 && h < 70) return false   // pink answer on a blank
+    // text/blank blocks: every member CC is glyph-sized or a thin line
+    // (bold CJK rows fuse into CCs up to ~0.045W thick). A real figure has
+    // at least one member ≥5% of page width thick in BOTH axes (clock
+    // ring, beaker outline, photo blob, tinted panel…)
+    if (process.env.DEBUG) console.error(`region ${r.minX},${r.minY} ${w}x${h} thick=${r.thick} pink=${pinkRatio.toFixed(2)}`)
+    if (r.thick < Math.max(42, W * 0.05)) return false
     return true
   })
 
@@ -322,13 +366,23 @@ async function main() {
     .sort((a, b) => a.minY - b.minY || a.minX - b.minX)
     .map((r, i) => {
       const cy = (r.minY + r.maxY) / 2
-      const band = bandRanges.find(b => cy >= b.top && cy < b.bottom)
-      const fullyInside = band ? r.minY >= band.top && r.maxY <= band.bottom : false
+      let band = bandRanges.find(b => cy >= b.top && cy < b.bottom)
+      // shared figure printed ABOVE the first question of its group
+      // (chart pages: 折線圖 / 行程圖 layout) — bind to the first band and
+      // tag it so the reviewer knows the whole group shares it
+      let sharedAbove = false
+      if (!band && bandRanges.length && cy < bandRanges[0].top) {
+        band = bandRanges[0]
+        sharedAbove = true
+      }
+      const fullyInside = band && !sharedAbove
+        ? r.minY >= band.top && r.maxY <= band.bottom : false
       return {
         fid: `F${i + 1}`,
         box: { x: r.minX, y: r.minY, w: r.maxX - r.minX + 1, h: r.maxY - r.minY + 1 },
         band: band ? band.idx : null,
         fullyInsideBand: fullyInside,
+        ...(sharedAbove ? { sharedAbove: true } : {}),
         pinkRatio: +(r.pinkN / r.n).toFixed(3),
       }
     })

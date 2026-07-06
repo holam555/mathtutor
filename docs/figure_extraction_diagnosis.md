@@ -214,7 +214,27 @@ essential figures recall 100%（核對過嘅頁面）。**
 
 ### 已解決嘅政策問題（2026-07-06 review）
 
-1. **裝飾圖唔入庫** — verifier 出 `essential: false` 嘅 crop 唔會出現喺 seed SQL；
-   contact sheet 仍然顯示（俾人 override，以防 verifier 錯判）。
+1. **裝飾圖唔入庫** — contact sheet tick「無圖」；只有 tick 咗嘅 crop 先入 SQL。
 2. **手影相 deskew/glare** — Phase 3（Path B 專屬前處理）。
-3. **折線圖/行程圖 folders** — Phase 2 acceptance test。
+3. **折線圖/行程圖 folders** — Phase 2 acceptance test（已 PASS，見下）。
+4. **非數字答案一律 MC**（2026-07-06 追加）— `fill_in_number` 只可以係
+   純數字/小數/分數/帶分數；答案含中文（`4小時5分鐘`）或 C6 字元（`:` 等）
+   必須轉 `multiple_choice`，`gen_seed.js` 會 hard-fail 擋住。
+
+### Phase 2 完成（2026-07-06）
+
+工具鏈：`scripts/extract_figures/`（README 有完整 Path A runbook）
+
+- `batch.js` — folder → 每頁 detect + transcription stub + combined contact sheet
+- `contact_sheet.js` — DB-row preview + 每題 radio 揀 crop + Export selection.json
+- `gen_seed.js` — selection + transcription → idempotent seed SQL（policy
+  validation hard-fail）+ upload manifest（接返 `upload_lq_images.ts`）
+
+真掃描卷 sample（Q31-33）end-to-end 驗證：頁框/題號欄處理、朴素數字 anchor、
+pictorial composite（Q31 壺杯成套圖）、group_id 共用圖（Q32a/b 時鐘）、
+政策 gate negative test 全部通過。Acceptance（折線圖/行程圖）PASS：
+行程圖 3 頁每頁恰好 1 candidate = chart，junk 0。
+
+**未做（Phase 3 / 後續）**：手影相前處理 + 接入 past-paper upload route（Path B，
+Gemini native box_2d 取代 percent-bbox）；purely 幼線 figure 會被 thickness
+filter 誤殺（人手補）；雙欄 layout。
