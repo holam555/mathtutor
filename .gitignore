@@ -56,6 +56,10 @@ _crops:/
 # Same content in the colon-suffixed variant dir (created by a path typo);
 # without this line `git add -A` stages 350+ copyrighted exam screenshots.
 _lq_input:/
+# Paper-ingestion inputs (copyrighted exam content stays local)
+/image folder/
+/image trial .pdf
+*_extract_out/
 
 # Supabase CLI temp
 supabase/.temp/
