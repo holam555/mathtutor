@@ -4,7 +4,10 @@
  * build one combined contact sheet for review.
  *
  * Usage:
- *   node scripts/extract_figures/batch.js <folder> [--out <dir>] [--title <t>]
+ *   node scripts/extract_figures/batch.js <folder-or-pdf> [--out <dir>] [--title <t>]
+ *
+ * PDF input: pages are rendered to PNG at 150 dpi via pdftoppm (poppler,
+ * `brew install poppler`) into <out>/_pages/ and processed from there.
  *
  * Outputs under --out (default: <folder>/_extract_out):
  *   <page>/candidates.json, crops, annotated.png    per page (from detect.js)
@@ -25,14 +28,29 @@ const path = require('path')
 const { renderSheet } = require('./contact_sheet')
 
 const args = process.argv.slice(2)
-const folder = args[0]
-if (!folder || !fs.existsSync(folder)) {
-  console.error('usage: node batch.js <folder> [--out <dir>] [--title <t>]')
+let input = args[0]
+if (!input || !fs.existsSync(input)) {
+  console.error('usage: node batch.js <folder-or-pdf> [--out <dir>] [--title <t>]')
   process.exit(1)
 }
 const flag = (n) => { const i = args.indexOf('--' + n); return i >= 0 ? args[i + 1] : null }
-const OUT = flag('out') || path.join(folder, '_extract_out')
-const TITLE = flag('title') || path.basename(folder)
+const isPdf = /\.pdf$/i.test(input)
+const OUT = flag('out') ||
+  (isPdf ? input.replace(/\.pdf$/i, '') + '_extract_out' : path.join(input, '_extract_out'))
+const TITLE = flag('title') || path.basename(input)
+
+let folder = input
+if (isPdf) {
+  folder = path.join(OUT, '_pages')
+  fs.mkdirSync(folder, { recursive: true })
+  try {
+    execFileSync('pdftoppm', ['-png', '-r', '150', input, path.join(folder, 'page')])
+  } catch (e) {
+    console.error('pdftoppm failed — install poppler: brew install poppler')
+    process.exit(1)
+  }
+  console.log(`PDF → ${fs.readdirSync(folder).length} page PNGs (150 dpi) in ${folder}`)
+}
 
 const exts = new Set(['.png', '.jpg', '.jpeg', '.webp'])
 const images = fs.readdirSync(folder)
