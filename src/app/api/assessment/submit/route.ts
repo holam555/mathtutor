@@ -13,7 +13,6 @@ import {
 import { computeDiagnosticTier } from '@/types/assessment'
 import type { AssessmentAnswer } from '@/types/assessment'
 import { isAnswerCorrect } from '@/lib/answerUtils'
-import { getAssessmentPaper } from '@/data/assessmentQuestions'
 import { rateLimit, clientIp } from '@/lib/rateLimit'
 
 // Gemini report generation can take 20–40 s; 60 s keeps us under Vercel Pro limit.
@@ -66,51 +65,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '缺少必填資料' }, { status: 400 })
   }
 
-  // DB-backed grades (P3 + P5) use unit/topic-aware module results and server-side regrading.
+  // DB-backed grades (P3–P6) use unit/topic-aware module results and server-side regrading.
   const isDbMode = DB_BACKED_GRADES.has(grade)
   const isP3Mode = grade === 3
   const drillDownToTopic = isDbMode && (selected_topic_ids?.length ?? 0) > 0
 
   // ── SECURITY: re-grade every answer server-side ──────────────────────────
-  // The client never sees the correct answer (stripped from /api/assessment/questions).
-  // Trusting client-supplied is_correct/correct_answer would let anyone score 100%.
+  // The client never sees the correct answer (stripped from /api/assessment/questions),
+  // so is_correct MUST be recomputed here — trusting the client would let anyone
+  // score 100%. All active grades (P3–P6) are DB-backed; any answer whose id we
+  // can't resolve (unknown / deleted / crafted) grades as WRONG. We never leave the
+  // client-supplied is_correct in place, even when nothing resolves.
   {
     const supabaseGrade = createServiceClient()
-
-    if (isDbMode) {
-      // P3 + P5 DB path: fetch correct_answer from assessment_questions by UUID.
-      const dbIds = answers.map((a) => a.question_id).filter((id) => !id.startsWith('hc-'))
-      if (dbIds.length > 0) {
-        const { data: rows } = await supabaseGrade
-          .from('assessment_questions')
-          .select('id, correct_answer')
-          .in('id', dbIds)
-        const answerMap = new Map<string, string>()
-        for (const r of rows ?? []) answerMap.set(r.id as string, (r.correct_answer as string) ?? '')
-        for (const a of answers) {
-          const ca = answerMap.get(a.question_id) ?? ''
-          a.correct_answer = ca
-          a.is_correct = ca ? isAnswerCorrect(a.student_answer, ca) : false
-        }
-      }
-    } else {
-      // Legacy P4/P6 hardcoded path: derive correct_answer by index encoded in id.
-      const paper = month ? getAssessmentPaper(grade, month) : null
-      if (paper) {
-        for (const a of answers) {
-          const m = /^hc-(\d+)-(\d+)-(\d+)$/.exec(a.question_id)
-          if (!m) {
-            a.is_correct = false
-            a.correct_answer = ''
-            continue
-          }
-          const idx = parseInt(m[3], 10)
-          const q = paper.questions[idx]
-          const ca = q?.correct_answer ?? ''
-          a.correct_answer = ca
-          a.is_correct = ca ? isAnswerCorrect(a.student_answer, ca) : false
-        }
-      }
+    const dbIds = answers.map((a) => a.question_id).filter((id) => id && !id.startsWith('hc-'))
+    const answerMap = new Map<string, string>()
+    if (dbIds.length > 0) {
+      const { data: rows } = await supabaseGrade
+        .from('assessment_questions')
+        .select('id, correct_answer')
+        .in('id', dbIds)
+      for (const r of rows ?? []) answerMap.set(r.id as string, (r.correct_answer as string) ?? '')
+    }
+    for (const a of answers) {
+      const ca = answerMap.get(a.question_id) ?? ''
+      a.correct_answer = ca
+      a.is_correct = ca ? isAnswerCorrect(a.student_answer, ca) : false
     }
   }
 

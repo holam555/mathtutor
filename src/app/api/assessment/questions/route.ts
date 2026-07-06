@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAssessmentPaper } from '@/data/assessmentQuestions'
 import { createServiceClient } from '@/lib/supabase/server'
 import {
   selectQuestions,
@@ -13,8 +12,9 @@ import { rateLimit, clientIp } from '@/lib/rateLimit'
 import { signQuestionImage } from '@/lib/storage'
 
 // GET /api/assessment/questions
-//   DB-backed mode (P3, P5): ?grade=3&unit_ids=uuid,uuid (or topic_ids=uuid,uuid)
-//   Legacy mode (P4, P6): ?grade=4&month=9  → reads hardcoded data
+//   ?grade=3&unit_ids=uuid,uuid (or topic_ids=uuid,uuid)
+// All grades (P3–P6) are DB-backed. The legacy hardcoded-paper path
+// (getAssessmentPaper + hc- ids) was removed in the 2026-07 cleanup.
 const DB_BACKED_GRADES = new Set([3, 4, 5, 6])
 
 export async function GET(request: NextRequest) {
@@ -37,36 +37,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: '請提供年級' }, { status: 400 })
   }
 
-  // ─── Legacy P4/P6 path ───────────────────────────────────────────────────
+  // Grades outside P3–P6 have no question pool.
   if (!DB_BACKED_GRADES.has(grade)) {
-    const month = parseInt(searchParams.get('month') ?? '', 10)
-    if (!month) {
-      return NextResponse.json({ error: '請提供入學月份' }, { status: 400 })
-    }
-
-    const paper = getAssessmentPaper(grade, month)
-    if (!paper) {
-      return NextResponse.json({ error: '暫未支援該版本評估，敬請期待', empty: true }, { status: 200 })
-    }
-
-    // SECURITY: never send correct_answer to the client — server grades on submit.
-    const questions: AssessmentQuestion[] = paper.questions.map((q, i) => ({
-      id: `hc-${grade}-${month}-${i}`,
-      category_id: '',
-      question_text: q.question_text,
-      question_image_url: null,
-      question_type: q.question_type,
-      options: q.options ?? null,
-      correct_answer: '',
-      difficulty: 1,
-      is_active: true,
-      created_at: new Date().toISOString(),
-      category: undefined,
-      module_name: q.module_name,
-    }))
-
-    const modules = Array.from(new Set(paper.questions.map((q) => q.module_name)))
-    return NextResponse.json({ questions, modules })
+    return NextResponse.json({ error: '暫未支援該年級評估，敬請期待', empty: true }, { status: 200 })
   }
 
   // ─── DB-backed path (P3, P4, P5, P6): load curriculum + select from assessment_questions ────
