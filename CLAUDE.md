@@ -97,17 +97,26 @@
 | `seed_p4_curriculum.sql` + `seed_p4_assessment.sql` | P4 17 大單元 + 156 條題目 | ✅ active |
 | `seed_p5_curriculum.sql` | 舊 P5 curriculum (仲用緊，因為 unit name 一致) | ✅ active (curriculum 部分) |
 | `seed_p5_replacement.sql` | 新 P5 231 條題目 + deactivate 舊 P5 pool | ✅ active (新題目) |
-| `seed_p5_assessment_questions.sql` | 舊 P5 hardcoded sept/nov/jan (52 條) | ❌ inactive (deactivated by replacement) |
-| `seed_p5_exam_review.sql` | 舊 P5 期末複習手冊 (94 條) | ❌ 未 apply (用唔到，新 pool 取代) |
-| `seed_p5_image_questions.sql` | 舊 P5 image questions (43 條) | ❌ 未 apply |
+| ~~`seed_p5_assessment_questions.sql`~~ | 舊 P5 hardcoded sept/nov/jan (52 條) | ❌ inactive；檔案已由 repo 移除（2026-07 cleanup），數據以 inactive 保存喺 DB |
+| ~~`seed_p5_exam_review.sql`~~ | 舊 P5 期末複習手冊 | ❌ 檔案已刪；DB 實有 94 rows（`五年級期末複習手冊`，全部 inactive — 曾 apply 後被 replacement 停用，並非「未 apply」） |
+| ~~`seed_p5_image_questions.sql`~~ | 舊 P5 image questions | ❌ 檔案已刪；DB 有 43 rows（`p5_image_questions`，inactive） |
+| `seed_p5_long_questions_sample.sql` | P5 LQ sample（3 條，`p5_sample_2026_paper2`） | ✅ **active in long_questions**（個名叫 sample 但係 live seed，唔好刪） |
 | `seed_p6_curriculum.sql` + `seed_p6_assessment.sql` | P6 13 大單元 + 169 條題目 | ✅ active |
+| ~~`seed_p6aa_test.sql`~~ | P6AA 實驗 batch | ❌ 從未 apply（DB 零 `p6aa` rows）；已由 repo 移除（2026-07 cleanup） |
 
 **Apply order in Supabase SQL editor** (新 setup 由零開始)：
 ```
+0. (P3) 0014 migration → seed_p3_curriculum.sql → seed_p3_teaching_methods.sql
+       → seed_p3_assessment_questions.sql + seed_p3_extracted/*.sql
 1. seed_p4_curriculum.sql      → seed_p4_assessment.sql
 2. seed_p6_curriculum.sql      → seed_p6_assessment.sql
 3. seed_p5_replacement.sql     (UPDATE old to inactive + INSERT new)
+4. (LQ) seed_p3a/p3b/p4a/p4b1/p4b2/p5a/p5b/p6_1-3 _lq_batch.sql
+       + seed_p5_long_questions_sample.sql → update_lq_image_urls.sql
 ```
+
+> 🧹 2026-07 cleanup：一次性 hotfix `fix_*.sql`（13 檔，已 apply）同上述已標示檔案已由 repo 移除
+> （git history 可還原）；一次性報告移咗入 `docs/archive/`。詳見 `docs/repo_cleanup_report.md`。
 
 ### C1–C8 驗證 Checklist
 
