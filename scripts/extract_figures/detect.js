@@ -39,6 +39,51 @@ async function main() {
     if (gray < INK_THRESHOLD) ink[i] = 1
   }
 
+  // ── rule/border removal ───────────────────────────────────────────────
+  // Scanned papers have a page frame + a vertical rule separating the
+  // question-number column. Long straight ink runs (≥45% of page dim)
+  // are erased before CC analysis so figures don't fuse into one giant
+  // component. The interior vertical rule doubles as the number-column
+  // boundary for plain-number anchors ("31.").
+  const vRuleXs = []
+  for (let x = 0; x < W; x++) {
+    let run = 0
+    for (let y = 0; y <= H; y++) {
+      const on = y < H && ink[y * W + x]
+      if (on) run++
+      else {
+        if (run >= H * 0.3) {
+          for (let yy = y - run; yy < y; yy++)
+            for (let dx = -2; dx <= 2; dx++) {
+              const nx = x + dx
+              if (nx >= 0 && nx < W) ink[yy * W + nx] = 0
+            }
+          vRuleXs.push(x)
+        }
+        run = 0
+      }
+    }
+  }
+  for (let y = 0; y < H; y++) {
+    let run = 0
+    for (let x = 0; x <= W; x++) {
+      const on = x < W && ink[y * W + x]
+      if (on) run++
+      else {
+        if (run >= W * 0.3) {
+          for (let xx = x - run; xx < x; xx++)
+            for (let dy = -2; dy <= 2; dy++) {
+              const ny = y + dy
+              if (ny >= 0 && ny < H) ink[ny * W + xx] = 0
+            }
+        }
+        run = 0
+      }
+    }
+  }
+  const interiorRules = vRuleXs.filter(x => x > W * 0.03 && x < W * 0.5)
+  const numColRight = interiorRules.length ? Math.min(...interiorRules) : null
+
   // ── connected components (8-conn, iterative BFS) ─────────────────────
   const label = new Int32Array(W * H).fill(-1)
   const comps = [] // {id, minX, minY, maxX, maxY, n, pinkN}
@@ -129,16 +174,48 @@ async function main() {
   }).sort((a, b) => a.minY - b.minY)
 
   // dedupe anchors vertically (stacked icons on the same line)
-  const bands = []
+  let bands = []
   for (const a of anchors) {
     if (bands.length && a.minY - bands[bands.length - 1].minY < 30) continue
     bands.push(a)
   }
 
+  // ── anchor profile B: plain question numbers ("31.") in a left column ─
+  // Scanned exam papers put bare numbers in a column left of a vertical
+  // rule. Cluster small CCs in that column by line; each cluster is an
+  // anchor. Only used when it finds MORE anchors than the ring profile
+  // (workbook pages keep their ring anchors).
+  const colRight = numColRight ?? W * 0.08
+  const colCCs = comps.filter(c => {
+    const w = cw(c), h = chh(c)
+    return c.maxX < colRight && h >= 8 && h <= 45 && w >= 3 && w <= 45 &&
+      c.n >= 12
+  }).sort((a, b) => a.minY - b.minY)
+  const numClusters = []
+  for (const c of colCCs) {
+    const last = numClusters[numClusters.length - 1]
+    if (last && c.minY - last.maxY < 18) {
+      last.minX = Math.min(last.minX, c.minX); last.minY = Math.min(last.minY, c.minY)
+      last.maxX = Math.max(last.maxX, c.maxX); last.maxY = Math.max(last.maxY, c.maxY)
+      last.members.push(c.id)
+    } else {
+      numClusters.push({ id: `num${numClusters.length}`, minX: c.minX, minY: c.minY,
+        maxX: c.maxX, maxY: c.maxY, members: [c.id] })
+    }
+  }
+  const numberAnchors = numClusters.filter(cl =>
+    cl.members.length >= 1 && cl.members.length <= 5 &&
+    (cl.maxX - cl.minX) <= 90 && (cl.maxY - cl.minY) <= 50)
+  if (numberAnchors.length > bands.length) bands = numberAnchors
+
   // ── figure seeds: any large CC that's not an anchor ───────────────────
   const isAnchor = new Set(bands.map(a => a.id))
+  const inNumCol = c => numColRight != null && c.maxX < numColRight
+  // border/rule remnants that survived line erasure (skewed scans)
+  const isBorder = c => chh(c) > H * 0.85 || cw(c) > W * 0.85
   let regions = comps
-    .filter(c => !isAnchor.has(c.id) && Math.max(cw(c), chh(c)) >= 50)
+    .filter(c => !isAnchor.has(c.id) && !inNumCol(c) && !isBorder(c) &&
+                 Math.max(cw(c), chh(c)) >= 50)
     .map(c => ({ minX: c.minX, minY: c.minY, maxX: c.maxX, maxY: c.maxY,
                  n: c.n, pinkN: c.pinkN }))
 
@@ -203,11 +280,18 @@ async function main() {
   }
 
   // ── attach small CCs (dimension labels) intersecting a region ────────
+  // Intersection is tested against the FROZEN pre-attach bbox: attached
+  // CCs must touch the figure itself. Growing the test bbox lets text
+  // lines chain region→char→char until a whole page fuses (observed on
+  // scanned pages with inline pictures).
+  const frozen = regions.map(r => ({ minX: r.minX, minY: r.minY, maxX: r.maxX, maxY: r.maxY }))
   for (const c of comps) {
-    if (isAnchor.has(c.id) || Math.max(cw(c), chh(c)) >= 50) continue
-    for (const r of regions) {
-      if (c.minX - GAP <= r.maxX && r.minX - GAP <= c.maxX &&
-          c.minY - GAP <= r.maxY && r.minY - GAP <= c.maxY) {
+    if (isAnchor.has(c.id) || inNumCol(c) || isBorder(c) ||
+        Math.max(cw(c), chh(c)) >= 50) continue
+    for (let ri = 0; ri < regions.length; ri++) {
+      const fz = frozen[ri], r = regions[ri]
+      if (c.minX - GAP <= fz.maxX && fz.minX - GAP <= c.maxX &&
+          c.minY - GAP <= fz.maxY && fz.minY - GAP <= c.maxY) {
         r.minX = Math.min(r.minX, c.minX); r.minY = Math.min(r.minY, c.minY)
         r.maxX = Math.max(r.maxX, c.maxX); r.maxY = Math.max(r.maxY, c.maxY)
         r.n += c.n; r.pinkN += c.pinkN
@@ -248,6 +332,34 @@ async function main() {
         pinkRatio: +(r.pinkN / r.n).toFixed(3),
       }
     })
+
+  // ── composite candidates ──────────────────────────────────────────────
+  // Pictorial questions (inline pictures as question content) produce
+  // several candidates in one band. Emit the union bbox as an extra
+  // candidate so the reviewer can pick "whole assembly" vs individual
+  // pieces. Default pick downstream: composite when a band has ≥3
+  // members, individual otherwise.
+  const byBand = new Map()
+  for (const f of figures) {
+    if (f.band == null) continue
+    if (!byBand.has(f.band)) byBand.set(f.band, [])
+    byBand.get(f.band).push(f)
+  }
+  for (const [band, members] of byBand) {
+    if (members.length < 2) continue
+    const minX = Math.min(...members.map(m => m.box.x))
+    const minY = Math.min(...members.map(m => m.box.y))
+    const maxX = Math.max(...members.map(m => m.box.x + m.box.w))
+    const maxY = Math.max(...members.map(m => m.box.y + m.box.h))
+    figures.push({
+      fid: `F${band}composite`,
+      box: { x: minX, y: minY, w: maxX - minX, h: maxY - minY },
+      band, fullyInsideBand: true,
+      pinkRatio: 0,
+      composite: true,
+      members: members.map(m => m.fid),
+    })
+  }
 
   // ── outputs ───────────────────────────────────────────────────────────
   const result = {
