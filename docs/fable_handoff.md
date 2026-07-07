@@ -12,9 +12,10 @@
 | 4. 題庫檢查 skill | ✅ Opus 完成：`.claude/skills/question-bank-check/` |
 | 6. Code review | ✅ Opus 完成 review + 修咗 #1（dead legacy grading 分支）、#2（hc- id 繞過 regrade）。餘下 #3/#4/#5 為 nice-to-have，見文末。 |
 | 5. Repo cleanup | ✅ Fable 完成（2026-07-05）：報告 docs/repo_cleanup_report.md，已執行 quarantine + archive + dead-code 移除，全部驗證過。用戶手動搬走 `_cleanup_quarantine/` 即完成 |
-| 7. Ingestion skill | ⬜ Fable — **Prompt 2** |
+| 7. Ingestion skill | ✅ Fable 完成（2026-07-06）：`.claude/skills/paper-ingestion/`（7-stage 一條龍，SOP 藍圖 `docs/paper_ingestion_sop_draft.md`）。首次實戰 p6_21c：37 AQ + 4 LQ + 12 圖 |
 | SEO 可持續 skills | ⬜ Fable — **Prompt 3** |
 | Code-review + Security skills | ⬜ Fable — **Prompt 4** |
+| 圖片抽取＋綁定題目（長期難題） | ✅ Fable 完成（2026-07-06）：Phase 1-3 全落地（CV 幾何綁定，Path A CLI + Path B 家長流程）。診斷+設計：`docs/figure_extraction_diagnosis.md`；branch `feat/figure-extraction-pipeline` |
 
 ## 點樣 prompt Fable（granularity）
 
@@ -118,6 +119,43 @@ Skill C（mathtutor-security）要 audit 嘅 attack surface（先 grep 盤點再
 
 兩個 skill 各出 SKILL.md（checklist + 每項點捉 + mathtutor 例子）；security 另出 reference.md（三角色權限矩陣 + createServiceClient 使用守則）。先出草稿等 review，唔好一次過生成。
 ```
+
+---
+
+## Prompt 5 — 圖片抽取 + 綁定正確題目（長期難題，只講 goal）
+
+> 背景：呢個係 image-dependent 題目一直入唔到庫嘅根本原因。之前幾次方法都失敗。用戶明確話：只講 goal，方法由 Fable 自己諗；Fable 要先 track 返 problem-solving history 再嘗試解決。
+
+```
+你係 Fable。有一個一直搞唔掂嘅難題要你解決 —— 之前幾次方法都失敗。
+
+🎯 GOAL（只講目標，方法你自己決定）：
+畀 AI 睇一版完整嘅 past paper（相 / PDF page，未 crop），要可靠咁：
+(1) 判斷邊條題目附帶圖 / 圖表 / 圖形；
+(2) 喺原頁面搵到嗰個圖嘅位置並 crop 出嚟（乾淨、只含該題嘅圖）；
+(3) 把 crop 出嚟嘅圖正確 bind 返去對應嘅題目（唔可以配錯題）。
+最終令 image-dependent 題目可以自動入庫，而唔係好似而家一律人手 skip / 人手 crop。
+
+📌 先做（重要）：
+1. Track 返過去嘅 problem-solving history —— 用 session 搜尋 / transcript 工具，搵返之前試過咩方法、喺邊一步失敗、失敗模式係咩（配錯題？crop 唔準？漏圖？多圖分唔開？）。唔好由零開始重蹈覆轍。
+2. 讀現有 pipeline + 資料模型做 grounding（見下）。
+3. 診斷「點解之前失敗」，提出你嘅 approach 畀用戶 review，再動手 build / 試。
+
+🧭 Grounding（現況，唔係叫你跟）：
+- 現行做法：docs/lq_seed_workflow.md —— 人手 crop diagram 放 _lq_input/p<N>/images/，再由 AI 靠 question text + 檔名 confidence 去 match（連呢個 match 步驟都「quite failed」）。
+- Image plumbing：scripts/upload_lq_images.ts（`local:…` placeholder → Supabase Storage）、src/lib/storage.ts signQuestionImage、past-paper crop UI 喺 src/app/admin/past-papers/[id]/ReviewForm.tsx。
+- 資料模型：assessment_questions.image_url + image_alt_text；long_questions.image_url。
+- CLAUDE.md「Image-dependent questions」：新題庫而家一律 SKIP，就係因為呢個問題未解決。
+
+🔴 硬性要求：
+- 唔可以配錯題（wrong figure↔question binding 係最大失敗模式，方案要自帶驗證 + 可信度分）。
+- 唔可以影響任何 live 題庫 row（read + 提議，唔好亂改 DB）。
+- 方案要可驗證：要有辦法畀人快速肉眼 confirm「呢個 crop 屬於呢題」先入庫。
+
+方法（cropping 技術、bounding box、OCR、tiling、multi-pass、human-in-the-loop… 全部）由你決定。呢個係難題，Fable 就係嚟諗突破。先出「失敗診斷 + approach」草稿等 review，唔好即刻寫大 pipeline。
+```
+
+呢個解決咗之後，成果會直接餵返 Prompt 2（Task 7 ingestion skill）—— 圖片步驟係嗰個 skill 目前最弱嘅一環。
 
 ---
 

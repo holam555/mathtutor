@@ -59,11 +59,25 @@
 - ✅ Question text 中提及嘅帶分數
 - ⚠️ 例外：自然中文嘅 `又` (e.g. "又進貨了 30 公斤") **唔可以** 改 — 只有「`數字又數字/數字`」嘅 pattern 先轉
 
-### Image-dependent questions
+### Image-dependent questions（2026-07-06 起有自動化 pipeline，唔再一律 SKIP）
 
-**新題庫一律 SKIP** (圖形描述、作圖、補全棒形圖、point-counting 立體積木、圓形圖閱讀、行程圖)。Image questions 由人手另行處理。
+圖題而家由 **figure-extraction pipeline** 處理（CV 幾何偵測 + 人手 gate；
+失敗史 + 設計 + 三個 Phase 嘅完整記錄：**`docs/figure_extraction_diagnosis.md`**）：
 
-當前 P5 仲有 43 條 image questions 由舊 `questions` table migrate 過嚟（`source_paper = 'p5_image_questions'`），目前 `is_active = false` (deactivated)。
+- **Path A（自己嘅卷入庫，Claude Code 內做，零 API）**：
+  `scripts/extract_figures/`（batch.js → transcription → contact sheet 剔選/✂️手動框
+  → gen_seed.js 出 idempotent SQL + upload manifest）。Runbook 喺該 folder README；
+  成個 7-stage 流程包裝咗做 **`paper-ingestion` skill**（`.claude/skills/paper-ingestion/`，
+  講「入呢份卷」就 trigger）。首次實戰 `p6_21c_exam3_2026`：37 AQ + 4 LQ + 12 圖。
+- **Path B（家長 app 上載）**：upload route 每頁行 `src/lib/figureDetect.ts`
+  （detect.js 嘅 TS port — **改算法要兩邊 mirror**）→ 家長喺 `/parent/upload/[id]`
+  確認/調整/剔走每條圖題嘅 crop（canvas 框選器）→ `api/past-paper/confirm-crops`
+  server-side 裁圖 → 教師照舊審批。需要 migration `0023_pathb_cv_figures.sql`。
+
+**仍然 SKIP 嘅題型**：作圖（補全棒形圖/折線圖/圓規）、量度（用尺）、開放式理由題、
+英文題。列式計算題行 dual-route `both`（AQ 淨答案 + LQ 逐字 model_answer）。
+
+當前 P5 仲有 43 條 image questions 由舊 `questions` table migrate 過嚟（`source_paper = 'p5_image_questions'`），目前 `is_active = false` (deactivated)——可以用 Path A pipeline 重新入返。
 
 ### 課程大綱（curriculum）
 
@@ -320,6 +334,8 @@ API:
 代幣（前 token）：
   /parent (整合進首頁)            子女列表 + 上載 past paper + 兌換代幣
   /parent/upload                  上載 past paper
+  /parent/upload/[id]             Path B crop 確認頁（家長框選/調整/剔走圖題 crop）
+  /api/past-paper/confirm-crops   POST 確認 crop → server-side 裁圖入 Storage
   Token → 改名為「代幣」（commit 3cf61a9）
 ```
 
