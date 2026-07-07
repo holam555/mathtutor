@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import sharp from 'sharp'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { extractQuestionsFromImages } from '@/lib/gemini'
+import { detectFigures, pickDefaultCrop, type DetectResult } from '@/lib/figureDetect'
 
 export const maxDuration = 60
 
@@ -101,43 +102,61 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `AI 分析失敗：${message}` }, { status: 502 })
   }
 
-  // Crop image regions for has_image questions and upload to storage
+  // ── CV figure detection per page ──────────────────────────────────────
+  // Geometric detection replaces the old Gemini percent-bbox crop (which
+  // guessed coordinates and was wrong more often than not — see
+  // docs/figure_extraction_diagnosis.md). Nothing is cropped here: the
+  // parent confirms/adjusts boxes on the next screen, and only confirmed
+  // boxes become crop files.
   const rawBuffers = imageBuffers.map((img) => Buffer.from(img.data, 'base64'))
-  await Promise.all(
-    extractedQuestions.map(async (q, qi) => {
-      if (!q.has_image || !q.image_region) return
-      const { x, y, w, h } = q.image_region
-      const pageIdx = (q.page_number ?? 1) - 1
-      const srcBuffer = rawBuffers[pageIdx]
-      if (!srcBuffer) return
+  const CV_MAX_WIDTH = 1500 // thresholds are calibrated for ~1000-1500px pages
+  const cvFigures: Array<{
+    page: number
+    width: number
+    height: number
+    anchors: DetectResult['anchors']
+    figures: DetectResult['figures']
+  }> = []
 
-      try {
-        const img = sharp(srcBuffer)
-        const meta = await img.metadata()
-        const pw = meta.width ?? 1000
-        const ph = meta.height ?? 1400
-
-        const left = Math.max(0, Math.round((x / 100) * pw))
-        const top = Math.max(0, Math.round((y / 100) * ph))
-        const width = Math.min(pw - left, Math.max(10, Math.round((w / 100) * pw)))
-        const height = Math.min(ph - top, Math.max(10, Math.round((h / 100) * ph)))
-
-        const cropped = await img.extract({ left, top, width, height }).jpeg({ quality: 90 }).toBuffer()
-        const cropPath = `${user.id}/crops/${Date.now()}-q${qi}.jpg`
-
-        const { error: cropUploadErr } = await service.storage
-          .from('past-papers')
-          .upload(cropPath, cropped, { contentType: 'image/jpeg' })
-
-        if (!cropUploadErr) {
-          // Store path (not public URL) — private bucket requires signed URLs at review time
-          q.image_url = cropPath
-        }
-      } catch {
-        // Non-fatal: crop failure just means image_url stays null
+  for (let pi = 0; pi < rawBuffers.length; pi++) {
+    try {
+      const meta = await sharp(rawBuffers[pi]).metadata()
+      const origW = meta.width ?? CV_MAX_WIDTH
+      const origH = meta.height ?? Math.round(origW * 1.4)
+      const scale = origW > CV_MAX_WIDTH ? origW / CV_MAX_WIDTH : 1
+      const cvBuffer = scale > 1
+        ? await sharp(rawBuffers[pi]).resize({ width: CV_MAX_WIDTH }).toBuffer()
+        : rawBuffers[pi]
+      const det = await detectFigures(cvBuffer, { photoNormalise: true })
+      // store boxes in ORIGINAL image coordinates so later cropping and
+      // the review overlay never need to know about the CV downscale
+      const up = (b: { x: number; y: number; w: number; h: number }) => ({
+        x: Math.round(b.x * scale), y: Math.round(b.y * scale),
+        w: Math.round(b.w * scale), h: Math.round(b.h * scale),
+      })
+      const scaled: DetectResult = {
+        width: origW, height: origH,
+        anchors: det.anchors.map((a) => ({ ...a, box: up(a.box) })),
+        figures: det.figures.map((f) => ({ ...f, box: up(f.box) })),
       }
-    })
-  )
+      cvFigures.push({ page: pi + 1, width: origW, height: origH,
+        anchors: scaled.anchors, figures: scaled.figures })
+
+      // ordinal binding suggestion: when the page's question count matches
+      // its anchor count, question i gets band i+1's default crop
+      const qsOnPage = extractedQuestions.filter((q) => (q.page_number ?? 1) === pi + 1)
+      if (qsOnPage.length === scaled.anchors.length) {
+        qsOnPage.forEach((q, qi2) => {
+          const pick = pickDefaultCrop(scaled, qi2 + 1)
+          if (q.has_image && pick) q.suggested_box = pick.box
+        })
+      }
+    } catch {
+      // CV failure is non-fatal — parent can still crop manually from the
+      // full page in the review step
+      cvFigures.push({ page: pi + 1, width: 0, height: 0, anchors: [], figures: [] })
+    }
+  }
 
   // Save record to DB
   const { data: record, error: insertError } = await service
@@ -150,6 +169,7 @@ export async function POST(request: NextRequest) {
       exam_type: examType || null,
       image_paths: imagePaths,
       ai_extracted_questions: extractedQuestions,
+      cv_figures: cvFigures,
       review_status: 'pending',
     })
     .select('id')
@@ -163,5 +183,7 @@ export async function POST(request: NextRequest) {
     success: true,
     id: record.id,
     extracted: extractedQuestions.length,
+    // any figure question → send the parent to the crop-review step
+    needsCropReview: extractedQuestions.some((q) => q.has_image),
   })
 }

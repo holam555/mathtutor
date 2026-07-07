@@ -62,6 +62,7 @@ const MOBILE_BAD = /[:><=%]/
 const esc = s => String(s).replace(/'/g, "''")
 
 const errors = []
+const warnings = []
 const aqRows = []
 const lqRows = []
 const manifest = []
@@ -120,6 +121,17 @@ for (const pg of index) {
 
     const imageUrl = resolveImage(q, fid, dir, id)
 
+    // figure↔text cross-check (caught a real mis-tick: Q29 got Q30's
+    // circles). Warning not error — some pictorial questions legitimately
+    // don't say 「圖」, and some 圖-mentions are about a skipped drawing.
+    const mentionsFigure = /[右左上下如及附]圖|下面的圖|看圖/.test(q.question_text)
+    // grouped sub-questions share the figure their (a) part introduces —
+    // only the standalone case is suspicious
+    if (imageUrl && !mentionsFigure && !q.group)
+      warnings.push(`${id}: 有 crop 但題幹冇提「圖」— 確認唔係配錯（Q29 案例）`)
+    if (!imageUrl && mentionsFigure)
+      warnings.push(`${id}: 題幹提到「圖」但揀咗無圖 — 確認唔係漏咗`)
+
     if (route === 'lq' || route === 'both') {
       // human-marked freeform — no keyboard/MC constraints
       lqRows.push({ ...q, _imageUrl: imageUrl })
@@ -161,6 +173,9 @@ if (!aqRows.length && !lqRows.length) {
 if (errors.length) {
   console.error(`\n✗ ${errors.length} 個 validation 錯誤 — SQL 未生成：\n` + errors.map(e => '  - ' + e).join('\n'))
   process.exit(1)
+}
+if (warnings.length) {
+  console.error(`\n⚠ ${warnings.length} 個 warning（SQL 照出，但請過目）：\n` + warnings.map(w => '  - ' + w).join('\n'))
 }
 
 const topicSubquery = q => q.lesson_number
