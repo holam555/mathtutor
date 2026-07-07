@@ -15,7 +15,8 @@ const aiCrawlers = [
 ]
 
 // Gated / 私隱 / 非內容路徑 — 唔畀任何爬蟲索引。
-const disallow = ['/admin', '/student', '/parent', '/api', '/login', '/signup']
+// /assessment/report 係個人評估報告（帶 sessionId），唔係公開內容。
+const disallow = ['/admin', '/student', '/parent', '/api', '/login', '/signup', '/assessment/report']
 
 export default function robots(): MetadataRoute.Robots {
   return {

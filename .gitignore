@@ -66,3 +66,4 @@ supabase/.temp/
 /scripts/*
 !/scripts/upload_lq_images.ts
 !/scripts/check_i18n.mjs
+!/scripts/check_seo.mjs
