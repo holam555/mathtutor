@@ -490,7 +490,7 @@ function QuestionCard({
           </div>
           {lang === 'en' && (
             <p className="text-xs text-gray-400 italic mt-1">
-              {translate('English ver coming soon!')}
+              {translate('English ver. coming soon!')}
             </p>
           )}
           {question.question_image_url && (
