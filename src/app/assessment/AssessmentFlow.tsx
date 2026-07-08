@@ -80,7 +80,7 @@ const GRADE_OPTIONS: GradeOption[] = [
 
 function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
   const [selected, setSelected] = useState<GradeOption | null>(null)
-  const { t } = useLang()
+  const { t, lang } = useLang()
 
   return (
     <div className="min-h-screen paper-grid-light flex flex-col items-center justify-center p-6">
@@ -92,6 +92,16 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
             {t('根據學生已學的單元，即時獲取個人化診斷報告。')}
           </p>
         </div>
+
+        {lang === 'en' && (
+          <div className="mb-6 flex items-start gap-3 rounded-2xl border border-[#E8792F]/30 bg-[#E8792F]/5 px-5 py-4 text-sm">
+            <span aria-hidden className="text-lg leading-none">🌐</span>
+            <p className="text-gray-600">
+              <span className="font-semibold text-[#1F4D36]">English version coming soon.</span>{' '}
+              The assessment questions are currently in Traditional Chinese.
+            </p>
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
           <p className="text-sm font-medium text-gray-700 mb-3">{t('請選擇學生目前就讀年級')}</p>

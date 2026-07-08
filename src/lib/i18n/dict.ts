@@ -73,6 +73,15 @@ export const dict: Record<string, string> = {
   '已有帳戶？選擇你的身份': 'Already have an account? Choose your role',
   '五分鐘註冊，十五分鐘知道弱項喺邊': 'Five minutes to sign up, fifteen to know where the gaps are',
 
+  // Resources index (/resources) chrome
+  '首頁': 'Home',
+  '學習資源': 'Resources',
+  '小學數學單元學習指南': 'Primary Math Unit Study Guides',
+  '按香港小學課程逐個單元講解：概念、步驟、例題、小朋友最常犯的錯誤。全部免費，由霖楓學苑教師團隊編寫。':
+    'Unit-by-unit explanations aligned with the Hong Kong primary curriculum — concepts, steps, worked examples and the mistakes children make most. All free, written by the LF Academy teaching team.',
+  '唔肯定小朋友邊個單元最弱？': 'Not sure which unit your child is weakest in?',
+  '做一次免費學前評估': 'Take a free placement assessment',
+
   // Login pages
   '返回': 'Back',
   '學生登入': 'Student Login',
