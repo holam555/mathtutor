@@ -23,17 +23,6 @@ export const TIER_QUOTA: Record<DifficultyTier, number> = {
   advanced: 2,
 }
 
-// P5 quota: pool migrated from hardcoded papers has 0 advanced questions
-// (43 basic + 9 enhancement = 52 total). We do NOT allocate an advanced
-// slot since there's nothing to fill it from — cross-tier fill would then
-// pull from enhancement/basic anyway. Total still 20.
-// See docs/p5_assessment_gap_report.md for context.
-export const TIER_QUOTA_P5: Record<DifficultyTier, number> = {
-  basic: 12,
-  enhancement: 8,
-  advanced: 0,
-}
-
 export type AssessmentAnswer = {
   question_id: string
   question_text: string

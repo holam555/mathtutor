@@ -1,10 +1,9 @@
-// Question selection algorithm for the P3 + P5 assessments.
+// Question selection algorithm for the P3–P6 assessments.
 //
 // Even (uniform) distribution across the units/topics the parent selected,
-// then fill the per-tier quota (P3: 10/8/2 = 20; P5: 12/8/0 = 20).
+// then fill the per-tier quota (TIER_QUOTA = 10/8/2 = 20, all grades).
 //
-// Tier quota is supplied by the caller — defaults to TIER_QUOTA (P3) for
-// backward compatibility. P5 callers pass TIER_QUOTA_P5.
+// Tier quota is supplied by the caller — defaults to TIER_QUOTA.
 //
 // Minimum coverage: every selected scope gets at least 1 question. If the
 // base 20-question budget cannot cover all scopes, up to MAX_TOTAL extra
