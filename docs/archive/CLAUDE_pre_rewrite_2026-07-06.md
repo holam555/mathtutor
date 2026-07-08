@@ -1,0 +1,1099 @@
+# CLAUDE.md — 補習社數學練習 App（香港小三至小六）
+
+## 專案概覽
+
+這是一個為香港網上補習社設計的數學練習 Web App，服務小三至小六學生，介面全部使用繁體中文。核心理念是透過**學前評估**找出學生弱項、錯題追蹤、智能出題和 past paper 分析，給家長一個「升分保證」的體驗。
+
+設計風格參考 Duolingo：手機優先，一頁一題，即時回饋，流暢直觀。
+
+---
+
+## 🎯 學前評估系統（當前真相來源 / source of truth）
+
+**重要**：以下章節描述的是**目前實際運作的設計**。本文件後面（從 [題目分類與 Variation Prompt](#題目分類與-variation-prompt小五上學期共32個文字題型) 開始）的舊分類 A1-A6, B1-B10 等是 legacy reference，已不再使用 — 題目都改為 DB-backed in `assessment_questions` table。
+
+### 各年級評估流程
+
+| 年級 | 揀題單位 | 大單元 drill-down 至小單元？| 題庫來源 |
+|------|---------|---------------------------|---------|
+| **P3** | 大單元 OR 小單元 (家長可揀) | ✅ 有 (topic_select 介面) | 由 past paper 抽出，逐題人手分類至 `curriculum_topics.lesson_number` |
+| **P4** | 大單元 only | ❌ 沒有 | 《小學數學新思維(第二版)》單元配套習題 PDF |
+| **P5** | 大單元 only | ❌ 沒有 | 同上 |
+| **P6** | 大單元 only | ❌ 沒有 | 同上 |
+
+理由：P3 題庫經過長期人手 curate，每個 lesson 都有夠多題；P4-P6 用新教材，題量較少（每大單元 5-15 條），所以只用大單元層級。
+
+### 抽題規則 (`src/lib/assessmentSelection.ts`)
+
+- **平均分配**（uniform / even distribution）across 揀咗嘅單元 — 每個單元拎差唔多數量。Earlier scopes get the extra in tied cases.
+- **三層難度配額**：`TIER_QUOTA = { basic: 10, enhancement: 8, advanced: 2 }` = 20 條（across all 4 grades）
+- 每個單元至少 1 條（minimum coverage）；如基本配額拎唔晒，可用 cross-tier fill 補到最多 30 條
+- 揀少量單元唔夠 20 條都唔緊要 — 唔強制補
+
+### 題目類型 (`question_type` in `assessment_questions`)
+
+| Type | 何時用 | 答案格式 |
+|------|-------|---------|
+| `fill_in_number` | 答案係純數字、小數、分數、帶分數 | 例 `60`、`5/18`、`1.25`、`1 5/8` (見下文 帶分數) |
+| `multiple_choice` | 答案唔係純數字 (shape names, units, words, comparisons, multiple values) | 4 個選項，正確答案連 prefix `"B. 答案文字"` |
+| `calculation` | 已棄用 (deprecated) | 全部變咗 multiple_choice |
+| `fill_in` | 已棄用 (deprecated) — 答案有 `>` `<` `=` mobile 唔友善 | 全部變咗 multiple_choice |
+
+**MCQ distractor rules**:
+1. 4 個選項全部不同，無兩個 mathematically equivalent (e.g. `0.5` 同 `1/2` 唔可以同時出現)
+2. 干擾項要 plausible (學生常犯嘅錯誤，e.g. 漏咗一步、decimal 移位、顛倒分子分母)
+3. Same domain：if 正確 = 單位名 → 其他選項都係單位名；if = 形狀名 → 都係形狀名
+4. Correct answer 位置要分散（唔好成日係 A 或 C）
+
+### 帶分數格式（重要！）
+
+**統一用 SPACE 格式**：`1 5/8`（整數 + 空格 + 真分數），**唔係** `1又5/8`。
+
+理由：
+- 數學鍵盤 (`src/components/UnifiedKeyboard.tsx`) 輸出嘅就係 space 格式 (`"1 2/3"`)
+- 評分邏輯 (`src/lib/answerUtils.ts` `normalizeAnswer()`) 會自動把 `又` 轉做 space，所以舊資料用 `又` 都仲 grade 正確 — 但所有新題目一律用 space，避免歧義
+
+**Apply scope**:
+- ✅ `correct_answer` for fill_in_number rows
+- ✅ MCQ option text (`"A. 1 5/8 公斤"`)
+- ✅ Question text 中提及嘅帶分數
+- ⚠️ 例外：自然中文嘅 `又` (e.g. "又進貨了 30 公斤") **唔可以** 改 — 只有「`數字又數字/數字`」嘅 pattern 先轉
+
+### Image-dependent questions
+
+**新題庫一律 SKIP** (圖形描述、作圖、補全棒形圖、point-counting 立體積木、圓形圖閱讀、行程圖)。Image questions 由人手另行處理。
+
+當前 P5 仲有 43 條 image questions 由舊 `questions` table migrate 過嚟（`source_paper = 'p5_image_questions'`），目前 `is_active = false` (deactivated)。
+
+### 課程大綱（curriculum）
+
+當前 grade-aware schema：`curriculum_units` (大單元) + `curriculum_topics` (小單元)。
+
+**P3** — 17 大單元 / 32 小單元（lesson 1-40，部分 review 跳過）
+- 詳見 `supabase/migrations/0014_p3_curriculum_assessment.sql`
+- 來源：《天花板級別》香港小三課程大綱
+
+**P4** — 17 大單元（每大單元 1 個 placeholder topic）
+- 4A 上：U1 倍數和因數 / U2 公倍數和公因數 / U3 乘法 / U4 除法 / U5 四則混合運算
+- 4A 上 (B 冊)：U7 平行與垂直 / U8 四邊形 / U9 周界
+- 4B 下 (A 冊)：U10 分數的認識（一） / U11 擴分與約分 / U12 同分母分數加減法 / U13 小數的認識 / U14 圖形的拼砌與分割
+- 4B 下 (B 冊)：U15 對稱圖形 / U16 正方形和長方形面積 / U17 棒形圖（一）單式 / U18 棒形圖（二）複式
+- 詳見 `supabase/seed_p4_curriculum.sql`
+
+**P5** — 19 大單元（每大單元 1 個 placeholder topic）
+- 5A 上：U1 多位數 / U2 異分母分數加法和減法 / U3 分數乘法 / U4 代數符號 / U5 簡易方程（一）/ U6 方向 / U7 多邊形的面積 / U8 體積的認識 / U9 複合棒形圖
+- 5B 下：U10 小數加法和減法 / U11 小數乘法 / U12 小數除法 / U13 小數和分數的互化 / U14 分數除法 / U15 百分數 / U16 圓的初步認識 / U17 長方體和正方體的表面積與體積 / U18 平均數 / U19 折線圖
+- 詳見 `supabase/seed_p5_curriculum.sql`（已存在）+ `seed_p5_replacement.sql`
+
+**P6** — 13 大單元（每大單元 1 個 placeholder topic）
+- 6A 上：U1 小數除法 / U2 百分數的認識 / U3 數型 / U4 圓的認識 / U5 軸對稱和旋轉對稱圖形 / U6 容量和體積 / U7 圓周的計算 / U8 折線圖
+- 6B 下：U9 百分數應用 / U10 簡易方程（三）/ U11 截面與圓面積 / U12 速率與行程圖 / U13 圓形圖
+- 詳見 `supabase/seed_p6_curriculum.sql`
+
+### 題庫種子檔案
+
+| 檔案 | 內容 | 是否 active in DB |
+|------|------|-----------------|
+| `seed_p4_curriculum.sql` + `seed_p4_assessment.sql` | P4 17 大單元 + 156 條題目 | ✅ active |
+| `seed_p5_curriculum.sql` | 舊 P5 curriculum (仲用緊，因為 unit name 一致) | ✅ active (curriculum 部分) |
+| `seed_p5_replacement.sql` | 新 P5 231 條題目 + deactivate 舊 P5 pool | ✅ active (新題目) |
+| ~~`seed_p5_assessment_questions.sql`~~ | 舊 P5 hardcoded sept/nov/jan (52 條) | ❌ inactive；檔案已由 repo 移除（2026-07 cleanup），數據以 inactive 保存喺 DB |
+| ~~`seed_p5_exam_review.sql`~~ | 舊 P5 期末複習手冊 | ❌ 檔案已刪；DB 實有 94 rows（`五年級期末複習手冊`，全部 inactive — 曾 apply 後被 replacement 停用，並非「未 apply」） |
+| ~~`seed_p5_image_questions.sql`~~ | 舊 P5 image questions | ❌ 檔案已刪；DB 有 43 rows（`p5_image_questions`，inactive） |
+| `seed_p5_long_questions_sample.sql` | P5 LQ sample（3 條，`p5_sample_2026_paper2`） | ✅ **active in long_questions**（個名叫 sample 但係 live seed，唔好刪） |
+| `seed_p6_curriculum.sql` + `seed_p6_assessment.sql` | P6 13 大單元 + 169 條題目 | ✅ active |
+| ~~`seed_p6aa_test.sql`~~ | P6AA 實驗 batch | ❌ 從未 apply（DB 零 `p6aa` rows）；已由 repo 移除（2026-07 cleanup） |
+
+**Apply order in Supabase SQL editor** (新 setup 由零開始)：
+```
+0. (P3) 0014 migration → seed_p3_curriculum.sql → seed_p3_teaching_methods.sql
+       → seed_p3_assessment_questions.sql + seed_p3_extracted/*.sql
+1. seed_p4_curriculum.sql      → seed_p4_assessment.sql
+2. seed_p6_curriculum.sql      → seed_p6_assessment.sql
+3. seed_p5_replacement.sql     (UPDATE old to inactive + INSERT new)
+4. (LQ) seed_p3a/p3b/p4a/p4b1/p4b2/p5a/p5b/p6_1-3 _lq_batch.sql
+       + seed_p5_long_questions_sample.sql → update_lq_image_urls.sql
+```
+
+> 🧹 2026-07 cleanup：一次性 hotfix `fix_*.sql`（13 檔，已 apply）同上述已標示檔案已由 repo 移除
+> （git history 可還原）；一次性報告移咗入 `docs/archive/`。詳見 `docs/repo_cleanup_report.md`。
+
+### C1–C8 驗證 Checklist
+
+每次新加題庫，跑兩 pass：
+
+**Pass A — Pattern scan (fast, free)**
+```bash
+python3 scripts/verify_assessment_answers.py
+```
+捉純算術錯誤、fraction format、MC answer 唔在 options。
+
+> ⚠️ 呢個 script **目前唔喺 repo 入面**（`scripts/` 只有 `upload_lq_images.ts`
+> 同 `check_i18n.mjs`）。如果要跑 Pass A，要先由備份還原或重寫。
+
+**Pass B — LLM deep verify (parallel sub-agent per grade)**
+
+| Code | 檢查 |
+|------|------|
+| C1 | **Math correctness** — 重新 solve, 答案要啱 |
+| C2 | **Right unit/lesson** — 題目內容夾乎指定 unit/topic |
+| C3 | **Single correct answer** — 無 equivalent 正確答案 (e.g. MCQ 兩個都啱) |
+| C4 | **Distinct MCQ options** — 無兩個答案相等 (e.g. `1/2` 同 `0.5`) |
+| C5 | **Grade scope** — 內容啱嗰個年級 (P3 唔好太深、P6 唔好太淺) |
+| C6 | **Mobile chars** — `correct_answer` 唔可以有 `:`, `>`, `<`, `=`, `%` (fill_in_number only) |
+| C7 | **Unit mismatch** — 題目問「多少元/克/升」答案要包含單位 |
+| C8 | **Tier coverage** — 每個 unit 至少 1 條 `basic` + 1 條 `enhancement` |
+
+**Difficulty tier rule** (number of solve steps)：
+- 1 step → `basic`
+- 2-3 steps → `enhancement`
+- 4+ steps → `advanced`
+
+詳細 runbook：`docs/assessment_question_workflow.md`
+
+---
+
+## 🚀 已完成 Sprint（截至 Sprint 6）
+
+### Sprint 1–5 摘要
+- **Sprint 1**：基礎骨架（Supabase Auth + DB + Storage，老師上傳題目，學生登入做題，錯題庫）
+- **Sprint 2**：進度儀表板、按題型練習、隨機抽題、老師學生數據
+- **Sprint 3**：Gemini 2.5 Flash AI 生成 variation，老師審核頁面 `/admin/variations`
+- **Sprint 4**：Past Paper 上載（Gemini Vision 分析），老師審核頁面 `/admin/past-papers/[id]`
+- **Sprint 5**：Token 系統（上載獲 +10/頁，兌換獎勵，老師審批 + 手動調整）
+
+### Sprint 6（角色分離 + 學生遊戲化 + 老師/家長個別頁面）
+**實際完成內容：**
+
+1. **登入系統分離**
+   - 三個獨立登入頁：`/login/student`、`/login/parent`、`/login/teacher`
+   - 首頁 `/` 顯示三個角色按鈕
+   - 每個登入 action 驗證 role，錯誤 role 會被登出並顯示錯誤訊息
+   - 未授權訪問時 middleware 跳轉到 `/`（不是 `/login`，避免暴露路由）
+   - `/login`（舊路徑）自動跳轉到 `/`
+
+2. **嚴格 RLS 與 `parent_student_relationships`**
+   - 新表 `parent_student_relationships (parent_id, student_id, is_active)`
+   - 所有學生資料表（`student_profiles` / `practice_sessions` / `answer_records` / `wrong_question_bank`）RLS 改為三條：學生本人、老師、已連結家長
+   - Helper function：`is_parent_of(student_id)`、`is_teacher()`
+
+3. **學生遊戲化主頁 `/student`**
+   - 打招呼 header（依時段顯示 早晨 / 下午好 / 晚上好）
+   - 今日目標 SVG 圓環（`DAILY_GOAL = 10`，見 `src/lib/trophies.ts`）
+   - 本週連續練習條（7 個圓點，週一至週日，今天加邊框）
+   - 獎杯架（橫向滾動，最多 6 個）
+   - 下一個獎杯進度條
+   - 開始練習大按鈕（teal `#1D9E75`）
+
+4. **零負面語言的答題頁 `/student/practice/[sessionId]`**
+   - 答對：teal 綠色 + 「答對了！+1 ⭐」
+   - 答錯：amber `#EF9F27`（非紅色）+ 「再試一次！💪 已加入挑戰題，下次再戰！」
+   - 結果頁 `/student/results/[sessionId]` 只顯示獲得的 ⭐ 數量，不顯示對錯統計
+   - 所有 `#4A90E2` 藍色已改為 `#1D9E75` teal（學生相關介面）
+
+5. **獎杯頁 `/student/trophies`**
+   - 8 個獎杯：初出茅廬、答題新星、火焰勳章、進步之星、鑽石之心、百題達人、題型大師、練習冠軍
+   - 已解鎖：橙金漸變底色
+   - 未解鎖：灰階 + 進度條 + 解鎖條件文字
+
+6. **老師班級總覽 `/admin/students`**
+   - 全班平均正確率、需跟進學生數、總學生數（3 格 metric）
+   - 本週最弱題型 Top 3（`get_class_weakest_categories` RPC）
+   - 學生列表：頭像（姓氏首字）、次數/題數/正確率、狀態 badge
+     - 優秀 ≥85% / 良好 70-84% / 尚可 50-69% / 需跟進 <50% 或 session <3
+
+7. **老師個別學生頁 `/admin/students/[id]`**
+   - 本週 / 本月 / 全部 時間範圍切換（`?range=week|month|all`）
+   - 三個 tab（`?tab=overview|wrong|history`）：
+     - **整體表現**：4 格 metric（完成題數、正確率、連續天數、平均每題用時）、各題型正確率 bar、系統備注（弱項 <50% 自動提示）
+     - **錯題詳情**：按題型分組，顯示錯誤次數
+     - **練習歷史**：每次 session 的日期、時間、對錯、用時
+
+8. **家長子女報告**
+   - `/parent` 列出所有關聯子女（`parent_student_relationships`）+ 上載 Past Paper + 近期記錄
+   - `/parent/child/[id]` 使用同一個 `StudentReport` 元件（`mode='parent'`）
+     - 親切語氣（「小明的表現」、「可以多加練習的題型」）
+     - 無老師備注
+     - 後端強制 `parent_student_relationships` 檢查，未關聯直接 redirect 回 `/parent`
+
+### 與原設計不同的決定
+| 項目 | 原設計 | 實際 | 原因 |
+|------|--------|------|------|
+| 獎杯儲存 | 專用 table | JS 計算（`src/lib/trophies.ts`）| 獎杯條件純粹由 stats 決定，無需持久化 |
+| Daily goal 數值 | 可調 | Hardcode 10 | Phase 1 簡化；之後可加到 `student_profiles` |
+| `/parent/tokens` | 顯示 token 列表 | Redirect 到 `/parent` | 解耦後 token 屬於學生；家長需先揀子女再看 |
+| 家長上載 token 歸屬 | 原為 `parent_profiles.token_balance` | 歸入第一個關聯子女的 `student_profiles.token_balance` | 配合 Sprint 5 的 schema；家長多個子女時預設第一個 |
+| `StudentDetailModal` | modal 彈出 | 獨立頁面 `/admin/students/[id]` | 更多資料需要完整畫布 |
+| 登入頁 | 單一 `/login` | 三個 role-specific 頁面 | 嚴格分離、減少 role 錯亂 |
+
+### Sprint 7（家長指定考試範圍 + 模擬考試試卷 + 長答題 LQ）
+
+**核心理念**：家長預設好即將嘅校內考試範圍（大單元），系統根據範圍生成一份 40 題嘅模擬考試試卷（多項選擇 + 短答 + 長答），學生可以喺手機完成 MC/SQ 部分，列印 LQ 部分由家長協助拍照上載。
+
+#### 1. 新表
+
+```sql
+exam_scopes (
+  id uuid PRIMARY KEY,
+  student_id uuid REFERENCES student_profiles,
+  parent_id uuid REFERENCES auth.users,
+  exam_name text,                   -- e.g. '第一段考'
+  exam_date date,
+  unit_ids uuid[] NOT NULL,         -- FK array to curriculum_units.id
+  notice_image_urls text[],         -- 校方通告/課本目錄影印（可選）
+  toc_image_urls text[],
+  created_at timestamptz
+)
+
+long_questions (
+  id uuid PRIMARY KEY,
+  topic_id uuid REFERENCES curriculum_topics,
+  question_text text NOT NULL,
+  model_answer text NOT NULL,       -- 答案紙原文（verbatim handwriting）
+  difficulty_tier text CHECK (IN ('basic','enhancement','advanced')),
+  image_url text,                   -- Supabase Storage path or 'local:...' placeholder
+  source_paper text,                -- 'p4a_lq_batch', 'p5b_lq_batch', etc.
+  source_question text,             -- 'LQ162', 'Q41', 'U7Q3'
+  notes text,
+  is_active boolean DEFAULT true,
+  created_at timestamptz
+  -- ⚠️ total_marks DROPPED in migration 0021; marking is paper-level
+)
+
+mock_exam_papers (
+  id uuid PRIMARY KEY,
+  student_id uuid REFERENCES student_profiles,
+  exam_scope_id uuid REFERENCES exam_scopes,
+  mc_question_ids uuid[],
+  sq_question_ids uuid[],
+  lq_question_ids uuid[],
+  lq_count int,
+  status text,                      -- 'created' | 'in_progress' | 'lq_pending' | 'completed'
+  timer_started_at timestamptz,
+  timer_paused_at timestamptz,
+  timer_elapsed_seconds int,
+  timer_status text,                -- 'not_started' | 'running' | 'paused_for_lq' | 'finished'
+  created_at timestamptz
+)
+```
+
+#### 2. 分數制度（`src/lib/mockExamMarks.ts`）
+
+| 題型 | 每題分數 |
+|------|---------|
+| MC 多項選擇題 | 1.5 |
+| SQ 短答題 | 2 |
+| LQ 長答題 | 6 |
+
+40 題標準試卷 = 18 MC + 17 SQ + 5 LQ = 27 + 34 + 30 = **91 分**。`marksForQuestionType()` / `totalPossibleMarks()` 係 single source of truth — 唔好 hardcode（legacy `ExamPaperSheet.tsx` 已更新使用呢個）。
+
+#### 3. 抽題邏輯（`src/lib/mockExamSelection.ts`）
+
+- **範圍 filter**：用 `exam_scopes.unit_ids` → `curriculum_topics.id[]` → `.in('topic_id', topicIds)` 喺 SQL 層強制過濾。**唔係**淨係 display；range 一定要應用喺抽題。
+- **三層難度分配**：20% 易 / 60% 中 / 20% 難（per section quota in `TIER_TARGET_MC/SQ/LQ`）。
+- **Group atomicity**：`assessment_questions.group_id` 相同嘅 sub-questions（例如 Q5(a), Q5(b), Q5(c)）一齊抽，唔可以分開（否則學生睇唔到共用 setup / 圖）。Singleton rows = group of size 1。
+- **Section top-up**：如果 MC pool 不足，會優先補 MC 而唔係補 SQ（否則顯示「18 MC + 17 SQ」會誤導）。
+- **LQ pool**：唔用 group_id（`long_questions` 無 group_id column）。
+
+#### 4. 路由
+
+```
+家長（role='parent'）：
+  /parent/exam-scope             指定考試範圍（揀大單元、上載通告、輸入考試日期）
+  /parent/exam-scope/upload      API: POST upload exam scope
+                                  - 強制檢查 parent_student_relationships
+                                  - unit_ids 一定要係子女嘅年級
+
+學生（role='student'）：
+  /student/mock-exam/[paperId]/start            開始畫面（顯示題數、分數、預計時間）
+  /student/mock-exam/[paperId]                  MC + SQ 答題（timer running）
+  /student/mock-exam/[paperId]/lq               長答題 PDF（列印用 / iPad view）
+  /student/mock-exam/[paperId]/lq-timer         長答題作答中（timer paused_for_lq）
+  /student/mock-exam/[paperId]/results          結果（含 LQ 由老師批改後 unlock）
+
+API:
+  /api/mock-exam/start            POST 創建 paper（filter by exam_scopes.unit_ids）
+  /api/mock-exam/submit-mcsq      POST 提交 MC + SQ 答案，pause timer 入 LQ 模式
+  /api/mock-exam/finish-lq        POST 完成 LQ，timer 停止，等老師批改
+  /api/parent/exam-scope/upload   POST 家長設定範圍 + 上載通告 / TOC
+
+代幣（前 token）：
+  /parent (整合進首頁)            子女列表 + 上載 past paper + 兌換代幣
+  /parent/upload                  上載 past paper
+  Token → 改名為「代幣」（commit 3cf61a9）
+```
+
+#### 5. Timer 規則
+
+- `timer_status = 'running'`：MC + SQ 答題期間，倒數計時
+- `timer_status = 'paused_for_lq'`：學生開始 LQ 期間，timer freeze
+- `timer_status = 'finished'`：學生 finish LQ
+- `MockExamTimer` 只喺 `running` 時 tick（每秒），避免 paused 狀態 drift
+
+#### 6. LQ PDF 列印
+
+- 由 `/student/mock-exam/[paperId]/lq` server-rendered，列印格式 A4
+- 包含 logo（72px）、題目 + 答題位、page-break-inside: avoid
+- 列印按鈕喺手機 view 改為 bottom bar；desktop 喺右上角
+
+#### 7. LQ 題庫種子
+
+| 檔案 | 內容 |
+|------|------|
+| `seed_p3a_lq_batch.sql` | P3A 17 LQs |
+| `seed_p3b_lq_batch.sql` | P3B 24 LQs |
+| `seed_p4a_lq_batch.sql` | P4A 16 LQs |
+| `seed_p4b_lq_batch1.sql` | P4B batch1 30 LQs |
+| `seed_p4b_lq_batch2.sql` | P4B batch2 19 LQs |
+| `seed_p5a_lq_batch.sql` | P5A 31 LQs |
+| `seed_p5b_lq_batch.sql` | P5B 33 LQs |
+| `seed_p6_lq_batch{1,2,3}.sql` | P6 7 + 20 + 27 LQs |
+
+每個 seed 用 `source_paper` + `source_question` idempotent，apply 一次即可。詳見 `docs/lq_seed_workflow.md`。
+
+#### 8. 老師後台增強
+
+- `/admin/questions` migrate 去 `assessment_questions` + curriculum hierarchy（commit `582f568`）
+- 顯示 多項選擇題 / 短答題 / 長答題 grouping（commit `dd70743`）
+- 圖片上載 + 顯示 + replace（commit `64aaaf5`）
+- Sub-question groups 顯示（commit `a9aa651`）
+- Past paper image crop + sign existing URLs（commits `59cecf8`, `da6460f`）
+
+---
+
+## 🌐 EN/中 語言切換（i18n）
+
+UI chrome（按鈕、標題、label）支援英文切換，預設中文。DB 內容（題目、課程名）永遠唔翻譯。
+
+- 機制：`lang` cookie + `src/lib/i18n/`（flat dict、safe fallback）
+- **改 UI 文字前必讀**：[`docs/i18n_conventions.md`](docs/i18n_conventions.md)（5 條規則）
+- 驗證：`node scripts/check_i18n.mjs` — dict 唔可以有 duplicate key，
+  每個 `t('中文')` literal 一定要有 dict entry（CI 會 fail）
+
+## ⚙️ CI
+
+`.github/workflows/ci.yml` 每個 PR 自動跑：`tsc --noEmit` → `next lint` →
+`check_i18n.mjs` → `next build`。全部 pass 先好 merge。
+
+## 📋 下一 Sprint 前置條件
+
+開始下一個 Sprint 前，必須在 Supabase SQL Editor 執行以下 migration 檔（按順序）：
+```
+supabase/migrations/0005_sprint2_indexes_and_stats.sql   -- Sprint 2 stats RPCs
+supabase/migrations/0006_variations.sql                  -- Sprint 3 AI variation
+supabase/migrations/0007_past_papers.sql                 -- Sprint 4 past paper tables
+supabase/migrations/0008_tokens.sql                      -- Sprint 5 token system
+supabase/migrations/0009_role_separation.sql             -- Sprint 6 parent_student_relationships + 嚴格 RLS + gamification RPCs
+```
+
+Supabase Storage 設定（只需做一次）：
+- Bucket `past-papers`（private），配合 `0007_past_papers.sql` 末尾附的 RLS policy SQL
+
+帳戶設定（由老師透過 Supabase Dashboard 建立）：
+- 必須在 `user_metadata` 設 `role` 為 `'student' | 'parent' | 'teacher'` 其中一個
+- 每位學生需在 `student_profiles` 建 row
+- 家長與子女的連結要在 `parent_student_relationships` 手動 insert：
+  ```sql
+  INSERT INTO parent_student_relationships (parent_id, student_id)
+  VALUES ('<parent_user_uuid>', '<student_user_uuid>');
+  ```
+
+---
+
+## 🗺️ 目前路由總覽
+
+```
+公開：
+  /                              角色選擇首頁
+  /login                         → 重導到 /
+  /login/student                 學生登入
+  /login/parent                  家長登入
+  /login/teacher                 老師登入
+
+學生（role='student'）：
+  /student                       遊戲化主頁（目標圓環、連勝條、獎杯架）
+  /student/trophies              所有獎杯
+  /student/wrong-bank            錯題庫
+  /student/practice/select-category 按題型練習
+  /student/practice/[sessionId]  答題中
+  /student/results/[sessionId]   練習完成畫面
+
+家長（role='parent'）：
+  /parent                        子女列表 + 上載記錄
+  /parent/child/[id]             個別子女詳細報告（3 tabs）
+  /parent/upload                 上載 Past Paper
+  /parent/tokens                 → 重導到 /parent
+
+老師（role='teacher'）：
+  /admin                         老師後台 hub
+  /admin/questions               題目管理
+  /admin/questions/new           新增題目
+  /admin/variations              AI 生成及審核
+  /admin/past-papers             Past Paper 審核列表
+  /admin/past-papers/[id]        Past Paper 詳細審核
+  /admin/redemptions             兌換申請 + 手動調整 + 選項管理
+  /admin/students                班級總覽
+  /admin/students/[id]           個別學生詳細（3 tabs）
+
+API：
+  /api/practice/start            開始練習
+  /api/practice/answer           提交答案
+  /api/practice/complete         完成 session
+  /api/variations/generate       生成 AI variation
+  /api/past-paper/upload         上載 past paper + Gemini 分析
+```
+
+---
+
+## 技術棧
+
+- **Frontend**: Next.js 14 (App Router) + Tailwind CSS
+- **Backend**: Next.js API Routes 或 Supabase Edge Functions
+- **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Auth（學生、家長、老師三種角色）
+- **AI**: Google Gemini 2.5 Flash API（題目生成、variation、past paper 分析）
+- **Storage**: Supabase Storage（past paper 圖片）
+- **部署**: Vercel
+
+---
+
+## 使用者角色
+
+| 角色 | 功能 |
+|------|------|
+| 學生 | 做題、查看錯題、重做練習 |
+| 家長 | 上載 past paper、查看子女進度、兌換 token |
+| 老師（管理員）| 上傳題目、審核 past paper、查看 variation 庫、查看所有學生數據 |
+
+---
+
+## 資料庫 Schema（Supabase）
+
+> ⚠️ **雙表並存（2026-07 更新）**：`questions` + `question_categories` 係**舊** Sprint 1-3 schema。
+> **所有寫入已遷移**：past-paper 批准同 AI variation 批准而家寫入 `assessment_questions`（topic-keyed）。
+> 剩低嘅 legacy 引用全部係 read-only 向後兼容（舊 wrong-bank rows），read 空 table 唔會出錯。
+> Retirement 步驟同完整分析：**`docs/legacy_consolidation.md`**。
+> 學前評估用 newer schema：`curriculum_units` + `curriculum_topics` + `assessment_questions`（見 `0014_p3_curriculum_assessment.sql`）。
+
+### Assessment schema (current — for the prelesson assessment)
+
+```sql
+curriculum_units (
+  id uuid PRIMARY KEY,
+  grade int NOT NULL,                -- 3, 4, 5, 6
+  semester text CHECK (IN ('A','B')),-- 上 = A, 下 = B
+  unit_number int NOT NULL,
+  name text NOT NULL,                -- e.g. '異分母分數加法和減法'
+  textbook_ref text,
+  display_order int
+)
+
+curriculum_topics (
+  id uuid PRIMARY KEY,
+  unit_id uuid REFERENCES curriculum_units,
+  lesson_number int NOT NULL,        -- 1-40 for P3; = unit_number for P4-P6 (placeholder)
+  name text NOT NULL,
+  display_order int,
+  teaching_methods jsonb             -- AI generation prompts (P3 only)
+)
+
+assessment_questions (
+  id uuid PRIMARY KEY,
+  topic_id uuid REFERENCES curriculum_topics ON DELETE RESTRICT,
+  question_text text NOT NULL,
+  question_type text CHECK (IN ('multiple_choice','fill_in','fill_in_number','calculation')),
+  options jsonb,                     -- ["A. ...","B. ...","C. ...","D. ..."]
+  correct_answer text NOT NULL,      -- "B. 答案" for MCQ; "60" or "1 5/8" for fill_in_number
+  difficulty_tier text CHECK (IN ('basic','enhancement','advanced')),
+  group_id uuid,                     -- NULL for standalone; UUID for linked sub-questions
+  sub_order int DEFAULT 1,
+  source_paper text,                 -- 'p4_ax_2026' / 'p5_ax_2026' / 'p6_ax_2026' / 'p3_*' / etc.
+  source_question text,              -- 'U1Q1' / 'U2Q5a' / 'CSV row 11'
+  image_url text,                    -- Supabase Storage URL if has figure
+  image_alt_text text,
+  notes text,
+  is_active boolean DEFAULT true,    -- false = soft-disabled (preserved for history)
+  created_at timestamptz
+)
+```
+
+`SECURITY: correct_answer never sent to browser — server grades on /api/assessment/submit.`
+
+### Legacy schema (Sprint 1-3, still used for the wrong-question bank + variation)
+
+```sql
+-- 題目分類
+question_categories (
+  id uuid PRIMARY KEY,
+  name text NOT NULL,           -- 例如「分數加減」
+  name_en text,                 -- 英文分類名
+  grade int,                    -- 5 或 6
+  description text,
+  created_at timestamp
+)
+
+-- 題目主表
+questions (
+  id uuid PRIMARY KEY,
+  category_id uuid REFERENCES question_categories,
+  question_text text NOT NULL,
+  question_image_url text,      -- 如有圖形題
+  question_type text NOT NULL,  -- 'multiple_choice' | 'fill_in' | 'calculation'
+  options jsonb,                -- 選擇題選項 ["A. 1", "B. 10", "C. 30", "D. 60"]
+  correct_answer text NOT NULL,
+  difficulty int DEFAULT 1,     -- 1=易 2=中 3=難
+  source text,                  -- 'manual' | 'past_paper' | 'ai_generated'
+  school_name text,             -- 來自哪間學校的 past paper
+  exam_year int,
+  is_active boolean DEFAULT true,
+  created_at timestamp
+)
+
+-- Variation 模板
+variation_templates (
+  id uuid PRIMARY KEY,
+  category_id uuid REFERENCES question_categories,
+  template_prompt text NOT NULL, -- 給 Claude 的生成指示
+  example_question text,
+  constraints text,              -- 例如「分母不超過 20」「答案為正數」
+  created_at timestamp
+)
+
+-- AI 生成的 Variation 題目
+generated_questions (
+  id uuid PRIMARY KEY,
+  parent_question_id uuid REFERENCES questions,
+  category_id uuid REFERENCES question_categories,
+  question_text text NOT NULL,
+  question_type text NOT NULL,
+  options jsonb,
+  correct_answer text NOT NULL,
+  reviewed_by uuid,              -- 老師 user id
+  is_approved boolean DEFAULT false,
+  created_at timestamp
+)
+
+-- 學生檔案
+student_profiles (
+  id uuid REFERENCES auth.users PRIMARY KEY,
+  name text NOT NULL,
+  grade int,                     -- 5 或 6
+  parent_id uuid,
+  school_name text,
+  created_at timestamp
+)
+
+-- 家長檔案
+parent_profiles (
+  id uuid REFERENCES auth.users PRIMARY KEY,
+  name text NOT NULL,
+  phone text,
+  token_balance int DEFAULT 0,
+  created_at timestamp
+)
+
+-- 練習記錄
+practice_sessions (
+  id uuid PRIMARY KEY,
+  student_id uuid REFERENCES student_profiles,
+  session_type text,             -- 'new' | 'retry_wrong' | 'variation'
+  started_at timestamp,
+  completed_at timestamp,
+  total_questions int,
+  correct_count int
+)
+
+-- 答題記錄
+answer_records (
+  id uuid PRIMARY KEY,
+  session_id uuid REFERENCES practice_sessions,
+  student_id uuid REFERENCES student_profiles,
+  question_id uuid,              -- questions 或 generated_questions
+  question_source text,          -- 'questions' | 'generated_questions'
+  student_answer text,
+  is_correct boolean,
+  time_spent_seconds int,
+  answered_at timestamp
+)
+
+-- 錯題收集
+wrong_question_bank (
+  id uuid PRIMARY KEY,
+  student_id uuid REFERENCES student_profiles,
+  question_id uuid,
+  question_source text,
+  category_id uuid REFERENCES question_categories,
+  wrong_count int DEFAULT 1,
+  last_wrong_at timestamp,
+  is_resolved boolean DEFAULT false  -- 做對兩次後標記為 resolved
+)
+
+-- Past Paper 上載記錄
+past_paper_uploads (
+  id uuid PRIMARY KEY,
+  uploaded_by uuid REFERENCES parent_profiles,
+  school_name text,
+  grade int,
+  exam_year int,
+  exam_type text,                -- 例如「第一段考」
+  image_urls text[],             -- 每頁一個 URL
+  ai_extracted_questions jsonb,  -- Claude 第一步分析結果
+  review_status text DEFAULT 'pending', -- 'pending' | 'reviewed' | 'approved'
+  reviewed_by uuid,
+  tokens_awarded int DEFAULT 0,
+  created_at timestamp
+)
+
+-- Token 交易記錄
+token_transactions (
+  id uuid PRIMARY KEY,
+  parent_id uuid REFERENCES parent_profiles,
+  amount int,                    -- 正數為獲得，負數為使用
+  reason text,                   -- 'past_paper_upload' | 'redemption'
+  reference_id uuid,             -- past_paper_uploads.id 或 redemption.id
+  created_at timestamp
+)
+
+-- Token 兌換記錄
+token_redemptions (
+  id uuid PRIMARY KEY,
+  parent_id uuid REFERENCES parent_profiles,
+  tokens_used int,
+  reward_description text,       -- 例如「課程折扣 $50」
+  status text DEFAULT 'pending', -- 'pending' | 'approved' | 'rejected'
+  created_at timestamp
+)
+```
+
+---
+
+## 題目分類與 Variation Prompt（LEGACY — 已移至 docs/legacy_taxonomy.md）
+
+> ⚠️ 舊 Sprint 1-3 的 A1-I4 題型分類及 variation prompt 範本（約 1,000 行）已搬到
+> [`docs/legacy_taxonomy.md`](docs/legacy_taxonomy.md)，只作歷史參考：
+> 題庫已遷移到 DB-backed `assessment_questions`（見上方「🎯 學前評估系統」）。
+> 需要 AI variation prompt 範本（Phase 2）時先去嗰度搵。
+
+## Claude Code 開發設定
+
+由於這個 project 用 Claude Code 來 build，以下是給 Claude Code 的重要指示。
+
+### 建議的 CLAUDE.md 位置
+
+```
+project-root/
+  CLAUDE.md          ← 這份文件放在根目錄
+  src/
+  supabase/
+  ...
+```
+
+### Claude Code 指令優先順序
+
+Claude Code 每次開始工作時，必須先閱讀這份 CLAUDE.md，了解：
+1. 整個 project 的架構和目標
+2. 目前是哪個 Sprint
+3. 當前任務涉及哪些題型分類
+
+### 資料庫 Seed 資料
+
+開始 build 前，Claude Code 需要先跑以下 seed，把所有題型分類插入 `question_categories` 表：
+
+```sql
+-- 小五上學期（A至D類，32個）
+INSERT INTO question_categories (name, grade, semester, code) VALUES
+('因數識別', 5, '上', 'A1'),
+('倍數識別', 5, '上', 'A2'),
+('最大公因數 HCF', 5, '上', 'A3'),
+('最小公倍數 LCM', 5, '上', 'A4'),
+('第N個公倍數', 5, '上', 'A5'),
+('大數運算與數位識別', 5, '上', 'A6'),
+('等值分數填充', 5, '上', 'B1'),
+('分數大小比較', 5, '上', 'B2'),
+('分數大小排列', 5, '上', 'B3'),
+('真分數加減（異分母）', 5, '上', 'B4'),
+('帶分數加減（同分母）', 5, '上', 'B5'),
+('帶分數加減（異分母）', 5, '上', 'B6'),
+('整數減帶分數', 5, '上', 'B7'),
+('三個分數混合加減', 5, '上', 'B8'),
+('分數乘法', 5, '上', 'B9'),
+('分數估算', 5, '上', 'B10'),
+('整數應用題（買賣找錢）', 5, '上', 'C1'),
+('整數應用題（分組餘數）', 5, '上', 'C2'),
+('整數應用題（儲蓄計劃）', 5, '上', 'C3'),
+('分數應用題（日常加減）', 5, '上', 'C4'),
+('分數應用題（乘法求部分）', 5, '上', 'C5'),
+('帶分數應用題（價錢）', 5, '上', 'C6'),
+('數學規律題', 5, '上', 'C7'),
+('量度單位填充', 5, '上', 'D1'),
+('面積（長方形/正方形）', 5, '上', 'D2'),
+('面積（平行四邊形）', 5, '上', 'D3'),
+('面積（三角形，正向）', 5, '上', 'D4'),
+('面積（三角形，逆向）', 5, '上', 'D5'),
+('面積（梯形）', 5, '上', 'D6'),
+('周界（長方形）', 5, '上', 'D7'),
+('周界（組合圖形）', 5, '上', 'D8'),
+('容量換算', 5, '上', 'D9');
+
+-- 小五下學期（E至I類，22個）
+INSERT INTO question_categories (name, grade, semester, code) VALUES
+('小數加減', 5, '下', 'E1'),
+('小數乘法', 5, '下', 'E2'),
+('小數乘法規律', 5, '下', 'E3'),
+('小數位值識別', 5, '下', 'E4'),
+('取近似值', 5, '下', 'E5'),
+('小數應用題（加減）', 5, '下', 'E6'),
+('小數應用題（乘除）', 5, '下', 'E7'),
+('整數除以分數', 5, '下', 'F1'),
+('帶分數除以分數', 5, '下', 'F2'),
+('分數除法應用題', 5, '下', 'F3'),
+('代數式表示', 5, '下', 'G1'),
+('方程識別', 5, '下', 'G2'),
+('解方程（基礎）', 5, '下', 'G3'),
+('方程應用題', 5, '下', 'G4'),
+('立體圖形識別', 5, '下', 'H1'),
+('立體圖形屬性', 5, '下', 'H2'),
+('立體體積（長方體）', 5, '下', 'H3'),
+('柱體體積', 5, '下', 'H4'),
+('假分數與帶分數互化', 5, '下', 'I1'),
+('旋轉對稱識別', 5, '下', 'I2'),
+('容量換算（進階）', 5, '下', 'I3'),
+('時間計算（行程）', 5, '下', 'I4');
+```
+
+### 小六題型（待補充）
+
+小六 past paper 分析完成後在此加入。預計新增題型：百分數、比、速度、圓形面積、立體表面積、負數、進階代數。格式與小五章節一致。
+
+---
+
+### question_categories 表需更新的 Schema
+
+```sql
+ALTER TABLE question_categories ADD COLUMN semester text; -- '上' or '下'
+ALTER TABLE question_categories ADD COLUMN code text;     -- 例如 'A1', 'B3'
+```
+
+### Phase 1 建議起步順序（給 Claude Code）
+
+Sprint 1 先只做這幾個最常考、最容易出純文字題的分類：
+- B4（真分數加減）、B6（帶分數加減異分母）、B8（三個分數混合加減）
+- A3（HCF）、A4（LCM）
+- E1（小數加減）、E6（小數應用題）
+- G3（解方程基礎）
+
+這8個分類覆蓋了大約40%的考試分數，且全部純文字，無需圖片。
+
+---
+
+## Phase 1：題目系統 + 學生練習
+
+### 功能要求
+
+**老師端（管理員）**
+- 上傳題目（支援文字和圖片）
+- 選擇題型（選擇題 / 填充 / 計算題）
+- 指定分類、年級、難度
+- 管理題目庫（啟用 / 停用）
+
+**學生端**
+- 登入後選擇練習（按分類或隨機）
+- 手機介面：一頁一題
+- 選擇題：四個選項按鈕
+- 填充題：數字鍵盤輸入
+- 即時回饋：答對顯示綠色 ✓，答錯顯示紅色 ✗ 並顯示正確答案
+- 完成練習後顯示總結（答對幾題、錯了哪類型）
+- 系統自動記錄錯題到錯題庫
+
+**錯題重練流程**
+- 主頁顯示「待改善題型」提示（例如：「你有 5 題分數加減需要重練」）
+- 進入重練模式，只做自己的錯題
+- 同一題做對兩次後，從錯題庫移除
+
+### UI 組件（手機優先）
+
+```
+頁面結構：
+/ 首頁（學生主頁）
+  - 今日練習建議
+  - 錯題提醒
+  - 進度概覽（按分類的正確率圓圈）
+
+/practice 練習選擇
+  - 按分類選擇
+  - 隨機練習
+  - 重練錯題
+
+/practice/[sessionId]/[questionIndex] 答題頁面
+  - 進度條（第幾題/共幾題）
+  - 題目（文字或圖片）
+  - 答案選項或輸入框
+  - 提交按鈕
+
+/results/[sessionId] 練習結果
+  - 分數動畫
+  - 按分類顯示錯誤
+  - 「重練錯題」按鈕
+
+/wrong-bank 錯題庫
+  - 按分類列出錯題數量
+  - 進入重練
+
+/admin 管理員介面
+  - 題目管理
+  - 學生數據
+```
+
+---
+
+## Phase 2：AI 生成 Variation
+
+### 功能要求
+
+- 當學生某類題型錯誤超過閾值（預設 3 題），系統觸發 variation 生成
+- 呼叫 Claude API，根據 variation_templates 的 prompt 生成 5 至 10 條新題目
+- 生成的題目存入 `generated_questions`，標記 `is_approved: false`
+- 老師在後台可以 review 並 approve 這些題目
+- Approved 的題目加入學生的練習隊列
+
+### Claude API Prompt 設計原則
+
+每個分類需要一個 variation_template，包含：
+
+```
+system: 你是香港小學數學出題老師，請生成繁體中文題目。
+        題目必須符合香港小五或小六課程範圍。
+        只輸出 JSON，不要任何解釋。
+
+user: 分類：分數加減
+      參考題目：1/2 + 1/3 = ___
+      限制條件：分母不超過 12，答案為真分數或帶分數，不超過 3
+      請生成 5 條類似但數字不同的題目。
+      
+      輸出格式：
+      {
+        "questions": [
+          {
+            "question_text": "...",
+            "question_type": "fill_in",
+            "correct_answer": "...",
+            "difficulty": 1
+          }
+        ]
+      }
+```
+
+### 老師後台（Variation Review）
+
+```
+/admin/variations
+  - 列出待審核的 AI 生成題目
+  - 每題可以：✓ 批准 / ✗ 拒絕 / ✏️ 修改後批准
+  - 過濾器：按分類、按生成日期
+  - 統計：每個分類有多少已批准 variation
+```
+
+---
+
+## Phase 3：Past Paper 上載 + AI 識別
+
+### 功能要求
+
+**家長端**
+- 拍照上載 past paper（支援多頁）
+- 填寫資料：學校名稱、年級、考試年份、考試名稱
+- 上載後看到「待審核」狀態
+- 審核通過後獲得 token
+
+**AI 處理流程**
+
+```
+1. 家長上載圖片 -> 存入 Supabase Storage
+2. 呼叫 Claude Vision API 分析每頁
+3. Claude 輸出 JSON：
+   {
+     "questions": [
+       {
+         "question_text": "下列哪個數不是30的因數？",
+         "question_type": "multiple_choice",
+         "options": ["A. 1", "B. 10", "C. 30", "D. 60"],
+         "suggested_answer": "D. 60",
+         "suggested_category": "因數與倍數",
+         "suggested_difficulty": 1,
+         "has_image": false,
+         "page_number": 1
+       }
+     ]
+   }
+4. 結果存入 past_paper_uploads.ai_extracted_questions
+5. 老師在後台 review，修改後批准
+6. 批准的題目加入 questions 表，標記 source='past_paper'
+7. 家長獲得 token：每頁 10 tokens
+```
+
+**Claude Vision Prompt**
+
+```
+system: 你是香港小學數學試卷分析助手，請識別試卷上的題目。
+        只輸出 JSON，不要任何解釋或 markdown。
+        
+user: [圖片]
+      請識別這頁試卷上的所有數學題目。
+      對每道題目，提取：題目文字、題型、選項（如有）、建議答案、建議分類。
+      分類必須從以下選擇：[分類列表]
+      如題目包含圖形，has_image 設為 true。
+      輸出格式：{ "questions": [...] }
+```
+
+**老師後台（Past Paper Review）**
+
+```
+/admin/past-papers
+  - 列出所有上載記錄（按狀態過濾）
+  - 點開查看：原圖 + AI 提取結果並排顯示
+  - 逐題確認：修改題目文字、類型、答案、分類
+  - 全部確認後點「批准」-> 題目加入庫、家長獲 token
+  - 可以「拒絕」並填理由
+```
+
+---
+
+## Phase 4：Token 系統
+
+### Token 規則
+
+| 行為 | Token 獲得 |
+|------|-----------|
+| 上載 past paper，每頁批准 | +10 tokens |
+| 補習社特別活動（老師手動發放） | 可變 |
+
+| 兌換選項 | Token 消耗 |
+|---------|-----------|
+| 課程折扣 $50 | 100 tokens |
+| 課程折扣 $100 | 180 tokens |
+| 免費試堂 1 次 | 300 tokens |
+
+（以上數字可由老師在後台調整）
+
+### 家長端 Token 頁面
+
+```
+/parent/tokens
+  - 目前 token 餘額（大數字顯示）
+  - 兌換選項卡片
+  - 交易歷史記錄
+
+/parent/upload
+  - 上載 past paper 介面
+  - 說明可獲得的 token 數量
+  - 上載進度和狀態追蹤
+```
+
+---
+
+## 題目類型前端對應
+
+| question_type   | 學生看到          | 輸入方式                   |
+|----------------|-----------------|--------------------------|
+| multiple_choice | A/B/C/D 按鈕     | 點按選項                   |
+| fill_in         | 文字輸入框        | 系統鍵盤打字                |
+| fill_in_number  | 自定義數字鍵盤     | 含數字、/、又、、（4×4 格）  |
+| calculation     | 答案輸入 + 提示   | 數字鍵盤（簡化版），提示草稿紙 |
+
+實作位置：`src/app/student/practice/[sessionId]/PracticeFlow.tsx`
+
+---
+
+## 手機 UX 設計規範
+
+答題頁面設計原則（參考 Duolingo）：
+
+```
+頁面佈局（由上至下）：
+1. 頂部：進度條 + 退出按鈕（佔 8% 高度）
+2. 中部：題目區域（佔 50% 高度）
+   - 題目文字：font-size 18px，行距 1.6
+   - 圖片：佔滿寬度，保持比例
+3. 下部：答案區域（佔 42% 高度）
+   - 選擇題：4 個大按鈕，每個高度 56px，圓角 12px
+   - 填充題：大數字鍵盤，中間顯示輸入框
+   - 提交按鈕：底部固定，高度 56px，主色
+
+答題回饋：
+- 答對：按鈕變綠，底部綠色橫條顯示「答對了！✓」
+- 答錯：按鈕變紅，底部紅色橫條顯示「正確答案是 X」
+- 停留 1.5 秒後自動進入下一題
+
+顏色規範：
+- 主色：#4A90E2（藍）
+- 答對：#4CAF50（綠）
+- 答錯：#F44336（紅）
+- 背景：#F5F5F5（淺灰）
+- 卡片背景：#FFFFFF
+```
+
+---
+
+## 開發優先順序
+
+### Sprint 1（2 至 3 週）：基礎骨架
+- Supabase 設置（Auth + DB + Storage）
+- 老師後台：上傳題目（文字題）
+- 學生：登入、做題、即時回饋
+- 基本錯題記錄
+
+### Sprint 2（2 至 3 週）：核心練習功能
+- 錯題庫頁面
+- 重練錯題模式
+- 學生進度儀表板
+- 家長查看子女進度
+
+### Sprint 3（2 至 3 週）：AI Variation
+- 接入 Claude API
+- Variation 生成邏輯
+- 老師 Variation Review 後台
+
+### Sprint 4（3 至 4 週）：Past Paper 系統
+- 家長上載介面
+- Claude Vision 分析
+- 老師 Review 後台
+- Token 發放邏輯
+
+### Sprint 5（1 至 2 週）：Token 兌換
+- Token 餘額顯示
+- 兌換申請
+- 老師審批兌換
+
+---
+
+## 環境變量
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SECRET_KEY=
+
+# Google Gemini
+GEMINI_API_KEY=
+
+# App
+NEXT_PUBLIC_APP_URL=
+TOKENS_PER_PAPER_PAGE=10
+```
+
+---
+
+## 重要注意事項
+
+1. **圖形題處理**：部分題目有圖形（三角形面積、梯形等），Phase 1 先用圖片 URL 存儲，Phase 3 的 OCR 需要老師人工補充圖片。
+
+2. **答案格式**：分數答案需要統一格式（例如「5/6」或「1又5/6」），填充題需要做模糊匹配（例如「5/6」和「5 / 6」視為相同）。
+
+3. **離線支援**：不需要，網絡連接即可。
+
+4. **多語言**：只用繁體中文，不需要切換語言。
+
+5. **Token 不能轉讓**：Token 綁定家長帳號，不能轉移給其他家長。
+
+6. **題目版權**：Past paper 題目標記來源學校，僅供學習使用，不公開展示給其他學校的學生。

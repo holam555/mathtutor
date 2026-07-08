@@ -26,7 +26,7 @@
 
 | 任務 | 用 |
 |------|-----|
-| 入新 past paper／PDF／截圖落題庫 | skill `paper-ingestion`（wrap `scripts/extract_figures/` toolchain） |
+| 入新 past paper／PDF／截圖落題庫 | skill `paper-ingestion`（wrap `scripts/extract_figures/` toolchain — 真身喺 branch `feat/figure-extraction-pipeline`，當前 branch 只有 output dirs，用前要 merge/checkout） |
 | 驗證題庫（答案啱唔啱、可唔可以輸入） | skill `question-bank-check`（有 live DB scan） |
 | SEO 檢查／新公開頁之後 | skill `seo-audit` |
 | 寫公開單元指南內容頁 | skill `seo-content-page`（跟 `docs/seo_strategy.md` §4.3） |
@@ -50,7 +50,7 @@
 
 ### 抽題（`src/lib/assessmentSelection.ts`）
 - 平均分配 across 揀咗嘅單元（tied 時 earlier scope 攞多嗰條）
-- 三層配額 `TIER_QUOTA = { basic: 10, enhancement: 8, advanced: 2 }` = 20 條（4 個年級一樣）
+- 三層配額 `TIER_QUOTA = { basic: 10, enhancement: 8, advanced: 2 }` = 20 條（4 個年級一樣；`TIER_QUOTA_P5` 已退役，`assessmentSelection.ts` 頭部註釋未更新，唔好照佢「修正」返轉頭）
 - 每單元至少 1 條；配額拎唔晒可 cross-tier fill 至最多 30；揀少單元唔夠 20 唔強制補
 
 ### question_type（`assessment_questions`）
@@ -131,7 +131,7 @@ mock_exam_papers (student_id, exam_scope_id, mc/sq/lq_question_ids uuid[], statu
 | `seed_p*_lq_batch*.sql`（P3A/P3B/P4A/P4B×2/P5A/P5B/P6×3） | 長答題庫 | ✅ active |
 | 已刪檔案（p5 sept/nov/jan、期末複習、image questions、p6aa） | DB 有 inactive rows 或零 rows | ❌ 詳見 archive 版 CLAUDE.md |
 
-**Apply order（由零 setup）**：P3（0014 → curriculum → teaching_methods → 題目）→ P4 → P6 → `seed_p5_replacement.sql` → 各 LQ batch + `update_lq_image_urls.sql`。Migrations `0005`–`0009` 等按序先行。
+**Apply order（由零 setup）**：先跑**全部** `supabase/migrations/`（0001–0022，按序，一個都唔可以跳 — assessment 建表喺 0010，mock exam 喺 0020）→ P3（curriculum → teaching_methods → 題目）→ P4 → P6 → `seed_p5_replacement.sql` → 各 LQ batch + `update_lq_image_urls.sql`。
 
 ⚠️ **DB 先於檔案**：用戶手動喺 Supabase SQL Editor apply — repo 有檔 ≠ DB 有 data，檔案刪咗 ≠ DB 冇 rows。判斷 DB 狀態一律用 `question-bank-check` live scan 或直接查，唔好靠檔案推斷（見 lessons.md L2）。
 
@@ -143,31 +143,40 @@ mock_exam_papers (student_id, exam_scope_id, mc/sq/lq_question_ids uuid[], statu
 - **抽題**（`src/lib/mockExamSelection.ts`）：`exam_scopes.unit_ids` → topic ids → SQL 層 `.in('topic_id', …)` 強制過濾（唔係 display-only）；難度 20/60/20；`group_id` 相同嘅 sub-questions 一齊抽（atomicity）；MC pool 不足優先補 MC；LQ 唔用 group_id。
 - **Timer**：`running`（MC+SQ）→ `paused_for_lq`（做 LQ，freeze）→ `finished`。`MockExamTimer` 只喺 running tick。
 - **LQ 列印**：`/student/mock-exam/[paperId]/lq` server-rendered A4。
-- 家長設定範圍：`/parent/exam-scope`（強制 `parent_student_relationships` 檢查 + unit_ids 必須係子女年級）。
+- 家長設定範圍：`/parent/exam-scope/upload`（強制 `parent_student_relationships` 檢查 + unit_ids 必須係子女年級）。
 
 ---
 
 ## 🗺️ 路由總覽（現行）
 
 ```
-公開:   /  /login/{student,parent,teacher}  (/login → redirect /)  /resources/*（SEO 內容頁）
-學生:   /student  /student/trophies  /student/wrong-bank
-        /student/practice/select-category  /student/practice/[sessionId]  /student/results/[sessionId]
-        /student/mock-exam/[paperId]{,/start,/lq,/lq-timer,/results}
-家長:   /parent  /parent/child/[id]  /parent/upload  /parent/upload/[id]（crop review）
-        /parent/exam-scope   (/parent/tokens → redirect /parent)
-老師:   /admin  /admin/questions{,/new}  /admin/variations  /admin/past-papers{,/[id]}
+公開:   /  /login/{student,parent,teacher}（/login → redirect /）  /signup/{student,parent}
+        /resources  /resources/[grade]/[slug]（SEO 內容頁）
+評估:   /assessment  /assessment/report/[sessionId]
+學生:   /student  /student/trophies  /student/wrong-bank  /student/results/[sessionId]
+        /student/practice/{select-category,[sessionId],exam-sprint,exam-sprint/print}
+        /student/mock-exam/[paperId]/{start,lq,lq-timer,results}
+家長:   /parent  /parent/child/[id]{,/print-exam,/session/[sessionId]}  /parent/upload
+        /parent/exam-scope/upload  /parent/mock-exam/[paperId]/upload（/parent/tokens → redirect /parent）
+老師:   /admin  /admin/questions{,/new,/[id]}  /admin/long-questions{,/new,/[id]}  /admin/variations
+        /admin/past-papers{,/[id]}  /admin/mock-exam{,/[paperId]}  /admin/assessments
         /admin/redemptions  /admin/students{,/[id]}
-API:    /api/practice/{start,answer,complete}  /api/assessment/submit  /api/variations/generate
-        /api/past-paper/{upload,confirm-crops}  /api/mock-exam/{start,submit-mcsq,finish-lq}
-        /api/parent/exam-scope/upload
+API:    /api/practice/{start,answer,complete}（mock exam 嘅 MC/SQ 提交都行 answer，session_type='mock_exam' 分支，唔准 leak 對錯）
+        /api/assessment/{curriculum,questions,submit}
+        /api/mock-exam/start  /api/mock-exam/[paperId]/{extract,submit-lq-photos,timer}
+        /api/past-paper/{upload,upload-image}  /api/parent/exam-scope/upload  /api/variations/generate
 ```
+
+呢個表由 `find src/app -name page.tsx -o -name route.ts` 生成（2026-07-06，branch feat/seo-skills）。改路由後照跑重生成，唔好手寫。Path B crop-review 路由（`/parent/upload/[id]`、`/api/past-paper/confirm-crops`）喺未 merge 嘅 branch `feat/figure-extraction-pipeline`。
 
 角色分離：middleware 未授權跳 `/`（唔好暴露路由）。RLS：學生本人／老師／已連結家長三條 policy；helper `is_parent_of()`、`is_teacher()`。家長睇子女**必須**過 `parent_student_relationships`。
 
 ---
 
 ## 🎨 學生 UI 設計規範（現行 — 舊藍紅配色已廢）
+
+> 公開 marketing 頁（`/` landing、`/resources`）嘅設計規範係另一份 owning file：
+> [docs/design_strategy.md](docs/design_strategy.md)。以下只管 app 內部（學生）UI。
 
 - 主色 teal `#1D9E75`（學生介面所有舊 `#4A90E2` 藍已替換）
 - **零負面語言**：答錯用 amber `#EF9F27`（唔係紅），文案「再試一次！💪」；結果頁只顯示 ⭐，唔顯示對錯統計
@@ -177,7 +186,7 @@ API:    /api/practice/{start,answer,complete}  /api/assessment/submit  /api/vari
 ## 🌐 i18n + ⚙️ CI
 
 - UI chrome 支援 EN/中（`lang` cookie + `src/lib/i18n/` flat dict）；**DB 內容永不翻譯**。改 UI 文字前必讀 `docs/i18n_conventions.md`；驗證 `node scripts/check_i18n.mjs`。
-- CI（`.github/workflows/ci.yml`）每 PR：`tsc --noEmit` → `next lint` → `check_i18n.mjs` → `next build`。全過先 merge。本地完成宣稱前跑同一套（見 judgment.md §完成定義）。
+- CI（`.github/workflows/ci.yml`）每 PR：`tsc --noEmit` → `next lint` → `check_i18n.mjs` → `next build`。全過先 merge。本地完成宣稱前跑同一套（見 judgment.md R1）。
 
 ## ⚙️ 環境 + 帳戶
 
@@ -198,5 +207,6 @@ GEMINI_API_KEY / NEXT_PUBLIC_APP_URL / TOKENS_PER_PAPER_PAGE=10
 | Sprint 1–7 完整敘事、原始 Phase 1–4 spec、舊 UX 規範、legacy 完整 schema SQL | `docs/archive/CLAUDE_pre_rewrite_2026-07-06.md` |
 | 2026-07 repo cleanup 做咗乜 | `docs/repo_cleanup_report.md` |
 | SEO 策略 | `docs/seo_strategy.md` |
+| 公開頁設計策略（landing / resources 視覺語言 + 延伸指南） | `docs/design_strategy.md` |
 | 未完成任務隊列 | `docs/fable_handoff.md` + memory `fable-pending-tasks.md` |
-| Figure extraction pipeline（Path A/B） | `scripts/extract_figures/README.md`（gitignored，本機先有） |
+| Figure extraction pipeline（Path A/B） | `scripts/extract_figures/README.md`（committed 喺 branch `feat/figure-extraction-pipeline`，未 merge） |
