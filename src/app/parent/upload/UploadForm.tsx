@@ -6,7 +6,7 @@ import { useLang } from '@/lib/i18n/LanguageProvider'
 type UploadState =
   | { status: 'idle' }
   | { status: 'uploading'; progress: string }
-  | { status: 'success'; extracted: number }
+  | { status: 'success'; extracted: number; id: string; needsCropReview: boolean }
   | { status: 'error'; message: string }
 
 export default function UploadForm() {
@@ -86,7 +86,12 @@ export default function UploadForm() {
         setState({ status: 'error', message: data.error ?? '上傳失敗' })
         return
       }
-      setState({ status: 'success', extracted: data.extracted })
+      setState({
+        status: 'success',
+        extracted: data.extracted,
+        id: data.id,
+        needsCropReview: !!data.needsCropReview,
+      })
     } catch {
       setState({ status: 'error', message: '網絡錯誤，請重試' })
     }
@@ -104,7 +109,15 @@ export default function UploadForm() {
             <>AI 共提取了 <strong>{state.extracted}</strong> 條題目，等待老師審核後加入題庫。</>
           )}
         </p>
-        <div className="flex gap-3 mt-5 justify-center">
+        {state.needsCropReview && (
+          <a
+            href={`/parent/upload/${state.id}`}
+            className="mt-4 inline-block w-full py-3 bg-[#1D9E75] text-white rounded-xl text-sm font-medium"
+          >
+            ✂️ {t('下一步：確認題目圖片')}
+          </a>
+        )}
+        <div className="flex gap-3 mt-3 justify-center">
           <button
             onClick={reset}
             className="px-5 py-2.5 bg-[#4A90E2] text-white rounded-xl text-sm font-medium"

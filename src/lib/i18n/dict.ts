@@ -422,6 +422,22 @@ export const dict: Record<string, string> = {
   // Parent: past paper upload page
   '上載試卷圖片後，AI 會自動提取題目，老師審核後加入題庫，子女練習時可以做到這些題目。': 'After you upload exam photos, AI extracts the questions automatically. Once the teacher approves them, they join the question bank for your child to practice.',
   '上載成功！': 'Upload successful!',
+
+  // Parent crop review (Path B)
+  '下一步：確認題目圖片': 'Next: confirm question figures',
+  '確認題目圖片': 'Confirm question figures',
+  '這份試卷沒有圖形題，無需確認圖片': 'This paper has no figure questions — nothing to confirm',
+  '圖片已確認，等待老師審核': 'Figures confirmed — awaiting teacher review',
+  '此上載已完成審核，不能再修改': 'This upload has been reviewed and can no longer be changed',
+  '未有圖片（提交後此題不帶圖）': 'No figure (this question will be saved without an image)',
+  '調整框選': 'Adjust box',
+  '手動框選': 'Draw box',
+  '候選': 'Candidate',
+  '無圖': 'No figure',
+  '確認全部圖片': 'Confirm all figures',
+  '框選題目圖片': 'Select the question figure',
+  '拖入面移動．拖四角改大小': 'Drag inside to move · drag corners to resize',
+  '確定': 'Confirm',
   '再上載一份': 'Upload Another',
   '試卷圖片': 'Exam Paper Photos',
   '最多10頁': 'up to 10 pages',

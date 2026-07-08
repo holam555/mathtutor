@@ -67,7 +67,12 @@ export type ExtractedQuestion = {
   suggested_answer: string
   suggested_category_code: string
   has_image: boolean
-  image_region?: ImageRegion | null  // bounding box of the image region, if has_image
+  /** @deprecated Gemini percent-bbox guesses were unreliable; Path B now
+   *  uses CV detection (src/lib/figureDetect.ts) + parent confirmation. */
+  image_region?: ImageRegion | null
+  /** CV default crop in original-page pixel coords, set by the upload
+   *  route when the page's anchor count matches its question count. */
+  suggested_box?: { x: number; y: number; w: number; h: number } | null
   image_url?: string | null          // filled in after crop + storage upload
   // Raw storage path in the past-papers bucket. image_url above may be a
   // short-lived signed URL for display; ONLY image_path is safe to persist.

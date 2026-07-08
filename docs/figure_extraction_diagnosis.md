@@ -1,0 +1,259 @@
+# 圖片抽取＋綁定題目 — 失敗診斷 + 新 approach
+
+> **Review 決定（2026-07-06）**：
+> 1. 裝飾圖（唔影響作答嘅插圖）**唔入庫** — verifier 標 `essential=false` 即剔走
+> 2. 家長手影相嘅 skew/glare correction 推遲到 Phase 3
+> 3. 折線圖/行程圖 deferred folders 做 Phase 2 acceptance test
+> 4. **兩條 entry path**（下面 Part 2 有詳細）：
+>    - **Path A — 用戶自己嘅 past paper 入庫**：全程喺 Claude Code session 做，
+>      **唔 call 外部 API**。CV script 行本地；VLM 角色（anchor 確認、binding
+>      verification）由 session 內嘅 Claude 讀 annotated image 擔任。
+>    - **Path B — 家長喺 app 上載影相**（glare/shadow 多）：runtime call Gemini API，
+>      Phase 3 先做，重用同一套 CV core + binding 邏輯。
+
+> 目標：畀 AI 睇一版完整 past paper，可靠咁 (1) 判斷邊題有圖 (2) 喺頁面 crop 出嚟
+> (3) bind 返去啱嘅題目，最後令 image-dependent 題目可以入庫。
+> 本文件係 **診斷 + 提案**，未寫 pipeline。任何 build 都會喺 scratch/scripts 做，
+> 唔掂 live DB。
+
+---
+
+## Part 1 — 過去三次嘗試同失敗模式（有佐證）
+
+### 嘗試 A：Sprint 4 one-shot Gemini bbox（live code，而家仲喺度）
+
+位置：`src/lib/gemini.ts` `extractQuestionsFromImages()` + `src/app/api/past-paper/upload/route.ts:104-140`
+
+做法：一個 Gemini 2.5 Flash call 同時做晒「transcribe 全部題目 + 分類 + 判斷 has_image +
+輸出 `image_region` percent bbox」，之後 server 用 sharp 照 bbox crop。
+
+點解失敗：
+
+1. **Percent bbox 唔係 Gemini 嘅 native detection 格式。** Gemini 2.x/2.5 嘅 object
+   detection 係訓練成輸出 `box_2d = [ymin, xmin, ymax, xmax]`，normalized 0–1000。
+   我哋個 prompt 要佢輸出自創嘅 `{x, y, w, h}` percent 格式，等於放棄咗佢 detection
+   訓練，變成「靠估」。VLM freeform 估 spatial percentage 出名唔準。
+2. **一個 call 做太多嘢。** Transcription、答案、分類、localization 全部迫入一個 JSON
+   —— attention 分薄咗，bbox 質素進一步跌。
+3. **Crop 完全冇 verification。** Crop 出嚟嘅嘢從來冇畀任何人／model 覆核「係咪真係呢題
+   嘅圖、圖完唔完整」。`route.ts:136` 仲係 `catch {}` silent swallow —— crop 失敗
+   靜靜雞變 `image_url = null`，冇人知。
+4. Binding 係 implicit（bbox 掛喺題目 object 上面），dense page 一錯位就全錯，冇任何
+   cross-check。
+
+結果：crop 唔準（切爛圖／crop 到隔離題）、漏圖，老師喺 ReviewForm 只可以人手重新上載。
+
+### 嘗試 B：人手 crop + semantic match（`docs/lq_seed_workflow.md`，現行 LQ 流程）
+
+做法：用戶人手 crop 每張 diagram 放 `_lq_input/p<N>/images/`，AI 再靠
+「檔名 Q-number hint → 唔得就 semantic content match（圖入面嘅字/數字 vs 題目文字）」
+配對，出 HIGH/MEDIUM/LOW confidence。
+
+實際結果（見 `docs/archive/p6_lq_batch1_report.md` / `p6_lq_batch2_report.md`）：
+
+- Batch1：15 張圖只有 3 張配到（HIGH），**12 張 orphan** —— 因為 dense
+  multi-LQ 頁面「too small to read」，題目文字都抽唔出，semantic match 冇嘢可以 match。
+- 要用戶**逐題重新 screenshot 一次**（batch2 嘅 20 張 rescreenshot）先至配返 11/12
+  —— 即係成個流程要人手做兩輪先 work，工作量 ~2×。
+- Semantic match 只喺「圖入面嘅數字/標籤 verbatim 出現喺題目文字」先係 HIGH（梯形
+  1.2/2.4/1.35 嗰種）。**冇共用數字嘅圖（裝飾圖、純圖表、幾何示意圖）就係 LOW／配唔到**；
+  同類圖多過一張（P6 U6 十條容積題全部係長方體示意）就有配錯風險。
+- 人手 crop 本身就係 bottleneck —— 呢步唔自動化，成個目標都達唔到。
+
+### 嘗試 C：p6aa Word 檔 embedded media 抽取（`docs/archive/p6aa_extraction_report.md`）
+
+做法：`.doc → .docx → unzip → 30 個 .wmf → png`。
+
+結果：抽圖係得嘅（Word 源頭嘅圖 = 完美 crop，唔使 vision），但 30 個 WMF 大部分係
+inline 數學符號（分數、圈圈 bullet），只有 ~7 個係真 diagram，靠 file size >30KB
+呢啲粗糙 heuristic 過濾；而且**冇 binding 機制** —— 邊個 WMF 屬邊題完全冇做。
+Image-essential 題（該卷 ~17%）照舊 SKIP。
+
+### 根本原因（三次共通）
+
+> **三次全部將 binding 當成「語義配對」問題（圖嘅內容 vs 題目文字），
+> 但佢其實係「頁面幾何」問題。**
+
+喺一版卷上面，一張圖屬於邊題，係由**位置**決定：圖一定喺該題題號開始、下一題題號
+之前嘅 vertical band 入面（睇 `_lq_input:/p6/p6a/Screenshot ...16.41.19.png` 呢版：
+⑭⑮⑯⑰ 四題，每題嘅圖都喺自己 band 嘅右側）。語義配對係捨易取難 ——
+放棄咗頁面上免費、確定性嘅 geometry 訊號，去猜兩個 lossy channel（transcribed text
+vs image content）嘅交集。所以先會出現「同類圖分唔開」「冇共用數字配唔到」呢啲失敗。
+
+另外兩個共通缺陷：
+
+- **冇 verification loop** —— 冇一步係攞住 (crop, 題目) pair 獨立覆核。
+- **冇 eval set** —— 每次改方法都冇得量度有冇進步。
+
+---
+
+## Part 2 — 新 approach（提案）
+
+### 設計原則
+
+1. **Binding 由 geometry 決定，semantic 只做 verifier。** 配對唔再係猜，係計。
+2. **三件事分三個 pass**（localize / transcribe / verify），每個 pass 輸出窄。
+3. **兩個獨立 detector 互相 cross-check** —— 一致先算高信心。
+4. **每個 binding 有 confidence score + 人手 gate**，高信心先可以 pre-tick，
+   永遠唔會未經肉眼確認就入庫（硬性要求）。
+
+### Pipeline（5 步）
+
+```
+page image ──┬─ Step 1  CV figure detection（sharp/OpenCV，唔用 LLM）
+             │          binarize → morphological dilate → connected components
+             │          → filter（size / aspect / ink density / 唔似 text-line）
+             │          → tight bbox per figure candidate
+             │
+             ├─ Step 2  Anchor detection
+             │          Path A（Claude Code）：script 喺頁面 overlay 標籤好嘅
+             │            candidate boxes + 座標格線，Claude 讀 annotated image
+             │            指認題號位置／確認 band 分界（selection task，唔係
+             │            localization — Claude 揀係可靠，出 pixel 座標唔可靠）
+             │          Path B（app runtime）：Gemini native detection 格式
+             │            「搵出所有題號 token 嘅 box_2d [ymin,xmin,ymax,xmax]
+             │            0-1000」
+             │          → 每題一個 vertical band（支援雙欄：先 detect column split）
+             │
+             ├─ Step 3  Structural binding（純計算，零 AI）
+             │          figure bbox ∈ 邊個 band → 屬邊題。
+             │          Edge cases：跨 band 嘅圖（罰 overlap ratio）、
+             │          band 內多過一張圖（全部 bind 落同一題或 sub-questions）、
+             │          group_id 共用 setup 圖。
+             │
+             ├─ Step 4  Verification pass（獨立 fresh VLM call，每個 pair 一次）
+             │          input:  crop + 該題 transcribed text（transcription 係
+             │                  另一個現成 pass，即係現行題目抽取）
+             │          output: { belongs: yes/no, essential: 必需/裝飾,
+             │                    alt_text, labels_seen: [...] }
+             │          機械 cross-checks：
+             │          • label overlap：crop 入面 OCR 到嘅數字 vs 題目文字
+             │          • conservation：頁面 figure 數 vs has_image 題數，唔對數
+             │            即 flag（捉「漏圖／多圖」）
+             │
+             └─ Step 5  Human contact sheet（沿用 _lq_input: 入面已證實好用嘅
+                        preview HTML pattern）
+                        每行：crop thumbnail｜題目文字｜confidence｜verifier 理由
+                        ✅ AUTO（geometry 唯一 + verifier yes + label overlap）pre-tick
+                        ⚠️ 其他一律要人剔
+                        → 剔咗嘅先生成 seed SQL（local: placeholder，行返
+                          scripts/upload_lq_images.ts 現有 plumbing）
+```
+
+### Confidence scoring（binding 級別）
+
+| 分數 | 條件 |
+|---|---|
+| **AUTO**（pre-tick） | band 內唯一 figure + figure 完全喺 band 內 + verifier belongs=yes + label overlap ≥1 個數字 |
+| **HIGH** | geometry 唯一 + verifier yes，但冇 label overlap（裝飾圖常見） |
+| **REVIEW** | geometry 有歧義（跨 band / band 多圖）或 verifier 唔肯定 |
+| **REJECT** | verifier belongs=no，或 conservation check 唔對數 |
+
+配錯題係最大失敗模式，所以規則係：**要兩個獨立訊號（geometry + semantic verifier）
+同時同意先出 AUTO**；single-signal 一律人手。
+
+### 點解呢個 approach 應該得
+
+- Step 1 用 CV 而唔係 LLM：試卷嘅圖係白底 line-art，四圍 whitespace，connected
+  component 搵出嚟嘅 bbox 係 pixel-tight，直接解決「crop 唔準」——
+  完全冇 hallucination 空間。sharp 已經係 project dependency。
+- Step 2 只叫 Gemini 做佢 native 訓練過嘅嘢（detection 格式 box_2d 0-1000），
+  而且題號係高對比、規則性極強嘅 token，係 detection 最易嘅 case。
+- Step 3 零 AI —— binding 本身變成確定性計算，semantic 錯配呢類 failure mode
+  structurally 消失。
+- Step 4/5 保證「唔可以配錯題」硬性要求：AI 只能提名，唔能夠入庫。
+- Word 源頭嘅卷（`past paper in word/`）行 Attempt C 路線攞完美圖，
+  再入同一個 Step 3-5 binding + verification —— 兩條入口，一套驗證。
+
+### 現成 eval set（唔使搵新數據）
+
+`_lq_input:/` 有齊原始 dense pages，而 batch1/2 report + 現有 seed SQL 記低咗
+**~15 對人手驗證過嘅 figure↔question binding**（例：`16.47.59.png`↔LQ10 梯形、
+`16.48.02.png`↔LQ11 的士）。攞返啲原始頁面行 pipeline，量度：
+
+1. **Binding precision**（最重要）：配咗嘅 pair 有幾多係啱 —— 目標 100%，
+   錯嘅一定要跌入 REVIEW/REJECT，唔可以以 AUTO/HIGH 出現
+2. **Recall**：15 對 ground truth 捉返幾多
+3. **Crop quality**：CV bbox vs 人手 crop 嘅 IoU
+4. **Conservation check 靈敏度**：故意刪一張圖，睇 flag 唔 flag 到
+
+### 分階段交付
+
+| Phase | Path | 內容 | 產出 | 掂唔掂 DB |
+|---|---|---|---|---|
+| **1. 實驗** | A | 喺 scratch 寫 CV detection + binding 腳本，行 eval set（Claude Code 做 verifier，零 API） | metrics report | ❌ 完全唔掂 |
+| **2. 工具化** | A | `scripts/extract_figures/` CLI：input 頁面 folder → crops + annotated pages + contact sheet + draft seed SQL；acceptance test = 折線圖/行程圖 deferred folders | 可以攞嚟做 P5 43 條 inactive image questions + deferred folders | ❌ 只出 SQL 草稿，人 apply |
+| **3.** | B | 接入 past-paper upload route（Gemini native box_2d 取代 percent-bbox），加 photo 前處理（deskew / glare / shadow） | 家長 app 上載受惠 | PR review 先郁 |
+
+### Phase 1 實驗結果（2026-07-06，已完成）
+
+Script：`scripts/extract_figures/detect.js`（純 CV，零 AI 零 DB；用法見該 folder README）。
+Eval set：`_lq_input:/p6/` 原始 dense pages + batch1/2 report 嘅人手 ground truth。
+
+**結果：肉眼核對 10 對 figure↔question binding，10/10 正確，0 配錯；
+essential figures recall 100%（核對過嘅頁面）。**
+
+證實咗嘅嘢：
+
+- CV connected-component detection 出嘅 crop 係 pixel-tight，圖嘅尺寸標籤
+  （1.2 米 / 1.35 米）會自動併入 crop —— 「crop 唔準」問題直接消失
+- 淺色底 panel（的士收費表）由 tinted-fill seeds 捉到
+- 題號圈 anchor 用「空心 + 深色 + 唔飽和 + bbox 四角冇墨」四重 test，
+  贏咗 lightbulb icons / 彩色 badges / 中文字三類 false positive 嘅大多數
+- **False anchor 唔會造成配錯**：中文字偶然滑過 corner test 只會將同一題
+  split 成兩個 band，圖仍然落喺同一題文字範圍內 —— 因為最後 band→題號
+  一步係讀圈內數字（verifier 做），binding 唔受影響。呢個係 approach
+  robust 嘅關鍵證據。
+- 之前 batch1 靠 semantic match 得 3/15、要用戶 rescreenshot 先救返嘅
+  同一批 pages，幾何 binding 一 pass 搞掂
+
+殘留 noise（設計上由 Step 4 verifier + Step 5 human gate 吸收；Phase 2 收窄）：
+底線人名 junk candidates、一題多圖 same-band merge policy、
+「chart 喺題組上面」shared-figure rule（折線圖/行程圖 folder 就係呢款，
+本身已編定做 Phase 2 acceptance test）、細圈 ①② anchors recall。
+
+### 已解決嘅政策問題（2026-07-06 review）
+
+1. **裝飾圖唔入庫** — contact sheet tick「無圖」；只有 tick 咗嘅 crop 先入 SQL。
+2. **手影相 deskew/glare** — Phase 3（Path B 專屬前處理）。
+3. **折線圖/行程圖 folders** — Phase 2 acceptance test（已 PASS，見下）。
+4. **非數字答案一律 MC**（2026-07-06 追加）— `fill_in_number` 只可以係
+   純數字/小數/分數/帶分數；答案含中文（`4小時5分鐘`）或 C6 字元（`:` 等）
+   必須轉 `multiple_choice`，`gen_seed.js` 會 hard-fail 擋住。
+
+### Phase 2 完成（2026-07-06）
+
+工具鏈：`scripts/extract_figures/`（README 有完整 Path A runbook）
+
+- `batch.js` — folder → 每頁 detect + transcription stub + combined contact sheet
+- `contact_sheet.js` — DB-row preview + 每題 radio 揀 crop + Export selection.json
+- `gen_seed.js` — selection + transcription → idempotent seed SQL（policy
+  validation hard-fail）+ upload manifest（接返 `upload_lq_images.ts`）
+
+真掃描卷 sample（Q31-33）end-to-end 驗證：頁框/題號欄處理、朴素數字 anchor、
+pictorial composite（Q31 壺杯成套圖）、group_id 共用圖（Q32a/b 時鐘）、
+政策 gate negative test 全部通過。Acceptance（折線圖/行程圖）PASS：
+行程圖 3 頁每頁恰好 1 candidate = chart，junk 0。
+
+### Phase 3 — Path B 完成（2026-07-06）
+
+家長 app 上載流程接入 CV pipeline（**唔用** Gemini bbox — 直接用同一套幾何
+detection，唔係原計劃嘅 box_2d，因為 Phase 1/2 證明 CV 更可靠）：
+
+- `src/lib/figureDetect.ts` — detect.js 嘅 TS port（parity 測試逐 candidate
+  全等；detect.js 係 reference implementation，改算法要兩邊 mirror），
+  加 `photoNormalise`（sharp normalise 對抗手影相 shadow/glare）
+- `api/past-paper/upload` — 每頁行 CV（>1500px 先縮細再 detect，box 存返
+  原圖座標）；Gemini 題數 = anchor 數 → 每題預設 crop（`suggested_box`）；
+  **percent-bbox crop 已移除**（曾經 silent-catch 嗰段）
+- `/parent/upload/[id]` — 家長 crop 確認頁：每條圖題 AI 建議框 / 候選 /
+  ✂️ 手動框選（canvas，pointer events 支援手指）/ 無圖；確認先至裁圖
+  （`api/past-paper/confirm-crops`，sharp server-side crop → Storage）
+- 教師 `/admin/past-papers/[id]` 流程不變 — 批准後入 `assessment_questions`，
+  現有 mock-exam generator 直接受惠（家長上載 → 出到似佢學校卷嘅練習）
+- Migration：`supabase/migrations/0023_pathb_cv_figures.sql`
+  （`cv_figures` jsonb + `crops_confirmed`）— **要喺 Supabase apply**
+
+**餘下已知限制**：purely 幼線 figure 會被 thickness filter 誤殺（家長可手動
+框選補救）；雙欄 layout 未實裝；嚴重 perspective 歪斜相未有 deskew
+（normalise 只救到光暗，唔救到形變）。

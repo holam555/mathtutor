@@ -26,7 +26,7 @@
 
 | 任務 | 用 |
 |------|-----|
-| 入新 past paper／PDF／截圖落題庫 | skill `paper-ingestion`（wrap `scripts/extract_figures/` toolchain — 真身喺 branch `feat/figure-extraction-pipeline`，當前 branch 只有 output dirs，用前要 merge/checkout） |
+| 入新 past paper／PDF／截圖落題庫 | skill `paper-ingestion`（wrap `scripts/extract_figures/` toolchain — 已 merge 入 repo，PR #9） |
 | 驗證題庫（答案啱唔啱、可唔可以輸入） | skill `question-bank-check`（有 live DB scan） |
 | SEO 檢查／新公開頁之後 | skill `seo-audit` |
 | 寫公開單元指南內容頁 | skill `seo-content-page`（跟 `docs/seo_strategy.md` §4.3） |
@@ -167,7 +167,7 @@ API:    /api/practice/{start,answer,complete}（mock exam 嘅 MC/SQ 提交都行
         /api/past-paper/{upload,upload-image}  /api/parent/exam-scope/upload  /api/variations/generate
 ```
 
-呢個表由 `find src/app -name page.tsx -o -name route.ts` 生成（2026-07-06，branch feat/seo-skills）。改路由後照跑重生成，唔好手寫。Path B crop-review 路由（`/parent/upload/[id]`、`/api/past-paper/confirm-crops`）喺未 merge 嘅 branch `feat/figure-extraction-pipeline`。
+呢個表由 `find src/app -name page.tsx -o -name route.ts` 生成（2026-07-06，branch feat/seo-skills）。改路由後照跑重生成，唔好手寫。Path B crop-review 路由（`/parent/upload/[id]`、`/api/past-paper/confirm-crops`）已 merge 入 repo（PR #9）。
 
 角色分離：middleware 未授權跳 `/`（唔好暴露路由）。RLS：學生本人／老師／已連結家長三條 policy；helper `is_parent_of()`、`is_teacher()`。家長睇子女**必須**過 `parent_student_relationships`。
 
@@ -209,4 +209,4 @@ GEMINI_API_KEY / NEXT_PUBLIC_APP_URL / TOKENS_PER_PAPER_PAGE=10
 | SEO 策略 | `docs/seo_strategy.md` |
 | 公開頁設計策略（landing / resources 視覺語言 + 延伸指南） | `docs/design_strategy.md` |
 | 未完成任務隊列 | `docs/fable_handoff.md` + memory `fable-pending-tasks.md` |
-| Figure extraction pipeline（Path A/B） | `scripts/extract_figures/README.md`（committed 喺 branch `feat/figure-extraction-pipeline`，未 merge） |
+| Figure extraction pipeline（Path A/B） | `scripts/extract_figures/README.md`（已 merge 入 repo，PR #9）；深入診斷 `docs/figure_extraction_diagnosis.md` |
