@@ -196,7 +196,7 @@ export default function PracticeFlow({
           </div>
           {lang === 'en' && (
             <p className="text-xs text-gray-400 italic -mt-2">
-              {t('English ver coming soon!')}
+              {t('English ver. coming soon!')}
             </p>
           )}
           {currentQuestion.question_image_url && (
