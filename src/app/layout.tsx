@@ -67,6 +67,15 @@ const structuredData = {
       logo: `${siteUrl}/logo.png`,
       description: '香港小學（小三至小六）數學練習與升分平台，提供免費學前評估、錯題追蹤與智能出題。',
       areaServed: { '@type': 'Place', name: '香港 Hong Kong' },
+      telephone: '+852 5601 1931',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        telephone: '+852 5601 1931',
+        contactType: 'customer service',
+        areaServed: 'HK',
+        availableLanguage: ['zh-Hant', 'en'],
+      },
+      sameAs: ['https://www.instagram.com/lf.academy.hk'],
     },
     {
       '@type': 'WebSite',

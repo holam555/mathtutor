@@ -49,8 +49,13 @@
 呢部分我已經幫你落咗一部分安全 code（見 §9）。以下係完整 checklist：
 
 ### 3.1 前置：設定 production domain
-- Vercel env `NEXT_PUBLIC_APP_URL` set 做真實網址（例如 `https://www.lfacademy.hk`）。
+- **用戶決定（2026-07-08）：暫時用 Vercel 免費 domain，唔買自訂 domain。**
+  行動：Vercel project → Settings → Environment Variables →
+  `NEXT_PUBLIC_APP_URL=https://<project-name>.vercel.app`（以 Vercel dashboard 顯示嘅
+  production URL 為準），然後 redeploy。將來升級自訂 domain 只需改呢個 env。
 - `metadataBase` 用呢個 env，所有 canonical / OG / sitemap 先會正確 resolve。
+- ⚠️ vercel.app subdomain 嘅 SEO 天花板較低（domain authority 屬 vercel.app），
+  內容做起有流量後建議升級自訂 domain — 到時 Google Search Console 要重新 verify。
 
 ### 3.2 `robots.txt`（`src/app/robots.ts`）— ✅ 已建立
 - **Allow** 公開頁；**Disallow** `/admin`、`/student`、`/parent`、`/api`、`/login`、`/signup`（gated / 私隱）。
@@ -175,9 +180,21 @@
 - [x] `src/app/sitemap.ts` — 列公開頁
 - [x] `src/app/layout.tsx` — `metadataBase`（讀 `NEXT_PUBLIC_APP_URL`）、keywords、openGraph、twitter、canonical + Organization/WebSite/EducationalOrganization JSON-LD
 
+**2026-07-06 追加**：`/resources` 內容層基建（unit-guide registry + dynamic route + FAQPage/LearningResource schema）、`scripts/check_seo.mjs` 掃描、第一篇 guide（P5 異分母分數加減）。
+
+**2026-07-07 追加**：
+- [x] `/` 由純登入頁改成整版 marketing landing（§4.1(E) 嘅 SEO 包裝 + 首頁 internal links 去 /resources；設計規範見 [design_strategy.md](design_strategy.md)）
+- [x] 第二篇 guide：P6 百分數應用（`/resources/p6/百分數應用`）
+- [x] layout JSON-LD 加真實聯絡：`telephone` +852 5601 1931、`contactPoint`、`sameAs`（Instagram @lf.academy.hk）— E-E-A-T 訊號（§5 行動 5）
+
+**2026-07-08 追加**：
+- [x] 再加 5 篇 guide（合共 7 篇）：P4 公倍數和公因數、P5 分數除法、P5 多邊形的面積、P6 圓周的計算、P6 速率與行程圖 — §4.1(A) 長尾矩陣開始成形
+- [x] Landing 加 AI 定位文案 + dark mode（`prefers-color-scheme`，見 design_strategy.md §2）
+- [x] Domain 決策：暫用 vercel.app（見 §3.1 更新）— **user 仍需喺 Vercel set `NEXT_PUBLIC_APP_URL`**
+
 **未做（需要你決定 / 之後 session）：**
 - [ ] **設定真實 `NEXT_PUBLIC_APP_URL`**（前置，一定要做，否則上面 canonical/OG 全部指 localhost）
-- [ ] `public/og.png`（1200×630 品牌圖）
+- [x] `public/og.png`（1200×630 品牌圖，2026-07-06 已落；如要 restyle 跟 landing 視覺語言見 design_strategy.md §5）
 - [ ] `/faq` 頁 + FAQPage schema
 - [ ] 動態單元指南頁（§4，最大槓桿）
 - [ ] Google Search Console / Bing Webmaster / GA4 接入 + 提交 sitemap
