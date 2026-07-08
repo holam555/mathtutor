@@ -70,6 +70,7 @@ supabase/.temp/
 /scripts/*
 !/scripts/upload_lq_images.ts
 !/scripts/check_i18n.mjs
+!/scripts/check_seo.mjs
 # Figure extraction experiment (docs/figure_extraction_diagnosis.md) —
 # track the tool, never its output crops (past-paper content stays local)
 !/scripts/extract_figures/

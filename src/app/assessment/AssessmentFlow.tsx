@@ -83,7 +83,7 @@ function GradeSelect({ onStart }: { onStart: (opt: GradeOption) => void }) {
   const { t } = useLang()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex flex-col items-center justify-center p-6">
+    <div className="min-h-screen paper-grid-light flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-5xl mb-4">📝</div>
@@ -169,7 +169,7 @@ function UnitSelect({
   const selectedCount = selected.size
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
+    <div className="min-h-screen paper-grid-light pb-32">
       <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
         <button onClick={onBack} className="text-sm text-gray-400 mb-2">← {t('返回')}</button>
         <h2 className="text-lg font-bold text-gray-800">{t('選擇學生已學單元')}</h2>
@@ -306,7 +306,7 @@ function TopicSelect({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32">
+    <div className="min-h-screen paper-grid-light pb-32">
       <div className="bg-white px-5 pt-6 pb-4 shadow-sm">
         <button onClick={onBack} className="text-sm text-gray-400 mb-2">← {translate('返回大單元')}</button>
         <h2 className="text-lg font-bold text-gray-800">{translate('細揀學生已學的小單元')}</h2>
@@ -437,7 +437,7 @@ function QuestionCard({
         : null
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen paper-grid-light flex flex-col">
       {/* Progress */}
       <div className="bg-white px-4 pt-4 pb-3 shadow-sm">
         <div className="flex items-center gap-3 mb-2">

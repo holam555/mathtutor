@@ -66,15 +66,15 @@ export default async function ExamSprintPage() {
   const totalQuestions = Array.from(countByUnit.values()).reduce((s, v) => s + v, 0)
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-[#FFF8EC] to-white">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto paper-grid-light">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/student" className="text-gray-400 hover:text-gray-600 text-lg">
           ←
         </Link>
-        <h1 className="text-xl font-bold">🔥 {translate('考試衝刺練習', lang)}</h1>
+        <h1 className="text-xl font-bold text-[#1F4D36]">🔥 {translate('考試衝刺練習', lang)}</h1>
       </div>
 
-      <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
+      <div className="bg-white rounded-2xl p-5 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] mb-4">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
           {translate('考試範圍', lang)}
         </p>
@@ -89,7 +89,7 @@ export default async function ExamSprintPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
+      <div className="bg-white rounded-2xl p-4 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] mb-6">
         <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
           {translate('範圍單元', lang)}
         </p>

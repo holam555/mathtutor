@@ -51,10 +51,10 @@ export default async function TrophiesPage() {
   const unlockedCount = items.filter((i) => i.status.unlocked).length
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-[#F7FBF9] to-white">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto paper-grid-light">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/student" className="text-gray-400 text-sm">← {t('返回', lang)}</Link>
-        <h1 className="text-xl font-bold">{t('我的獎杯', lang)}</h1>
+        <h1 className="text-xl font-bold text-[#1F4D36]">{t('我的獎杯', lang)}</h1>
         <span className="ml-auto text-sm text-gray-400">
           {unlockedCount} / {TROPHIES.length}
         </span>
@@ -67,7 +67,7 @@ export default async function TrophiesPage() {
             className={`rounded-2xl p-4 text-center transition ${
               status.unlocked
                 ? 'bg-gradient-to-br from-[#FFE7B5] to-[#FFCC66] shadow-md'
-                : 'bg-white shadow-sm'
+                : 'bg-white ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)]'
             }`}
           >
             <div

@@ -113,21 +113,21 @@ export default async function WrongBankPage() {
   const totalWrong = list.reduce((s, b) => s + b.wrongCount, 0)
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto paper-grid-light">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/student" className="text-gray-400 hover:text-gray-600 text-lg">
           ←
         </Link>
-        <h1 className="text-xl font-bold">{translate('錯題庫', lang)}</h1>
+        <h1 className="text-xl font-bold text-[#1F4D36]">{translate('錯題庫', lang)}</h1>
         {totalWrong > 0 && (
-          <span className="ml-auto text-sm font-medium text-[#F44336] bg-red-50 px-3 py-1 rounded-full">
+          <span className="ml-auto text-sm font-medium text-[#C87E10] bg-[#EF9F27]/15 px-3 py-1 rounded-full">
             {totalWrong} {translate('次錯誤', lang)}
           </span>
         )}
       </div>
 
       {list.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <div className="bg-white rounded-2xl p-8 text-center ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           <p className="text-4xl mb-3">🎉</p>
           <p className="font-semibold text-gray-700">{translate('暫時沒有錯題', lang)}</p>
           <p className="text-sm text-gray-400 mt-1">{translate('繼續保持！', lang)}</p>
@@ -138,11 +138,11 @@ export default async function WrongBankPage() {
       ) : (
         <div className="space-y-3">
           {list.map((b) => (
-            <div key={b.key} className="bg-white rounded-2xl p-4 shadow-sm">
+            <div key={b.key} className="bg-white rounded-2xl p-4 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
               <div className="flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{b.label}</p>
-                  <p className="text-xs text-[#F44336] mt-1">{b.wrongCount} {translate('次答錯', lang)}</p>
+                  <p className="text-xs text-[#C87E10] mt-1">{b.wrongCount} {translate('次答錯', lang)}</p>
                 </div>
                 <WrongBankClient
                   studentId={user.id}

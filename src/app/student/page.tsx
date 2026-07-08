@@ -117,11 +117,11 @@ export default async function StudentHome() {
   const progressOffset = circumference * (1 - dailyProgress / 100)
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-[#F7FBF9] to-white">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto paper-grid-light">
       {/* Header */}
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">
+          <h1 className="text-2xl font-bold text-[#1F4D36]">
             {t(greeting, lang)}，{profile?.name ?? t('同學', lang)} 👋
           </h1>
           {profile?.grade && (
@@ -136,7 +136,7 @@ export default async function StudentHome() {
       </div>
 
       {/* Daily goal ring */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm mb-4">
+      <div className="bg-white rounded-2xl p-6 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] mb-4">
         <div className="flex flex-col items-center">
           <div className="relative" style={{ width: size, height: size }}>
             <svg width={size} height={size} className="-rotate-90">
@@ -178,7 +178,7 @@ export default async function StudentHome() {
       </div>
 
       {/* Weekly streak dots */}
-      <div className="bg-white rounded-3xl p-5 shadow-sm mb-4">
+      <div className="bg-white rounded-2xl p-5 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] mb-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('本週練習', lang)}</p>
           <p className="text-sm">
@@ -213,7 +213,7 @@ export default async function StudentHome() {
       </div>
 
       {/* Trophy shelf */}
-      <Link href="/student/trophies" className="block bg-white rounded-3xl p-5 shadow-sm mb-4">
+      <Link href="/student/trophies" className="block bg-white rounded-2xl p-5 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] mb-4">
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{t('我的獎杯', lang)}</p>
           <p className="text-xs text-gray-400">
@@ -239,7 +239,7 @@ export default async function StudentHome() {
 
       {/* Next trophy progress */}
       {next && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
+        <div className="bg-white rounded-2xl p-4 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] mb-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-gray-500">{t('下一個獎杯', lang)}</p>
             <p className="text-xs font-semibold text-gray-700">
