@@ -99,7 +99,7 @@ export default async function SessionDetailPage({
   const totalQ = session.total_questions ?? records.length
 
   return (
-    <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto">
+    <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto paper-grid-light">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link

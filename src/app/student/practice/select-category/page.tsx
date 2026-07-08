@@ -125,16 +125,16 @@ export default async function SelectUnitPage() {
   }))
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto paper-grid-light">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/student" className="text-gray-400 hover:text-gray-600 text-lg">
           ←
         </Link>
-        <h1 className="text-xl font-bold">{translate('按單元練習', lang)}</h1>
+        <h1 className="text-xl font-bold text-[#1F4D36]">{translate('按單元練習', lang)}</h1>
       </div>
 
       {groups.length === 0 ? (
-        <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+        <div className="bg-white rounded-2xl p-8 text-center ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)]">
           <p className="text-gray-400">{translate('暫時沒有題目，請聯絡老師', lang)}</p>
         </div>
       ) : (
@@ -154,7 +154,7 @@ export default async function SelectUnitPage() {
                   return (
                     <div
                       key={u.id}
-                      className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3"
+                      className="bg-white rounded-2xl p-4 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] flex items-center gap-3"
                     >
                       <div className="shrink-0">
                         {accuracy !== null ? (

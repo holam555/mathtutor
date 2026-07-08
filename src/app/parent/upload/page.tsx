@@ -17,7 +17,7 @@ export default async function UploadPage() {
   }
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-lg mx-auto">
+    <main className="min-h-screen px-5 py-8 max-w-lg mx-auto paper-grid-light">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/parent" className="text-gray-400 hover:text-gray-600 text-sm">
           ← {translate('返回', lang)}

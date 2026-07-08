@@ -21,7 +21,7 @@ export default async function StudentSignupPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-5 py-10 bg-gradient-to-br from-[#F5FBF8] to-[#E6F4EE]">
+    <main className="min-h-screen flex items-center justify-center px-5 py-10 paper-grid-light">
       <div className="w-full max-w-sm">
         <Link href="/" className="inline-block text-sm text-gray-400 mb-6">← {translate('返回', lang)}</Link>
         <div className="text-center mb-8">

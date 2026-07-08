@@ -167,7 +167,7 @@ export default function PracticeFlow({
   }
 
   return (
-    <div className="flex flex-col min-h-screen max-w-md mx-auto">
+    <div className="flex flex-col min-h-screen max-w-md mx-auto paper-grid-light">
       {/* Top bar */}
       <div className="px-5 pt-6 pb-2 flex items-center gap-4">
         <button
@@ -190,7 +190,7 @@ export default function PracticeFlow({
 
       {/* Question area */}
       <div className="flex-1 px-5 pt-6 pb-4">
-        <div className="bg-white rounded-2xl p-5 shadow-sm min-h-[140px] flex flex-col items-start gap-4">
+        <div className="bg-white rounded-2xl p-5 ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] min-h-[140px] flex flex-col items-start gap-4">
           <div className="text-[18px] text-gray-800" style={{ lineHeight: '1.6' }}>
             <QuestionContent text={currentQuestion.question_text} />
           </div>

@@ -73,7 +73,8 @@ export default function UnitGuidePage({
   const { Component } = guide
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8">
+    <main className="min-h-screen paper-grid text-gray-800 dark:text-gray-200">
+      <div className="max-w-2xl mx-auto px-4 py-8">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
@@ -84,15 +85,15 @@ export default function UnitGuidePage({
       />
 
       <nav className="text-sm text-gray-400 mb-6">
-        <Link href="/" className="hover:text-gray-600">首頁</Link>
+        <Link href="/" className="hover:text-[#1F4D36] dark:hover:text-gray-100 transition">首頁</Link>
         {' › '}
-        <Link href="/resources" className="hover:text-gray-600">學習資源</Link>
+        <Link href="/resources" className="hover:text-[#1F4D36] dark:hover:text-gray-100 transition">學習資源</Link>
         {' › '}
-        <span className="text-gray-600">P{guide.grade} {guide.slug}</span>
+        <span className="text-gray-600 dark:text-gray-300">P{guide.grade} {guide.slug}</span>
       </nav>
 
       <header className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 leading-snug">{guide.title}</h1>
+        <h1 className="text-2xl font-bold text-[#1F4D36] dark:text-white leading-snug">{guide.title}</h1>
         <p className="text-sm text-gray-400 mt-2">
           霖楓學苑教師團隊 · 更新於 {guide.updated} · 香港小學課程
         </p>
@@ -101,10 +102,10 @@ export default function UnitGuidePage({
       <Component />
 
       <section className="mt-10">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">常見問題</h2>
+        <h2 className="text-xl font-bold text-[#1F4D36] dark:text-white mb-4">常見問題</h2>
         <div className="space-y-4">
           {guide.faq.map((f) => (
-            <details key={f.q} className="bg-gray-50 rounded-xl p-4">
+            <details key={f.q} className="bg-white dark:bg-white/[0.06] ring-1 ring-gray-900/5 dark:ring-white/10 rounded-xl p-4">
               <summary className="font-semibold text-gray-800 cursor-pointer">{f.q}</summary>
               <p className="text-gray-600 mt-2 leading-relaxed">{f.a}</p>
             </details>
@@ -121,6 +122,7 @@ export default function UnitGuidePage({
         >
           開始免費學前評估
         </Link>
+      </div>
       </div>
     </main>
   )

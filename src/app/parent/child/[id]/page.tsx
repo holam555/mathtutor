@@ -118,7 +118,7 @@ export default async function ParentChildReport({
   // ── Sprint / exam scope tab ───────────────────────────────────────────────
   if (isSprint) {
     return (
-      <main className="min-h-screen px-4 py-8 max-w-md mx-auto">
+      <main className="min-h-screen px-4 py-8 max-w-md mx-auto paper-grid-light">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Link href="/parent" className="text-gray-400 hover:text-gray-600 text-sm">← {translate('返回', lang)}</Link>
@@ -291,7 +291,7 @@ export default async function ParentChildReport({
   if (!report.profile) notFound()
 
   return (
-    <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto">
+    <main className="min-h-screen px-4 py-8 max-w-2xl mx-auto paper-grid-light">
       <StudentReport
         mode="parent"
         studentName={report.profile.name}
