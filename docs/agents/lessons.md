@@ -48,3 +48,8 @@
 **症狀**：preview 突然變晒無 CSS 嘅裸 HTML（暗色 UA default），所有 `_next/static` chunk 404，SSR 500 `Cannot find module './8948.js'`。
 **根因**：`npx next build` 同 `next dev` 共用 `.next/` — production build 剷咗 dev 嘅 chunk manifest。
 **規則**：跑 build gate 前先停 dev server（或接受跑完要 `rm -rf .next` + 重啟 dev）。壞咗嘅修法就係：停 server → `rm -rf .next` → 重啟。
+
+## L10 — Subagent 會因 plan session limit 中途死亡，留低半完成 edit（2026-07-08）
+**症狀**：兩個 reskin subagent 行到一半彈「You've hit your session limit」，回報空白；其中一個留低 unclosed `<div>`（JSX 唔 balance，tsc fail），另一個只做咗一半 scope。
+**根因**：subagent 同主對話共用 plan quota；批量 edit 任務中途斷，冇機會自查驗收。
+**規則**：每個會寫檔嘅 subagent 完成（或死亡）後，指揮官必須 `git diff --stat` + 跑 `tsc` 先當佢完成咗；agent 冇回報驗收結果 = 當未驗證，逐檔檢查。Scope 未掂嘅部分由指揮官 inline 執手尾，唔好再派（quota 已爆）。
