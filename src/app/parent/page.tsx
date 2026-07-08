@@ -102,7 +102,7 @@ export default async function ParentHome() {
   }))
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto paper-grid-light">
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">{t('家長中心', lang)}</h1>

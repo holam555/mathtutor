@@ -1,5 +1,11 @@
 import type { ComponentType } from 'react'
+import { p4U2CommonMultiplesFactors } from './p4-u2-common-multiples-factors'
 import { p5U2FractionAddSub } from './p5-u2-fraction-add-sub'
+import { p5U7PolygonArea } from './p5-u7-polygon-area'
+import { p5U14FractionDivision } from './p5-u14-fraction-division'
+import { p6U7Circumference } from './p6-u7-circumference'
+import { p6U9PercentageApplications } from './p6-u9-percentage-applications'
+import { p6U12Speed } from './p6-u12-speed'
 
 /**
  * Public 單元指南 registry — the single source of truth for the
@@ -32,7 +38,18 @@ export type UnitGuide = {
   Component: ComponentType
 }
 
-export const unitGuides: UnitGuide[] = [p5U2FractionAddSub]
+// Array order = landing page「免費學習指南」featured order (first 4).
+// /resources sorts by grade + unitNumber itself, so ordering here is
+// purely editorial — keep a P5/P6 mix up front (highest 呈分試 intent).
+export const unitGuides: UnitGuide[] = [
+  p5U2FractionAddSub,
+  p6U9PercentageApplications,
+  p5U14FractionDivision,
+  p6U12Speed,
+  p4U2CommonMultiplesFactors,
+  p5U7PolygonArea,
+  p6U7Circumference,
+]
 
 export function findGuide(grade: string, slug: string): UnitGuide | undefined {
   const g = parseInt(grade.replace(/^p/i, ''), 10)

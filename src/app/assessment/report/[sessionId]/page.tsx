@@ -48,7 +48,7 @@ export default async function AssessmentReportPage({
 
   if (!report) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+      <div className="min-h-screen paper-grid-light flex items-center justify-center p-6">
         <div className="text-center">
           <p className="text-gray-500">{translate('報告正在生成中，請稍後重新載入頁面。', lang)}</p>
         </div>
@@ -87,7 +87,7 @@ export default async function AssessmentReportPage({
   const topicMastery = report.topicMastery ?? []
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0 print:px-0">
+    <div className="min-h-screen paper-grid-light py-8 px-4 print:bg-white print:bg-none print:py-0 print:px-0">
       <style>{`
         @media print {
           @page { margin: 12mm; }

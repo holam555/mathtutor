@@ -101,7 +101,7 @@ export default async function ResultsPage({
   })
 
   return (
-    <main className="min-h-screen px-5 py-10 max-w-md mx-auto bg-gradient-to-b from-[#F7FBF9] to-white flex flex-col items-center justify-center">
+    <main className="min-h-screen px-5 py-10 max-w-md mx-auto paper-grid-light flex flex-col items-center justify-center">
       {/* Headline */}
       <div className="text-center mb-8">
         <div className="text-6xl mb-4">{dailyGoalMet ? '🎉' : '💪'}</div>
@@ -116,7 +116,7 @@ export default async function ResultsPage({
       </div>
 
       {/* Stars earned */}
-      <div className="bg-white rounded-3xl shadow-sm px-8 py-6 mb-6 text-center w-full">
+      <div className="bg-white rounded-2xl ring-1 ring-gray-900/5 shadow-[0_1px_3px_rgba(16,24,40,0.08)] px-8 py-6 mb-6 text-center w-full">
         <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">{translate('今次獲得', lang)}</p>
         <p className="text-5xl font-bold text-[#EF9F27] flex items-center justify-center gap-1">
           <span>⭐</span>

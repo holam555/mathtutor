@@ -71,7 +71,7 @@ export default async function ParentLqUploadPage({
   )
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto bg-gradient-to-b from-blue-50/40 to-white">
+    <main className="min-h-screen px-5 py-8 max-w-md mx-auto paper-grid-light">
       <div className="flex items-center gap-3 mb-6">
         <Link href="/parent" className="text-gray-400 hover:text-gray-600 text-xl">
           ←

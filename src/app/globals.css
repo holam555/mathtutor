@@ -23,3 +23,29 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Squared exercise-book paper for the public marketing surface only
+   (docs/design_strategy.md §2). The app portals stay light-only. */
+.paper-grid {
+  background-color: #fbfaf5;
+  background-image: linear-gradient(rgba(29, 158, 117, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29, 158, 117, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .paper-grid {
+    background-color: #101613;
+    background-image: linear-gradient(rgba(29, 158, 117, 0.09) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(29, 158, 117, 0.09) 1px, transparent 1px);
+  }
+}
+
+/* Light-only variant for the logged-in portals (student/parent/assessment):
+   same exercise-book paper, but portals do NOT follow OS dark mode. */
+.paper-grid-light {
+  background-color: #fbfaf5;
+  background-image: linear-gradient(rgba(29, 158, 117, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(29, 158, 117, 0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+}

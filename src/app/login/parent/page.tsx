@@ -21,7 +21,7 @@ export default async function ParentLoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-5 py-10 bg-gradient-to-br from-[#FDF7EA] to-[#FCEDD0]">
+    <main className="min-h-screen flex items-center justify-center px-5 py-10 paper-grid-light">
       <div className="w-full max-w-sm">
         <Link href="/" className="inline-block text-sm text-gray-400 mb-6">← {t('返回', lang)}</Link>
         <div className="text-center mb-8">
