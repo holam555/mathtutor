@@ -50,7 +50,7 @@
 
 ### 抽題（`src/lib/assessmentSelection.ts`）
 - 平均分配 across 揀咗嘅單元（tied 時 earlier scope 攞多嗰條）
-- 三層配額 `TIER_QUOTA = { basic: 10, enhancement: 8, advanced: 2 }` = 20 條（4 個年級一樣；`TIER_QUOTA_P5` 已退役，`assessmentSelection.ts` 頭部註釋未更新，唔好照佢「修正」返轉頭）
+- 三層配額 `TIER_QUOTA = { basic: 10, enhancement: 8, advanced: 2 }` = 20 條（4 個年級一樣；舊 `TIER_QUOTA_P5` 已退役兼由 code 清走）
 - 每單元至少 1 條；配額拎唔晒可 cross-tier fill 至最多 30；揀少單元唔夠 20 唔強制補
 
 ### question_type（`assessment_questions`）

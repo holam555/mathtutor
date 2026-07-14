@@ -43,9 +43,7 @@ export async function GET(request: NextRequest) {
   }
 
   // ─── DB-backed path (P3, P4, P5, P6): load curriculum + select from assessment_questions ────
-  // The new P4-P6 pools all have basic/enhancement/advanced; use default quota.
-  // TIER_QUOTA_P5 (advanced=0) was for the legacy P5 pool which is now deactivated.
-  const tierQuota = TIER_QUOTA
+  // All active P3–P6 pools carry basic/enhancement/advanced, so every grade shares TIER_QUOTA.
   const unitIdsRaw = searchParams.get('unit_ids') ?? ''
   const topicIdsRaw = searchParams.get('topic_ids') ?? ''
   const unitIds = unitIdsRaw.split(',').map((s) => s.trim()).filter(Boolean)
@@ -155,7 +153,7 @@ export async function GET(request: NextRequest) {
     sub_order: p.sub_order ?? 1,
   }))
 
-  const result = selectQuestions(candidateRows, scopes, tierQuota)
+  const result = selectQuestions(candidateRows, scopes, TIER_QUOTA)
   const orderedRows = flattenItemsToRowOrder(result.selectedItems)
   const orderedRowIds = orderedRows.map((r) => r.id)
 
