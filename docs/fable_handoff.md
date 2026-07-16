@@ -7,14 +7,14 @@
 
 | Task | 狀態 |
 |------|------|
-| 1. SEO | ✅ Opus 完成：docs/seo_strategy.md + robots.ts/sitemap.ts/layout JSON-LD。前置未做：Vercel set 真實 `NEXT_PUBLIC_APP_URL`。內容*寫作*留畀 Fable（見 Prompt 3）。 |
+| 1. SEO | ✅ Opus 完成：docs/seo_strategy.md + robots.ts/sitemap.ts/layout JSON-LD。前置 ✅ 用戶已 set Vercel `NEXT_PUBLIC_APP_URL`（2026-07-14，vercel.app alias 足夠，唔使買域名）。 |
 | 3. 家長配對 | ⏭️ 用戶 skip |
 | 4. 題庫檢查 skill | ✅ Opus 完成：`.claude/skills/question-bank-check/` |
 | 6. Code review | ✅ Opus 完成 review + 修咗 #1（dead legacy grading 分支）、#2（hc- id 繞過 regrade）。餘下 #3/#4/#5 為 nice-to-have，見文末。 |
 | 5. Repo cleanup | ✅ Fable 完成（2026-07-05）：報告 docs/repo_cleanup_report.md，已執行 quarantine + archive + dead-code 移除，全部驗證過。用戶手動搬走 `_cleanup_quarantine/` 即完成 |
 | 7. Ingestion skill | ✅ Fable 完成（2026-07-06）：`.claude/skills/paper-ingestion/`（7-stage 一條龍，SOP 藍圖 `docs/paper_ingestion_sop_draft.md`）。首次實戰 p6_21c：37 AQ + 4 LQ + 12 圖 |
-| SEO 可持續 skills | ⬜ Fable — **Prompt 3** |
-| Code-review + Security skills | ⬜ Fable — **Prompt 4** |
+| SEO 可持續 skills | ✅ 完成：`.claude/skills/seo-audit/` + `seo-content-page/`（PR #10，landing + /resources 已上線） |
+| Code-review + Security skills | ✅ Fable 完成（2026-07-14）：`.claude/skills/mathtutor-review/` + `mathtutor-security/`（security baseline inventory 喺 reference.md，71 處 createServiceClient 全數盤點） |
 | 圖片抽取＋綁定題目（長期難題） | ✅ Fable 完成（2026-07-06）：Phase 1-3 全落地（CV 幾何綁定，Path A CLI + Path B 家長流程）。診斷+設計：`docs/figure_extraction_diagnosis.md`；branch `feat/figure-extraction-pipeline` |
 
 ## 點樣 prompt Fable（granularity）
@@ -159,9 +159,9 @@ Skill C（mathtutor-security）要 audit 嘅 attack surface（先 grep 盤點再
 
 ---
 
-## Task 6 餘下 nice-to-have（未修，Opus / Fable 皆可）
+## Task 6 nice-to-have — ✅ 全部完成（2026-07-14，commit 74a938e）
 
-- #3 answerUtils.ts：`又`→space 喺 whitespace collapse 之後，"3 又 1/2" 會變 triple space grade 唔中（僅影響 legacy 又+空格資料）。修法：把 `\s+`→' ' 移到最後。
-- #4 practice/answer/route.ts:103-141：mock_exam session 仍寫 practice wrong-bank —— 確認是否 intended，唔係就 gate `session_type !== 'mock_exam'`。
-- #5 DRY：兩個 Fisher-Yates shuffle（assessmentSelection / mockExamSelection）可抽共用 util；mockExamSelection pickGroupsByTier O(n²) filter 可用 counter。
+- #3 ✅ 修咗：`又`→space 移到 whitespace collapse 之前，加 regression test。
+- #4 ✅ 用戶裁定保持現狀：mock exam 錯題**即時**入 wrong-bank（接受考試中途 peek 風險）。已寫入 code comment + CLAUDE.md，唔好再「修」。
+- #5 ✅ 抽咗 `src/lib/shuffle.ts` 共用（shuffle=copy / shuffleInPlace=mutate）。pickGroupsByTier O(n²) 冇改 — pool size 細，唔值得。
 ```

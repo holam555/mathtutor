@@ -15,6 +15,7 @@
 // by `sub_order` so they render in the right order.
 
 import type { DifficultyTier } from '@/types/assessment'
+import { shuffle } from '@/lib/shuffle'
 
 export type AssessmentQuestionRow = {
   id: string
@@ -50,15 +51,6 @@ export const PAPER_TARGET = {
 const TIER_TARGET_MC: Record<DifficultyTier, number> = { basic: 4, enhancement: 11, advanced: 3 }
 const TIER_TARGET_SQ: Record<DifficultyTier, number> = { basic: 3, enhancement: 11, advanced: 3 }
 const TIER_TARGET_LQ: Record<DifficultyTier, number> = { basic: 1, enhancement: 3, advanced: 1 }
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
 
 // Bundle rows into groups. Each row with NULL group_id becomes its own
 // singleton group; rows sharing a group_id are bundled and sorted by

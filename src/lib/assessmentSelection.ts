@@ -15,6 +15,7 @@
 
 import type { DifficultyTier } from '@/types/assessment'
 import { TIER_QUOTA } from '@/types/assessment'
+import { shuffleInPlace } from '@/lib/shuffle'
 
 // ── Inputs/outputs ────────────────────────────────────────────────────────
 
@@ -108,16 +109,6 @@ function allocateByEvenDist(
   return Array.from({ length: scopeCount }, (_, i) =>
     base + (i < remainder ? 1 : 0),
   )
-}
-
-// ── Random pick without replacement ────────────────────────────────────────
-
-function shuffleInPlace<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-  }
-  return arr
 }
 
 // ── Main selection ────────────────────────────────────────────────────────
