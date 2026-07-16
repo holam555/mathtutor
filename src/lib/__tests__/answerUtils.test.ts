@@ -16,6 +16,11 @@ describe('normalizeAnswer', () => {
     expect(normalizeAnswer('1又5/8')).toBe(normalizeAnswer('1 5/8'))
   })
 
+  it('handles 又 surrounded by spaces (regression: 又→space must run before whitespace collapse)', () => {
+    expect(normalizeAnswer('3 又 1/2')).toBe('3 1/2')
+    expect(isAnswerCorrect('3 又 1/2', '3 1/2')).toBe(true)
+  })
+
   it('normalizes fraction slash spacing', () => {
     expect(normalizeAnswer('5 / 18')).toBe('5/18')
   })

@@ -142,6 +142,7 @@ mock_exam_papers (student_id, exam_scope_id, mc/sq/lq_question_ids uuid[], statu
 - **分數**（`src/lib/mockExamMarks.ts` = single source of truth，唔好 hardcode）：MC 1.5 / SQ 2 / LQ 6。標準卷 18 MC + 17 SQ + 5 LQ = 91 分。
 - **抽題**（`src/lib/mockExamSelection.ts`）：`exam_scopes.unit_ids` → topic ids → SQL 層 `.in('topic_id', …)` 強制過濾（唔係 display-only）；難度 20/60/20；`group_id` 相同嘅 sub-questions 一齊抽（atomicity）；MC pool 不足優先補 MC；LQ 唔用 group_id。
 - **Timer**：`running`（MC+SQ）→ `paused_for_lq`（做 LQ，freeze）→ `finished`。`MockExamTimer` 只喺 running tick。
+- 答錯**即時**入錯題本（連 mock exam 都係 — 2026-07-14 用戶裁定，接受考試中途 peek 錯題本嘅理論風險，唔好「修正」）。
 - **LQ 列印**：`/student/mock-exam/[paperId]/lq` server-rendered A4。
 - 家長設定範圍：`/parent/exam-scope/upload`（強制 `parent_student_relationships` 檢查 + unit_ids 必須係子女年級）。
 

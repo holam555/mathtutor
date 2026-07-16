@@ -100,6 +100,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: '記錄失敗' }, { status: 500 })
   }
 
+  // Wrong-bank writes run for ALL session types including mock_exam (user
+  // decision 2026-07-14): mistakes become practice material immediately; the
+  // theoretical mid-exam wrong-bank peek is an accepted risk.
   if (!correct) {
     if (questionSource === 'assessment_questions' && topicId) {
       await service.rpc('upsert_wrong_assessment_question', {
