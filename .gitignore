@@ -63,6 +63,8 @@ _lq_input:/
 
 # Supabase CLI temp
 supabase/.temp/
+# Dashboard log exports — contain auth_user ids + request headers (production PII)
+*_logs.csv
 
 # Root-level dev scripts (not part of deployed app)
 /lib/
