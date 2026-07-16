@@ -1,15 +1,22 @@
 name: Keep Supabase Alive
 
-# Supabase free-tier projects pause after ~7 days of inactivity.
-# This job makes one tiny read query every day to keep the project awake.
-# No AI / Gemini calls — just a single lightweight REST GET.
+# Supabase free-tier projects pause after ~7 days without "a few user
+# requests to the database each day" (their docs' wording). One request
+# per day proved to be borderline — inactivity emails kept arriving even
+# though every scheduled run succeeded. So: 3 runs a day, 3 small REST
+# selects per run. GitHub cron fires late (3-5h) but reliably.
+# No AI / Gemini calls — just lightweight REST GETs against Supabase.
 
 on:
   schedule:
-    # Runs every day at 02:17 UTC (10:17 HKT). Odd minute to avoid GitHub's
-    # busy top-of-hour scheduling queue.
-    - cron: '17 2 * * *'
+    # Odd minutes to avoid GitHub's busy top-of-hour scheduling queue.
+    - cron: '17 2 * * *'   # 02:17 UTC (10:17 HKT)
+    - cron: '43 9 * * *'   # 09:43 UTC (17:43 HKT)
+    - cron: '29 17 * * *'  # 17:29 UTC (01:29 HKT)
   workflow_dispatch: {} # allows manual "Run workflow" from the Actions tab
+
+permissions:
+  actions: write # lets the keepalive job re-enable this workflow via API
 
 jobs:
   ping:
@@ -22,14 +29,39 @@ jobs:
           SUPABASE_ANON_KEY: sb_publishable_DtP89RiN683q96G_-kUN6g_DPDHAwk1
         run: |
           set -euo pipefail
-          # Read a single row from a small, always-present table.
-          status=$(curl -sS -o /dev/null -w '%{http_code}' \
-            "${SUPABASE_URL}/rest/v1/curriculum_units?select=id&limit=1" \
-            -H "apikey: ${SUPABASE_ANON_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
-          echo "Supabase responded with HTTP ${status}"
-          if [ "${status}" -lt 200 ] || [ "${status}" -ge 400 ]; then
-            echo "::error::Unexpected status ${status} — Supabase ping failed."
+          # A few tiny reads on small, always-present tables (RLS allows
+          # anon read on curriculum tables; each select counts as one
+          # user database request).
+          endpoints=(
+            "curriculum_units?select=id&limit=1"
+            "curriculum_topics?select=id&limit=1"
+            "assessment_questions?select=id&limit=1"
+          )
+          failed=0
+          for ep in "${endpoints[@]}"; do
+            status=$(curl -sS -o /dev/null -w '%{http_code}' \
+              "${SUPABASE_URL}/rest/v1/${ep}" \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+            echo "GET /rest/v1/${ep%%\?*} -> HTTP ${status}"
+            if [ "${status}" -lt 200 ] || [ "${status}" -ge 400 ]; then
+              failed=1
+            fi
+          done
+          if [ "${failed}" -ne 0 ]; then
+            echo "::error::One or more Supabase pings failed."
             exit 1
           fi
           echo "Supabase ping OK."
+
+  keepalive:
+    # GitHub silently disables scheduled workflows after 60 days without
+    # commits on the default branch. This step re-enables the workflow via
+    # the GitHub API (no dummy commits) so the pinger never dies quietly.
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: gautamkrishnar/keepalive-workflow@v2
+        with:
+          use_api: true
