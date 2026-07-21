@@ -56,12 +56,14 @@ jobs:
 
   keepalive:
     # GitHub silently disables scheduled workflows after 60 days without
-    # commits on the default branch. This step re-enables the workflow via
-    # the GitHub API (no dummy commits) so the pinger never dies quietly.
+    # commits on the default branch. Calling the "enable workflow" API
+    # resets that timer (no dummy commits, no third-party action —
+    # gautamkrishnar/keepalive-workflow got ToS-blocked by GitHub).
     runs-on: ubuntu-latest
     permissions:
       actions: write
     steps:
-      - uses: gautamkrishnar/keepalive-workflow@v2
-        with:
-          use_api: true
+      - name: Reset the 60-day scheduled-workflow disable timer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keep-supabase-alive.yml/enable"
